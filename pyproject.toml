@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-job-hunter"
+version = "0.1.0"
+description = "A personal, deliberate job discovery and application tracking system."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "alembic>=1.13,<2",
+    "pydantic-settings>=2.2,<3",
+    "psycopg[binary]>=3.2,<4",
+    "SQLAlchemy>=2.0,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
