@@ -32,6 +32,8 @@ venv/
 *.sqlite3-*
 *.dump
 /data/
+/data/local/
+*.local.json
 /private/
 /secrets/
 candidate.local.*

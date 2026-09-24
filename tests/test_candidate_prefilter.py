@@ -141,6 +141,26 @@ def test_go_is_detected_when_context_is_explicit_but_not_as_an_ordinary_verb() -
     assert ambiguous_title == ()
 
 
+def test_node_and_node_js_are_one_canonical_technology() -> None:
+    technologies, required = extract_job_technologies(
+        "Backend Engineer",
+        "Must have Node, Node.js, and Python experience.",
+    )
+
+    assert technologies == ("node.js", "python")
+    assert required == ("node.js", "python")
+
+
+def test_scala_is_detected_as_a_language_and_required_cue() -> None:
+    technologies, required = extract_job_technologies(
+        "Backend Engineer",
+        "Scala is required; Kotlin is nice to have.",
+    )
+
+    assert technologies == ("kotlin", "scala")
+    assert required == ("scala",)
+
+
 @pytest.mark.parametrize(
     ("eligibility", "location", "expected"),
     [
@@ -159,6 +179,16 @@ def test_geographic_eligibility_conservative_cases(eligibility, location, expect
     assert result.signals.geography.status is expected
     if expected is SignalStatus.UNKNOWN:
         assert result.decision is not PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize("location", ["Europe", "Europe, Israel", "USA, Canada, Europe", "EU", "EMEA"])
+def test_remote_regional_restrictions_include_a_candidate_in_spain(location: str) -> None:
+    result = evaluate_job(
+        facts_for(remote_eligibility="COUNTRY_RESTRICTED", location=location),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.COMPATIBLE
 
 
 def test_eu_remote_works_for_a_candidate_in_spain() -> None:
@@ -260,6 +290,32 @@ def test_unknown_seniority_with_a_boundary_is_review_not_reject() -> None:
 
     assert result.signals.seniority.status is SignalStatus.UNKNOWN
     assert result.decision is PreFilterDecision.REVIEW
+
+
+def test_role_match_does_not_match_only_on_generic_engineer_token() -> None:
+    candidate = make_config(
+        preferences={
+            "preferred_roles": [
+                "Backend Engineer",
+                "Backend Developer",
+                "Software Engineer",
+                "Software Developer",
+                "Platform Engineer",
+                "Full Stack Engineer",
+            ]
+        }
+    )
+
+    service_desk = evaluate_job(
+        facts_for(title="Tier III Service Desk Engineer"),
+        candidate,
+    )
+    backend = evaluate_job(facts_for(title="Junior Backend Engineer"), candidate)
+    generic_software = evaluate_job(facts_for(title="Software Engineer"), candidate)
+
+    assert service_desk.signals.preferred_role.status is SignalStatus.UNKNOWN
+    assert backend.signals.preferred_role.status is SignalStatus.COMPATIBLE
+    assert generic_software.signals.preferred_role.status is SignalStatus.COMPATIBLE
 
 
 def test_pass_review_and_reject_decisions_are_explainable() -> None:

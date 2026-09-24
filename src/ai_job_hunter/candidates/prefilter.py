@@ -192,6 +192,13 @@ _EMEA_COUNTRIES = _EU_COUNTRIES | {
     "United Arab Emirates",
     "South Africa",
 }
+_EUROPE_COUNTRIES = _EU_COUNTRIES | {
+    "United Kingdom",
+    "Norway",
+    "Switzerland",
+    "Iceland",
+    "Turkey",
+}
 _BACKEND_SKILL = re.compile(
     r"\b(?:back\s*end|backend|software\s+(?:engineering|development)|"
     r"api\s+development|distributed\s+systems)\b",
@@ -388,16 +395,17 @@ def _evaluate_geography(facts: JobFacts, candidate: CandidateConfig) -> SignalAs
     if facts.remote_eligibility is RemoteEligibility.COUNTRY_RESTRICTED or (
         facts.remote_policy is RemotePolicy.REMOTE and offer_countries
     ):
-        if not offer_countries:
+        restricted_countries = offer_countries | _remote_region_countries(facts.location)
+        if not restricted_countries:
             return SignalAssessment(SignalStatus.UNKNOWN, "Remote country restriction is not recognized.")
-        if offer_countries & current_countries:
+        if restricted_countries & current_countries:
             return SignalAssessment(SignalStatus.COMPATIBLE, "Remote country restriction includes the candidate's current country.")
         if not preferences.international_remote_openness and current_countries:
             return SignalAssessment(
                 SignalStatus.INCOMPATIBLE,
                 "The remote role is restricted to another country and international remote work is disabled in preferences.",
             )
-        if preferences.relocation_willingness and offer_countries & eligible_countries:
+        if preferences.relocation_willingness and restricted_countries & eligible_countries:
             return SignalAssessment(SignalStatus.COMPATIBLE, "Remote country restriction matches an eligible country and relocation is allowed.")
         if known_countries:
             return SignalAssessment(SignalStatus.INCOMPATIBLE, "Remote country restriction excludes the candidate's current and eligible countries.")
@@ -499,9 +507,16 @@ def _evaluate_role(title: str, preferences: CandidatePreferences) -> SignalAsses
         return SignalAssessment(SignalStatus.COMPATIBLE, "No preferred role keywords are configured.")
     title_tokens = normalize_job_title(title).tokens
     for role in preferences.preferred_roles:
-        if normalize_job_title(role).tokens & title_tokens:
-            return SignalAssessment(SignalStatus.COMPATIBLE, f"Offer title shares role terms with '{role}'.")
-    return SignalAssessment(SignalStatus.UNKNOWN, "Offer title has no explicit token overlap with preferred roles.")
+        role_tokens = normalize_job_title(role).tokens
+        if role_tokens and role_tokens <= title_tokens:
+            return SignalAssessment(
+                SignalStatus.COMPATIBLE,
+                f"Offer title contains all normalized role terms from '{role}'.",
+            )
+    return SignalAssessment(
+        SignalStatus.UNKNOWN,
+        "Offer title has no complete normalized preferred-role match.",
+    )
 
 
 def _evaluate_preferred_location(
@@ -592,4 +607,20 @@ def _countries_in(values: Iterable[str | None]) -> set[str]:
         for alias, pattern in _COUNTRY_PATTERNS:
             if pattern.search(folded):
                 result.add(_ALIAS_TO_COUNTRY[alias])
+    return result
+
+
+def _remote_region_countries(location: str | None) -> set[str]:
+    """Expand explicit EU/Europe/EMEA eligibility labels to their countries."""
+
+    if not location:
+        return set()
+    folded = location.casefold()
+    result: set[str] = set()
+    if re.search(r"\b(?:eu|european union)\b", folded):
+        result.update(_EU_COUNTRIES)
+    if re.search(r"\beurope\b", folded):
+        result.update(_EUROPE_COUNTRIES)
+    if re.search(r"\bemea\b", folded):
+        result.update(_EMEA_COUNTRIES)
     return result
