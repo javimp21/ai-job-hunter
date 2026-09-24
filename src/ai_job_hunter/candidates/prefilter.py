@@ -204,6 +204,16 @@ _BACKEND_SKILL = re.compile(
     r"api\s+development|distributed\s+systems)\b",
     re.IGNORECASE,
 )
+_CLEARLY_UNRELATED_ROLE = re.compile(
+    r"^[\W_]*(?:(?:senior|junior|mid|lead|staff|principal|freelance|contract|temporary|"
+    r"inbound|outbound|inside|field|technical|virtual|remote)\s+)*(?:sales|ventas|account executive|"
+    r"business development|customer (?:support|service|success)|copywriter|writer|"
+    r"content creator|social media manager|office assistant|administrative assistant|"
+    r"executive assistant|virtual assistant|kundenservice|kundensupport|kundenbetreuung|"
+    r"kundendienst|atenci[oó]n al cliente|servicio al cliente|service client|"
+    r"assistance clientèle|assistenza clienti)\b",
+    re.IGNORECASE,
+)
 
 
 def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterResult:
@@ -237,6 +247,12 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     )
     hard_mismatches: list[str] = []
     review_reasons: list[str] = []
+
+    unrelated_role = _CLEARLY_UNRELATED_ROLE.search(facts.title)
+    if unrelated_role:
+        hard_mismatches.append(
+            f"Title clearly identifies the unrelated role category '{unrelated_role.group(0)}'."
+        )
 
     for label, assessment in (
         ("Geography", geography),

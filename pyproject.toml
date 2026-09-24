@@ -19,6 +19,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",
+    "typesafe-sdk==0.7.1",
+]
+jev = [
+    "typesafe-sdk==0.7.1",
 ]
 
 [tool.setuptools.packages.find]

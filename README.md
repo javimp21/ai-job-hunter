@@ -84,7 +84,7 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 `--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
 
-There is no LinkedIn/Indeed connector, browser scraping, Jev integration, LLM integration, frontend, application tracking, outreach, or automatic application behavior.
+There is no LinkedIn/Indeed connector, browser scraping, external Company Intelligence, frontend, application tracking, outreach, or automatic application behavior.
 
 ## Candidate profile and deterministic pre-filter
 
@@ -116,7 +116,84 @@ Geography uses only known country aliases and the existing `RemoteEligibility` /
 
 Salary is compared only when offer and preference currencies and periods match exactly. No currency or annualization conversions are made. A range wholly below the minimum is `BELOW_MINIMUM`; a range whose floor meets the configured target (or minimum, when no target exists) is `MEETS_TARGET`; a range that crosses the floor or target without guaranteeing it is `BETWEEN_MINIMUM_AND_TARGET`; absent or incompatible salary data is `UNKNOWN`. Unknown salary is never rejected.
 
-This is an explainable noise-reduction layer, not a final apply/no-apply decision engine. It does not calculate an arbitrary percentage score. Company-type, startup/product, and consulting preferences are deferred because current offer facts do not classify companies consistently. Jev may be added later for less deterministic judgments, after this filter has narrowed the set for human or AI review.
+This is an explainable first layer, not a final apply/no-apply recommendation. It does not calculate an arbitrary percentage score. Company-type, startup/product, and consulting preferences are deferred because current offer facts do not classify companies consistently.
+
+## Jev decision engine
+
+The optional Jev layer adds semantic judgments only after deterministic filtering:
+
+```text
+Job
+  -> deterministic pre-filter
+       -> hard REJECT / exact duplicate / clearly unrelated title: SKIP, no Jev call
+       -> PASS or REVIEW: eligible for Jev
+            -> typed Jev signals
+                 -> deterministic APPLY / REVIEW / SKIP policy
+```
+
+The pre-filter keeps control of explicit geography, configured salary arithmetic, seniority boundaries, technology extraction, and repeated source IDs or job URLs. A small safe title rule also skips clear sales, customer support/service/success, writing/copywriting, and assistant roles without treating the word `Engineer` as evidence of backend fit. An unknown preferred-role match stays eligible for Jev.
+
+### What Jev evaluates
+
+One TypeSafe System One request asks seven independent typed questions. The state is compact and omits source URLs, candidate current salary, authorization details, and unrelated profile fields. It includes approximate experience, current/preferred roles, primary/secondary skills, technologies and willing-to-learn technologies; relevant salary preferences only when the offer has a comparable structured salary; current country and deterministic geography signals; offer title/company/location/work mode/employment type/description/structured salary/technologies/seniority; and the pre-filter outcome, reasons, and `JobFacts`.
+
+The rubric is versioned as `job_decision_v1`. The exact prompts and score anchors live in [`src/ai_job_hunter/rubric.py`](src/ai_job_hunter/rubric.py) and are also included in the decision-cache key.
+
+| Name / type | Question sent to Jev |
+| --- | --- |
+| `role_relevance` / Noul | Is this role substantively relevant to a software/backend engineering candidate? Assess the actual work and domain; penalize sales, customer support, copywriting, office-assistant, and unrelated duties. Do not treat a shared word such as Engineer as sufficient. |
+| `experience_accessibility` / Noul | Given approximately this candidate's experience and the job requirements, is this role realistically accessible enough to justify applying? Requirements of 2 years or 2–3 years are not automatically hard blockers. Staff, Principal, Engineering Manager, or clearly senior roles requiring many years are normally inaccessible. Consider the offer's actual requirements and stated flexibility. |
+| `backend_relevance` / Score 0–4 | How strongly does this role involve backend/software systems work relevant to this candidate? Consider full-stack, platform, generic software-engineer, AI-engineer, and support-engineering-like titles by the work described, not title keywords alone. |
+| `stack_transferability` / Noul | Can the candidate's current backend foundation plausibly transfer to this job's core technology stack? Treat Java/Spring as a possible foundation for adjacent backend stacks such as Kotlin, Scala, Go, Python, Node.js, and cloud/backend work when the responsibilities support that transfer; do not imply transfer to a substantially different discipline. |
+| `requirements_flexibility` / Noul | Do the stated requirements appear flexible enough that the candidate could reasonably apply despite not matching every listed technology or year requirement? Distinguish strict hard requirements from wish lists, broad marketplace technology catalogs, and generic mentions. |
+| `career_value` / Score 0–4 | How much technical growth value could this role offer this candidate, based only on evidence in the offer? Consider production ownership, architecture, CI/CD, cloud, testing, backend systems, distributed systems, deployment, small engineering teams, and meaningful responsibility. If the offer does not provide enough information, reflect that uncertainty through low answer confidence. |
+| `observable_role_quality` / Score 0–4 | How strong is the observable quality of this role description and role scope for this candidate? Use only information present in the offer. Do not use prior knowledge of the company name or infer company reputation, funding, culture, salary, or other company facts that are not stated. Sparse or generic information should have low confidence. |
+
+Noul values are the SDK's 0–1 yes probability. Score answers use the five ordered rubric levels (0–4), normalized to 0–1 for the local policy; the SDK's score confidence and score probability distribution are retained when provided. The result stores all seven signals, confidence/probabilities, actual model returned by TypeSafe, SDK/model configuration, token counts when reported, rubric version, deterministic evidence, and evaluation timestamp. These signals are not claims about hiring probability.
+
+### Final recommendation policy
+
+The program, not Jev, chooses the final recommendation:
+
+- A deterministic hard rejection or exact duplicate is `SKIP` without an engine call.
+- Jev role relevance below `0.20` is `SKIP`; experience accessibility below `0.15` is `SKIP`.
+- Any missing signal, or missing/less-than-`0.40` confidence on one of the three Score answers, yields `REVIEW` unless one of the two preceding Jev signals already justifies `SKIP`.
+- `APPLY` requires role relevance ≥ `0.70`, experience accessibility ≥ `0.60`, backend relevance ≥ `0.60`, stack transferability ≥ `0.55`, requirements flexibility ≥ `0.45`, and observable role quality ≥ `0.35`, with adequate Score confidence.
+- Career value ≥ `0.80` may lower the stack threshold to `0.45` and requirements-flexibility threshold to `0.35`. It cannot override relevance, accessibility, backend, quality, or deterministic constraints.
+- Contradictory role/backend, backend/stack, or experience/career-value signals yield `REVIEW`. Other results that do not meet all `APPLY` gates are also `REVIEW` with reasons constructed from the signal values.
+
+Jev handles ambiguous role relevance, experience accessibility, backend relevance, stack transferability, requirement flexibility, career value, and observable role-description quality. It does not enforce geography, perform salary arithmetic, infer seniority tokens, extract technologies, identify source records, deduplicate, decide database behavior, auto-apply, or estimate the probability of getting hired. No external Company Intelligence, application submission, or outreach is part of this feature.
+
+### Official SDK and authentication
+
+The implementation uses TypeSafe AI's official [`typesafe-sdk` Python SDK](https://github.com/typesafe-ai/typesafe-sdk-python), pinned to **0.7.1**. Its client reads `TYPESAFE_API_KEY` from the process environment and defaults to the currently recommended `jev-latest` model; the CLI records the concrete model name returned by each request. Sync `TypeSafeClient.system_one(state=..., questions=...)` accepts named `Noul` and `Score` question objects and returns typed answers, model metadata, and reported token usage. The official `system-one-adapter-python` was reviewed, but is not installed: it requires configuring a separate LLM provider and is unnecessary for offline tests or the Jev integration.
+
+Install the development/test and Jev extras:
+
+```powershell
+python -m pip install -e ".[dev,jev]"
+```
+
+Set the key only in the current PowerShell process before live evaluation; do not put it in source control:
+
+```powershell
+$env:TYPESAFE_API_KEY = "<your TypeSafe API key>"
+```
+
+An offline dry-run over a saved snapshot makes no Remotive or Jev requests:
+
+```powershell
+python -m ai_job_hunter.remotive_cli `
+  --candidate-config candidate.local.json `
+  --snapshot data/local/remotive-snapshot-2026-09-24.local.json `
+  --dry-run-jev --max-jev-jobs 1
+```
+
+To deliberately enable live Jev evaluation, use `--decision-engine jev`. If the key is missing, the CLI exits with an explicit error and never falls back to another engine. `--max-jev-jobs N` limits new evaluations; valid cached results do not consume the limit. `--jev-model` selects a model name, and its configured value participates in cache identity.
+
+The JSON decision cache defaults to `data/local/job-decision-cache.local.json`, which is ignored with the private local data directory. It stores structured results, not the full prompt state. Its key covers source identity and effective job facts/description, the candidate profile and preferences, deterministic result, SDK/model configuration, rubric version, prompts, and score anchors. Changing any of these produces a cache miss. The concrete model returned by TypeSafe is retained for audit; pin `--jev-model` to a concrete model name when you want to avoid following the `jev-latest` alias.
+
+Tests use a fake engine or synthetic SDK response and never need an API key or network access.
 
 ## Stack
 
@@ -200,7 +277,7 @@ Tests use in-memory SQLite and do not require Internet access or a running Postg
 2. Phase 2 - Job ingestion + normalization
 3. Phase 3 - Deterministic deduplication (initial conservative rules implemented)
 4. Phase 4 - Company Intelligence
-5. Phase 5 - Decision Engine + Jev
+5. Phase 5 - Decision Engine + Jev (implemented)
 6. Phase 6 - Application Tracking
 7. Phase 7 - Outreach / Referrals
 8. Phase 8 - Assisted Application Agent

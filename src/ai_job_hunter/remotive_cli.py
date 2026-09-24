@@ -4,22 +4,33 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from ai_job_hunter.candidates import (
     CandidateConfig,
     CandidateConfigError,
-    JobFacts,
     PreFilterDecision,
-    evaluate_job,
     load_candidate_config,
 )
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
+from ai_job_hunter.decision_engine import (
+    RUBRIC_VERSION,
+    DecisionCache,
+    FinalDecision,
+    JobDecisionContext,
+    JobDecisionError,
+    JobDecisionResult,
+    build_decision_contexts,
+    evaluate_job_decision,
+)
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.domain.normalized_job import NormalizedJob
+from ai_job_hunter.jev import JevJobDecisionEngine
 from ai_job_hunter.services.pipeline import PipelineSummary, run_ingestion_pipeline
 from ai_job_hunter.snapshots import (
     RemotiveSnapshotError,
@@ -65,12 +76,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="PATH",
         help="evaluate fetched or snapshot offers with a local candidate JSON config",
     )
+    parser.add_argument(
+        "--decision-engine",
+        choices=("jev",),
+        help="evaluate eligible ambiguous offers with TypeSafe Jev",
+    )
+    parser.add_argument(
+        "--dry-run-jev",
+        action="store_true",
+        help="show snapshot offers eligible for Jev without making Jev or source requests",
+    )
+    parser.add_argument(
+        "--max-jev-jobs",
+        type=int,
+        help="maximum new Jev evaluations (cached results do not consume the limit)",
+    )
+    parser.add_argument(
+        "--jev-model",
+        default="jev-latest",
+        help="TypeSafe model name (default: jev-latest)",
+    )
+    parser.add_argument(
+        "--decision-cache",
+        default="data/local/job-decision-cache.local.json",
+        metavar="PATH",
+        help="private local cache for structured decision results",
+    )
     args = parser.parse_args(argv)
 
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be a positive integer")
     if args.show is not None and args.show < 0:
         parser.error("--show cannot be negative")
+    if args.max_jev_jobs is not None and args.max_jev_jobs < 0:
+        parser.error("--max-jev-jobs cannot be negative")
     if args.ingest and args.candidate_config:
         parser.error("--candidate-config is preview-only and cannot be combined with --ingest")
     if args.ingest and (args.snapshot or args.save_snapshot):
@@ -81,6 +120,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.limit is not None or args.all or args.search or args.category or args.company_name
     ):
         parser.error("API filters cannot be used when replaying a snapshot")
+    if (args.decision_engine or args.dry_run_jev) and not args.candidate_config:
+        parser.error("--decision-engine and --dry-run-jev require --candidate-config")
+    if args.dry_run_jev and not args.snapshot:
+        parser.error("--dry-run-jev requires --snapshot so the dry run cannot access Remotive")
+    if args.dry_run_jev and args.decision_engine:
+        parser.error("--dry-run-jev and --decision-engine cannot be used together")
+    if args.ingest and (args.decision_engine or args.dry_run_jev):
+        parser.error("decision evaluation cannot be combined with --ingest")
+    if args.max_jev_jobs is not None and not (args.decision_engine or args.dry_run_jev):
+        parser.error("--max-jev-jobs requires --decision-engine jev or --dry-run-jev")
+    if args.decision_engine == "jev" and not os.environ.get("TYPESAFE_API_KEY", "").strip():
+        LOGGER.error(
+            "The Jev engine needs TYPESAFE_API_KEY. Set the environment variable before using --decision-engine jev."
+        )
+        return 1
 
     candidate_config = None
     if args.candidate_config:
@@ -127,6 +181,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             LOGGER.info("Saved normalized Remotive snapshot to %s", snapshot_path)
 
     if args.candidate_config:
+        contexts = build_decision_contexts(offers, candidate_config)
+        if args.dry_run_jev:
+            _print_jev_dry_run(contexts, max_jobs=args.max_jev_jobs)
+            return 0
+        if args.decision_engine == "jev":
+            return _run_jev_evaluations(
+                contexts,
+                JevJobDecisionEngine(model=args.jev_model),
+                DecisionCache(args.decision_cache),
+                max_jobs=args.max_jev_jobs,
+            )
         report = _build_evaluation_report(offers, candidate_config)
         _print_evaluation_report(report, show=args.show)
         return 0
@@ -146,9 +211,10 @@ def _build_evaluation_report(
     """Create complete structured decision records for every normalized offer."""
 
     report: list[dict[str, Any]] = []
-    for offer in offers:
-        facts = JobFacts.from_normalized_job(offer)
-        result = evaluate_job(facts, candidate_config)
+    for context in build_decision_contexts(offers, candidate_config):
+        offer = context.offer
+        facts = context.facts
+        result = context.deterministic
         report.append(
             {
                 "title": facts.title,
@@ -182,6 +248,151 @@ def _build_evaluation_report(
             }
         )
     return report
+
+
+def _print_jev_dry_run(
+    contexts: list[JobDecisionContext],
+    *,
+    max_jobs: int | None,
+) -> None:
+    """List precisely the offers that the live mode would pass to Jev."""
+
+    hard_skips = [
+        context
+        for context in contexts
+        if context.duplicate_reason is not None
+        or context.deterministic.decision is PreFilterDecision.REJECT
+    ]
+    eligible = [
+        context
+        for context in contexts
+        if context.duplicate_reason is None
+        and context.deterministic.decision is not PreFilterDecision.REJECT
+    ]
+    scheduled = len(eligible) if max_jobs is None else min(max_jobs, len(eligible))
+    print(f"TOTAL: {len(contexts)}")
+    print(f"HARD SKIP: {len(hard_skips)}")
+    print(f"JEV ELIGIBLE: {len(eligible)}")
+    print(f"WOULD CALL: {scheduled}")
+    if max_jobs is not None:
+        print(f"DEFERRED BY LIMIT: {len(eligible) - scheduled}")
+    print("OFFERS THAT WOULD RECEIVE A CALL:")
+    for context in eligible[:scheduled]:
+        company = context.offer.company_name or "Company not supplied"
+        print(
+            f"- {context.facts.title} — {company} "
+            f"[deterministic {context.deterministic.decision.value}]"
+        )
+
+
+def _run_jev_evaluations(
+    contexts: list[JobDecisionContext],
+    engine: JevJobDecisionEngine,
+    cache: DecisionCache,
+    *,
+    max_jobs: int | None,
+) -> int:
+    results: list[tuple[JobDecisionContext, JobDecisionResult]] = []
+    new_evaluations = 0
+    try:
+        for context in contexts:
+            is_hard_skip = context.duplicate_reason is not None or (
+                context.deterministic.decision is PreFilterDecision.REJECT
+            )
+            key = cache.key_for(context, engine.cache_identity, RUBRIC_VERSION)
+            is_cached = not is_hard_skip and cache.contains(key)
+            if (
+                not is_hard_skip
+                and not is_cached
+                and max_jobs is not None
+                and new_evaluations >= max_jobs
+            ):
+                results.append((context, _deferred_result(context, engine.cache_identity)))
+                continue
+            result = evaluate_job_decision(context, engine, cache=cache)
+            if not is_hard_skip and not result.cache_hit:
+                new_evaluations += 1
+            results.append((context, result))
+    except JobDecisionError as error:
+        LOGGER.error("Jev evaluation stopped: %s", error)
+        return 1
+
+    hard_skips = sum(
+        context.duplicate_reason is not None
+        or context.deterministic.decision is PreFilterDecision.REJECT
+        for context in contexts
+    )
+    eligible = sum(
+        context.duplicate_reason is None
+        and context.deterministic.decision is not PreFilterDecision.REJECT
+        for context in contexts
+    )
+    cached = sum(result.cache_hit for _, result in results)
+    evaluated = sum(result.jev_answers is not None for _, result in results)
+    deferred = sum(result.jev_answers is None and result.final_decision is FinalDecision.REVIEW for _, result in results)
+    print(f"TOTAL: {len(contexts)}")
+    print(f"HARD SKIP: {hard_skips}")
+    print(f"JEV ELIGIBLE: {eligible}")
+    print(f"EVALUATED WITH JEV: {evaluated} ({new_evaluations} new, {cached} cache hits)")
+    print(f"DEFERRED BY LIMIT: {deferred}")
+    for context, result in results:
+        if result.jev_answers is None:
+            continue
+        _print_decision_result(context, result)
+    return 0
+
+
+def _deferred_result(context: JobDecisionContext, engine_configuration: str) -> JobDecisionResult:
+    from ai_job_hunter.decision_engine import DeterministicDecisionSummary
+
+    return JobDecisionResult(
+        final_decision=FinalDecision.REVIEW,
+        reasons=("Deferred without a Jev call by --max-jev-jobs.",),
+        jev_answers=None,
+        deterministic_result=DeterministicDecisionSummary(
+            prefilter_decision=context.deterministic.decision,
+            reasons=context.deterministic.reasons,
+        ),
+        model_version=None,
+        engine_configuration=engine_configuration,
+        evaluated_at=datetime.now(UTC),
+    )
+
+
+def _print_decision_result(context: JobDecisionContext, result: JobDecisionResult) -> None:
+    answers = result.jev_answers
+    assert answers is not None
+    company = context.offer.company_name or "Company not supplied"
+    print(f"\n{context.facts.title} — {company}")
+    print(f"Deterministic: {result.deterministic_result.prefilter_decision.value}")
+    for reason in result.deterministic_result.reasons:
+        print(f"  - {reason}")
+    print("Jev:")
+    for name in (
+        "role_relevance",
+        "experience_accessibility",
+        "backend_relevance",
+        "stack_transferability",
+        "requirements_flexibility",
+        "career_value",
+        "observable_role_quality",
+    ):
+        signal = getattr(answers, name)
+        if signal is None or signal.value is None:
+            print(f"  {name.replace('_', ' ')}: missing")
+        elif signal.question_type == "score":
+            confidence = "unknown" if signal.confidence is None else f"{signal.confidence:.2f}"
+            print(
+                f"  {name.replace('_', ' ')}: {signal.value:.2f} "
+                f"(score {signal.raw_value:.2f}/4, confidence {confidence})"
+            )
+        else:
+            print(f"  {name.replace('_', ' ')}: {signal.value:.2f} (Noul yes probability)")
+    print(f"Model: {result.model_version}; rubric: {result.rubric_version}; cache hit: {result.cache_hit}")
+    print(f"Final: {result.final_decision.value}")
+    print("Reasons:")
+    for reason in result.reasons:
+        print(f"  - {reason}")
 
 
 def _decimal_text(value: Decimal | None) -> str | None:
