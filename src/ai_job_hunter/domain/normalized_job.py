@@ -58,6 +58,8 @@ class NormalizedJob(BaseModel):
     provider: str = Field(min_length=1, max_length=100)
     external_id: str | None = Field(default=None, max_length=512)
     source_url: str | None = Field(default=None, max_length=2048)
+    canonical_url: str | None = Field(default=None, max_length=2048)
+    apply_url: str | None = Field(default=None, max_length=2048)
     title: str = Field(min_length=1, max_length=255)
     company_name: str | None = Field(default=None, max_length=255)
     company_website: str | None = Field(default=None, max_length=2048)
@@ -74,7 +76,15 @@ class NormalizedJob(BaseModel):
     discovered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     raw_metadata: dict[str, Any] | None = None
 
-    @field_validator("external_id", "source_url", "company_name", "company_website", mode="before")
+    @field_validator(
+        "external_id",
+        "source_url",
+        "canonical_url",
+        "apply_url",
+        "company_name",
+        "company_website",
+        mode="before",
+    )
     @classmethod
     def blank_optional_text_is_missing(cls, value: Any) -> Any:
         if isinstance(value, str) and not value.strip():

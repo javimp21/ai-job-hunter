@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.connectors.protocol import JobConnector
 from ai_job_hunter.domain.normalized_job import NormalizedJob
-from ai_job_hunter.services.ingestion import IngestionStatus, ingest_job
+from ai_job_hunter.services.ingestion import (
+    IngestionResult,
+    IngestionStatus,
+    ingest_job,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,8 +29,12 @@ class PipelineSummary:
     fetched: int = 0
     created: int = 0
     already_known: int = 0
+    matched_existing: int = 0
+    possible_match: int = 0
     failed: int = 0
     failures: list[PipelineFailure] = field(default_factory=list)
+    possible_matches: list[IngestionResult] = field(default_factory=list)
+    matched_results: list[IngestionResult] = field(default_factory=list)
 
 
 def run_ingestion_pipeline(connector: JobConnector, session: Session) -> PipelineSummary:
@@ -65,5 +73,11 @@ def _ingest_one(offer: NormalizedJob, session: Session, summary: PipelineSummary
 
     if result.status is IngestionStatus.CREATED:
         summary.created += 1
-    else:
+    elif result.status is IngestionStatus.ALREADY_KNOWN:
         summary.already_known += 1
+    elif result.status is IngestionStatus.MATCHED_EXISTING:
+        summary.matched_existing += 1
+        summary.matched_results.append(result)
+    elif result.status is IngestionStatus.POSSIBLE_MATCH:
+        summary.possible_match += 1
+        summary.possible_matches.append(result)

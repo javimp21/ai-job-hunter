@@ -51,8 +51,10 @@ def test_repeated_provider_id_refreshes_existing_source_and_reuses_company(
 
     job = db_session.get(Job, first.job_id)
     source = db_session.get(JobSource, first.job_source_id)
-    assert job is not None and job.title == "Senior Platform Engineer"
-    assert job.description == "Build and operate platform services."
+    # A known source can refresh its own snapshot, but canonical fields are
+    # only completed when missing; later source data cannot overwrite them.
+    assert job is not None and job.title == "Platform Engineer"
+    assert job.description == "Build platform services."
     assert source is not None
     assert source.salary_min == Decimal("70000.00")
     assert source.salary_max == Decimal("85000.00")
@@ -60,7 +62,7 @@ def test_repeated_provider_id_refreshes_existing_source_and_reuses_company(
     assert source.discovered_at.replace(tzinfo=UTC) == original.discovered_at
 
 
-def test_missing_external_id_does_not_deduplicate(db_session) -> None:
+def test_missing_external_id_never_auto_merges_without_strong_url(db_session) -> None:
     offer = NormalizedJob(
         provider="example-board",
         external_id=None,
@@ -74,9 +76,10 @@ def test_missing_external_id_does_not_deduplicate(db_session) -> None:
     second = ingest_job(db_session, offer)
 
     assert first.status is IngestionStatus.CREATED
-    assert second.status is IngestionStatus.CREATED
+    assert second.status is IngestionStatus.POSSIBLE_MATCH
     assert first.job_id != second.job_id
     assert first.job_source_id != second.job_source_id
+    assert len(second.possible_matches) == 1
     assert db_session.scalar(select(func.count()).select_from(Job)) == 2
     assert db_session.scalar(select(func.count()).select_from(JobSource)) == 2
     assert db_session.scalar(select(func.count()).select_from(Company)) == 1
