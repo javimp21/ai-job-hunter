@@ -4,7 +4,7 @@ AI Job Hunter is the foundation for a personal system that discovers job opportu
 
 ## Current architecture
 
-The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. The first real source is Remotive; its adapter translates the public JSON API response into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
+The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. Sources include Remotive, a job aggregator, and direct employer job boards hosted by Greenhouse or Lever (ATS platforms). Each adapter translates its public postings into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
 
 ```text
 External source -> connector -> NormalizedJob
@@ -62,6 +62,41 @@ The connector maps the documented fields conservatively:
 The [official API documentation](https://github.com/remotive-com/remote-jobs-api) says the public API is intended to let developers share Remotive jobs, requires linking to each Remotive listing and naming Remotive as the source, and prohibits submitting its jobs to third-party job sites. It says listings are delayed by 24 hours, recommends no more than four requests per day, and warns that more than two requests per minute will be blocked. The [site terms](https://remotive.com/terms-of-use) also restrict scraping and redistribution. This connector uses the documented API only for the personal local database; do not publish, resell, or republish its listings. The preview CLI includes a Remotive attribution and direct listing link.
 
 The API does not expose a company website or apply URL in its documented job record. These remain null rather than being guessed from the company logo or Remotive listing. The API's salary field is free text and publication timestamps may lack a timezone, so some structured salary/date fields will intentionally remain empty.
+
+## Greenhouse and Lever sources
+
+Remotive is an **aggregator**: one API supplies jobs from many employers. Greenhouse and Lever are **ATS platforms**: each configured source points to one employer's publicly published job board. Add or remove employers in a local source list; no connector code changes are needed.
+
+```text
+Sources
+├── Remotive — aggregator
+├── Greenhouse — employer ATS
+└── Lever — employer ATS
+```
+
+The Greenhouse connector calls the public Job Board API at `https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs?content=true`. The board token is the slug from the company's public Greenhouse job-board URL. Its GET endpoints require no authentication. The jobs response does not document pagination; `content=true` includes descriptions, departments, and offices. A job post's `id`, `title`, `location.name`, `updated_at`, `absolute_url`, and optional `content`/`metadata` are mapped when present. The board API supplies one job URL, so the connector does not invent a separate apply URL. Employment type, salary, remote work, and eligibility remain unknown unless the API provides a structured field (custom board metadata is preserved in `raw_metadata`).
+
+The Lever connector calls the public Postings API, normally `https://api.lever.co/v0/postings/{site}?mode=json`; use `https://api.eu.lever.co` for EU-hosted boards. The `site` is the public site slug. The public feed contains published postings; internal, draft, and other hidden postings are not returned. It supports `skip`/`limit` pagination (up to 100 per request) and documented filters such as location, commitment, team, department, and level. The connector reads all pages unless `max_jobs` is set. It maps the structured hosted/apply URLs, location, workplace type, commitment, optional salary range, and timestamps where available. Remote workplace mode does not establish which countries are eligible; `remote_eligibility` therefore stays unknown. Original JSON is kept in `raw_metadata`.
+
+Both connectors make read-only GET requests to these public postings interfaces. They do not submit applications. Greenhouse's public GET documentation lists no attribution requirement or rate limit; Lever documents public postings and pagination, but no read-request rate limit in the Postings API guide. The runner uses bounded timeouts and does not retry requests automatically. Keep the request volume small and use the employer listing URL when sharing an individual offer.
+
+Copy `config/examples/job_sources.example.json` to the ignored local path `job_sources.local.json`, then change the provider and public board identifier. The example names and IDs are fictitious. `company_name` is an optional display label; `region` is only used by Lever, and `max_jobs` caps normalized results (Lever can also stop fetching pages at that cap; Greenhouse exposes its jobs as one list). `job_sources.local.*` is ignored by Git.
+
+Fetch and review configured boards, saving a private multi-source snapshot:
+
+```powershell
+python -m ai_job_hunter.jobs_cli --sources job_sources.local.json --candidate-config candidate.local.json --save-snapshot data/local/startup-jobs.local.json
+```
+
+Replay the snapshot offline without calling Greenhouse, Lever, or Remotive:
+
+```powershell
+python -m ai_job_hunter.jobs_cli --snapshot data/local/startup-jobs.local.json --candidate-config candidate.local.json
+```
+
+The snapshot stores each provider on each normalized offer. The runner reports `TOTAL`, deterministic `HARD SKIP`, and `JEV ELIGIBLE` counts and details. It does not call Jev. `--ingest` may be added to pass the fetched or replayed batch through the existing idempotent ingestion and cross-source matching pipeline after configuring the database. The previous Remotive snapshot format remains readable by the generic offline runner.
+
+Documentation: [Greenhouse Job Board API](https://docs.greenhouse.io/job-board.html), [Lever Postings API](https://github.com/lever/postings-api), [Lever Postings API FAQ](https://hire.lever.co/developer/support).
 
 Preview a small sample without connecting to the database:
 

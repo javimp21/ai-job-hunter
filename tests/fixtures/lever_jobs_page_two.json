@@ -1,0 +1,11 @@
+[
+  {
+    "id": "lever-role-3",
+    "text": "Software Engineer",
+    "categories": {"location": "Lisbon, Portugal", "commitment": "Contract"},
+    "descriptionPlain": "Build and maintain internal tools.",
+    "hostedUrl": "https://jobs.eu.lever.co/exampleco/lever-role-3",
+    "applyUrl": "https://jobs.eu.lever.co/exampleco/lever-role-3/apply",
+    "workplaceType": "hybrid"
+  }
+]

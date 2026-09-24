@@ -112,3 +112,33 @@ def test_pipeline_reports_matched_and_possible_offers(db_session) -> None:
     assert summary.possible_matches[0].possible_matches[0].reasons
     assert db_session.scalar(select(func.count()).select_from(Job)) == 2
     assert db_session.scalar(select(func.count()).select_from(JobSource)) == 3
+
+
+def test_greenhouse_and_lever_use_existing_idempotency_and_cross_source_matching(db_session) -> None:
+    greenhouse = NormalizedJob(
+        provider="greenhouse",
+        external_id="gh-501",
+        source_url="https://boards.greenhouse.io/exampleco/jobs/501",
+        canonical_url="https://boards.greenhouse.io/exampleco/jobs/501",
+        title="Backend Engineer",
+        company_name="Example Co",
+        location="Barcelona, Spain",
+        description="Build backend APIs.",
+    )
+    lever = NormalizedJob(
+        provider="lever",
+        external_id="lv-900",
+        source_url="https://jobs.lever.co/exampleco/lv-900",
+        canonical_url="https://boards.greenhouse.io/exampleco/jobs/501",
+        title="Backend Engineer",
+        company_name="Example Co",
+        location="Barcelona, Spain",
+    )
+
+    first = run_ingestion_pipeline(FakeJobConnector((greenhouse, lever)), db_session)
+    second = run_ingestion_pipeline(FakeJobConnector((greenhouse, lever)), db_session)
+
+    assert (first.fetched, first.created, first.matched_existing, first.failed) == (2, 1, 1, 0)
+    assert (second.fetched, second.already_known, second.failed) == (2, 2, 0)
+    assert db_session.scalar(select(func.count()).select_from(Job)) == 1
+    assert db_session.scalar(select(func.count()).select_from(JobSource)) == 2

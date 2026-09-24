@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "id": 48123,
+      "internal_job_id": 49321,
+      "title": "Backend Software Engineer",
+      "first_published": "2026-09-18T09:30:00Z",
+      "updated_at": "2026-09-20T11:00:00+00:00",
+      "location": {"name": "Barcelona, Spain"},
+      "absolute_url": "https://job-boards.greenhouse.io/exampleco/jobs/48123",
+      "language": "en",
+      "metadata": [{"id": 7, "name": "Team", "value": "Platform"}],
+      "content": "&amp;lt;p&amp;gt;Build APIs with Python.&amp;lt;/p&amp;gt;<p>Work with the platform team.</p>",
+      "departments": [{"id": 4, "name": "Engineering"}],
+      "offices": [{"id": 9, "name": "Barcelona", "location": "Barcelona, Spain"}]
+    },
+    {
+      "id": "48124",
+      "title": "Platform Engineer",
+      "absolute_url": "https://job-boards.greenhouse.io/exampleco/jobs/48124"
+    }
+  ],
+  "meta": {"total": 2}
+}

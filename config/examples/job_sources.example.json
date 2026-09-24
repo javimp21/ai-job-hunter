@@ -1,0 +1,17 @@
+{
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "identifier": "example-company",
+      "company_name": "Example Company",
+      "max_jobs": 25
+    },
+    {
+      "provider": "lever",
+      "identifier": "example-startup",
+      "company_name": "Example Startup",
+      "region": "eu",
+      "max_jobs": 25
+    }
+  ]
+}
