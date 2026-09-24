@@ -7,7 +7,9 @@ AI Job Hunter is the foundation for a personal system that discovers job opportu
 The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. The first real source is Remotive; its adapter translates the public JSON API response into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
 
 ```text
-External source -> connector -> NormalizedJob -> deduplication -> ingestion -> database
+External source -> connector -> NormalizedJob
+                                      +-> deduplication -> ingestion -> database
+                                      +-> candidate pre-filter -> preview output
 ```
 
 `run_ingestion_pipeline` fetches normalized offers and passes each to the ingestion service. The service resolves a company when a name is present, then creates or refreshes the canonical `Job` and its `JobSource` occurrence in one transaction.
@@ -84,6 +86,38 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 There is no LinkedIn/Indeed connector, browser scraping, Jev integration, LLM integration, frontend, application tracking, outreach, or automatic application behavior.
 
+## Candidate profile and deterministic pre-filter
+
+`CandidateProfile` stores facts about a fictional or real candidate: experience, current role and salary, skills, technologies, languages, education, location, work authorization, eligible countries, and remote-work capability. `CandidatePreferences` stores search choices separately: salary floor and target, role/location preferences, acceptable employment types, work mode, relocation, technologies to prioritize or learn, seniority boundaries, and openness to international remote work. The configuration is validated with Pydantic and loaded from UTF-8 JSON; candidate data is not written to PostgreSQL.
+
+The tracked example at [`config/examples/candidate.example.json`](config/examples/candidate.example.json) uses fictional values. Copy it to a local file before entering personal information:
+
+```powershell
+Copy-Item config/examples/candidate.example.json candidate.local.json
+```
+
+`candidate.local.*` and `candidate.*.local.json` / YAML files are ignored by Git. The loader rejects unknown fields, malformed JSON, salary thresholds without currency and period, and minimums above targets with a path and field-level error. Example usage:
+
+```powershell
+python -m ai_job_hunter.remotive_cli --candidate-config candidate.local.json --limit 20 --show 5
+```
+
+With `--candidate-config`, the CLI fetches Remotive offers once, prints PASS / REVIEW / REJECT counts, and shows a few titles, companies, decisions, reasons, and attributed Remotive links. This is preview-only and cannot be combined with `--ingest`; it does not connect to PostgreSQL or persist candidate or offer data.
+
+For each offer, `JobFacts` reuses the deduplication title normalizer for title tokens and seniority, then carries the existing remote, location, structured salary, and employment fields. A small explicit technology vocabulary extracts names such as Python, Go/Golang, Node.js, AWS, PostgreSQL, and Kubernetes case-insensitively. It does not use AI or infer technologies from synonyms. A technology is treated as mandatory only when a nearby explicit phrase says `required`, `must have`, `mandatory`, `essential`, or similar. A missing required technology is a critical mismatch only if it is neither in the candidate profile, marked as learnable, nor covered by a same-family or backend foundation. An ordinary mention is a possible gap, never proof that the role requires that technology.
+
+The pre-filter returns structured signal assessments and plain-language reasons:
+
+- **PASS:** no configured hard mismatch or material unknown signal was found.
+- **REVIEW:** a relevant signal is missing or ambiguous, or the offer has a non-critical stack gap, transferable stack gap, or learnable technology.
+- **REJECT:** a clear conflict was found, such as an explicit country restriction excluding the candidate, a work mode or employment type outside configured limits, salary entirely below the configured floor in the same currency and period, seniority outside configured bounds, or a clearly mandatory technology absent without a transferable/learnable match.
+
+Geography uses only known country aliases and the existing `RemoteEligibility` / `RemotePolicy` fields. Worldwide offers are compatible; EU and Spain restrictions are checked against the candidate's configured country; an explicit US-only restriction does not fit a candidate in Spain; unrecognized or absent geography is UNKNOWN and leads to review rather than rejection. There is no geocoding or external lookup. Preferred locations are soft signals; `acceptable_locations` constrains onsite/hybrid locations by direct text/country match only.
+
+Salary is compared only when offer and preference currencies and periods match exactly. No currency or annualization conversions are made. A range wholly below the minimum is `BELOW_MINIMUM`; a range whose floor meets the configured target (or minimum, when no target exists) is `MEETS_TARGET`; a range that crosses the floor or target without guaranteeing it is `BETWEEN_MINIMUM_AND_TARGET`; absent or incompatible salary data is `UNKNOWN`. Unknown salary is never rejected.
+
+This is an explainable noise-reduction layer, not a final apply/no-apply decision engine. It does not calculate an arbitrary percentage score. Company-type, startup/product, and consulting preferences are deferred because current offer facts do not classify companies consistently. Jev may be added later for less deterministic judgments, after this filter has narrowed the set for human or AI review.
+
 ## Stack
 
 - Python 3.13
@@ -158,7 +192,7 @@ Tests use in-memory SQLite and do not require Internet access or a running Postg
 - `JobSource` records each provider occurrence, including its provider, optional external identifier, original/canonical/apply URLs, company website evidence, discovery time, optional raw metadata, and normalized fields that may differ between sources.
 - UUID primary keys are generated in Python. They provide stable identifiers without depending on database sequences and work across the supported SQLAlchemy dialects.
 - Connector implementations share a structural `JobConnector` protocol and return `NormalizedJob`; provider-specific enums and connector classes are added only when a real source is introduced.
-- Candidate profile, preferences, and other personal information are not included in the code or example configuration.
+- Candidate-specific runtime data belongs in ignored local configuration; the checked-in profile example is fictional.
 
 ## Roadmap (indicative)
 
