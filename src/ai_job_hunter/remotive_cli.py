@@ -19,6 +19,8 @@ from ai_job_hunter.candidates import (
 )
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
 from ai_job_hunter.decision_engine import (
+    POLICY_VERSION_V1,
+    POLICY_VERSION_V2,
     RUBRIC_VERSION,
     DecisionCache,
     FinalDecision,
@@ -82,6 +84,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="evaluate eligible ambiguous offers with TypeSafe Jev",
     )
     parser.add_argument(
+        "--decision-policy",
+        choices=(POLICY_VERSION_V1, POLICY_VERSION_V2),
+        default=POLICY_VERSION_V1,
+        help=f"deterministic decision policy (default: {POLICY_VERSION_V1})",
+    )
+    parser.add_argument(
         "--dry-run-jev",
         action="store_true",
         help="show snapshot offers eligible for Jev without making Jev or source requests",
@@ -122,6 +130,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("API filters cannot be used when replaying a snapshot")
     if (args.decision_engine or args.dry_run_jev) and not args.candidate_config:
         parser.error("--decision-engine and --dry-run-jev require --candidate-config")
+    if args.decision_policy != POLICY_VERSION_V1 and args.decision_engine != "jev":
+        parser.error("--decision-policy requires --decision-engine jev")
     if args.dry_run_jev and not args.snapshot:
         parser.error("--dry-run-jev requires --snapshot so the dry run cannot access Remotive")
     if args.dry_run_jev and args.decision_engine:
@@ -193,6 +203,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 JevJobDecisionEngine(model=args.jev_model),
                 DecisionCache(args.decision_cache),
                 max_jobs=args.max_jev_jobs,
+                policy_version=args.decision_policy,
             )
         report = _build_evaluation_report(offers, candidate_config)
         _print_evaluation_report(report, show=args.show)
@@ -293,6 +304,7 @@ def _run_jev_evaluations(
     cache: DecisionCache,
     *,
     max_jobs: int | None,
+    policy_version: str = POLICY_VERSION_V1,
 ) -> int:
     results: list[tuple[JobDecisionContext, JobDecisionResult]] = []
     new_evaluations = 0
@@ -309,9 +321,16 @@ def _run_jev_evaluations(
                 and max_jobs is not None
                 and new_evaluations >= max_jobs
             ):
-                results.append((context, _deferred_result(context, engine.cache_identity)))
+                results.append(
+                    (context, _deferred_result(context, engine.cache_identity, policy_version=policy_version))
+                )
                 continue
-            result = evaluate_job_decision(context, engine, cache=cache)
+            result = evaluate_job_decision(
+                context,
+                engine,
+                cache=cache,
+                policy_version=policy_version,
+            )
             if not is_hard_skip and not result.cache_hit:
                 new_evaluations += 1
             results.append((context, result))
@@ -344,7 +363,12 @@ def _run_jev_evaluations(
     return 0
 
 
-def _deferred_result(context: JobDecisionContext, engine_configuration: str) -> JobDecisionResult:
+def _deferred_result(
+    context: JobDecisionContext,
+    engine_configuration: str,
+    *,
+    policy_version: str = POLICY_VERSION_V1,
+) -> JobDecisionResult:
     from ai_job_hunter.decision_engine import DeterministicDecisionSummary
 
     return JobDecisionResult(
@@ -357,6 +381,7 @@ def _deferred_result(context: JobDecisionContext, engine_configuration: str) -> 
         ),
         model_version=None,
         engine_configuration=engine_configuration,
+        policy_version=policy_version,
         evaluated_at=datetime.now(UTC),
     )
 
@@ -390,11 +415,18 @@ def _print_decision_result(context: JobDecisionContext, result: JobDecisionResul
             )
         else:
             print(f"  {name.replace('_', ' ')}: {signal.value:.2f} (Noul yes probability)")
-    print(f"Model: {result.model_version}; rubric: {result.rubric_version}; cache hit: {result.cache_hit}")
+    print(
+        f"Model: {result.model_version}; rubric: {result.rubric_version}; "
+        f"policy: {result.policy_version}; cache hit: {result.cache_hit}"
+    )
     print(f"Final: {result.final_decision.value}")
     print("Reasons:")
     for reason in result.reasons:
         print(f"  - {reason}")
+    if result.review_reasons:
+        print("Review reasons:")
+        for reason in result.review_reasons:
+            print(f"  - {reason.code.value}: {reason.message}")
 
 
 def _decimal_text(value: Decimal | None) -> str | None:

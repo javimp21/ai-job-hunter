@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tempfile
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -28,12 +30,33 @@ from ai_job_hunter.rubric import RUBRIC_SPEC, RUBRIC_VERSION
 DEFAULT_CACHE_PATH = Path("data/local/job-decision-cache.local.json")
 CACHE_FORMAT = "ai-job-hunter.job-decision-cache"
 CACHE_VERSION = 1
+POLICY_VERSION_V1 = "job_decision_v1"
+POLICY_VERSION_V2 = "job_decision_v2"
+SUPPORTED_POLICY_VERSIONS = (POLICY_VERSION_V1, POLICY_VERSION_V2)
 
 
 class FinalDecision(StrEnum):
     APPLY = "APPLY"
     REVIEW = "REVIEW"
     SKIP = "SKIP"
+
+
+class ReviewReasonCode(StrEnum):
+    LOCATION_UNCERTAIN = "LOCATION_UNCERTAIN"
+    COMPENSATION_UNKNOWN = "COMPENSATION_UNKNOWN"
+    EXPERIENCE_BORDERLINE = "EXPERIENCE_BORDERLINE"
+    ROLE_FAMILY_UNCERTAIN = "ROLE_FAMILY_UNCERTAIN"
+    INSUFFICIENT_DESCRIPTION = "INSUFFICIENT_DESCRIPTION"
+    STACK_UNCERTAIN = "STACK_UNCERTAIN"
+    SENIORITY_UNCERTAIN = "SENIORITY_UNCERTAIN"
+    OTHER = "OTHER"
+
+
+class StructuredReviewReason(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    code: ReviewReasonCode
+    message: str = Field(min_length=1)
 
 
 class JobDecisionError(ValueError):
@@ -182,6 +205,8 @@ class JobDecisionResult(BaseModel):
     model_version: str | None
     engine_configuration: str | None
     rubric_version: str = RUBRIC_VERSION
+    policy_version: str = POLICY_VERSION_V1
+    review_reasons: tuple[StructuredReviewReason, ...] = ()
     evaluated_at: datetime
     input_tokens: int | None = Field(default=None, ge=0)
     output_tokens: int | None = Field(default=None, ge=0)
@@ -318,12 +343,320 @@ def apply_decision_policy(
     return _decision_result(context, evidence, decision, reasons, rubric_version)
 
 
+def apply_decision_policy_v2(
+    context: JobDecisionContext,
+    evidence: DecisionEvidence,
+    *,
+    rubric_version: str = RUBRIC_VERSION,
+) -> JobDecisionResult:
+    """Apply v2's application-upside policy and preserve material uncertainty."""
+
+    if context.duplicate_reason is not None or context.deterministic.decision is PreFilterDecision.REJECT:
+        return _hard_skip(
+            context,
+            context.duplicate_reason or "Deterministic prefilter rejected the offer; Jev was not called.",
+            evidence.engine_configuration,
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+
+    answers = evidence.answers
+    values = {
+        name: _value_or_none(getattr(answers, name))
+        for name in (
+            "role_relevance",
+            "experience_accessibility",
+            "backend_relevance",
+            "stack_transferability",
+            "requirements_flexibility",
+            "career_value",
+            "observable_role_quality",
+        )
+    }
+    role = values["role_relevance"]
+    experience = values["experience_accessibility"]
+    backend = values["backend_relevance"]
+    stack = values["stack_transferability"]
+    flexibility = values["requirements_flexibility"]
+    career = values["career_value"]
+    quality = values["observable_role_quality"]
+
+    missing = [name for name, value in values.items() if value is None]
+    if role is not None and role < 0.20:
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.SKIP,
+            (f"Role relevance is extremely low ({role:.2f} < 0.20).",),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+    if experience is not None and experience < 0.15:
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.SKIP,
+            (f"Experience accessibility is extremely low ({experience:.2f} < 0.15).",),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+
+    if missing:
+        reasons = tuple(
+            _structured_reason_for_signal(name, f"Jev did not return {name.replace('_', ' ')}.")
+            for name in missing
+        )
+        return _v2_review(context, evidence, reasons, rubric_version)
+
+    assert role is not None and experience is not None and backend is not None
+    assert stack is not None and flexibility is not None
+    assert career is not None and quality is not None
+
+    low_confidence_backend = (
+        answers.backend_relevance is not None
+        and (answers.backend_relevance.confidence is None or answers.backend_relevance.confidence < 0.40)
+    )
+    if low_confidence_backend:
+        return _v2_review(
+            context,
+            evidence,
+            (StructuredReviewReason(
+                code=ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
+                message="Backend relevance has insufficient confidence to determine the role family.",
+            ),),
+            rubric_version,
+        )
+
+    # Low fit combinations indicate a different job family or a rigid stack gap.
+    if role < 0.45 and backend < 0.60 and stack < 0.45:
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.SKIP,
+            ("Role relevance, backend relevance, and stack transferability are all low; this is a clear family mismatch.",),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+    if role < 0.75 and stack < 0.40 and flexibility < 0.35:
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.SKIP,
+            ("Moderate role relevance combines with a narrow, poorly transferable stack; the mismatch is unlikely to be worth applying for.",),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+    if backend < 0.25 and role < 0.60:
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.SKIP,
+            ("Backend relevance and overall role relevance are both very low for this backend search.",),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+
+    description_length = len((context.offer.description or "").strip())
+    insufficient_description = description_length < 1_000
+    if _has_material_location_uncertainty(context):
+        return _v2_review(
+            context,
+            evidence,
+            (StructuredReviewReason(
+                code=ReviewReasonCode.LOCATION_UNCERTAIN,
+                message="The offer names a hybrid or onsite location outside the candidate's configured locations, and its normalized work mode does not resolve the location constraint.",
+            ),),
+            rubric_version,
+        )
+    strong_core_fit = role >= 0.75 and backend >= 0.70 and stack >= 0.60 and flexibility >= 0.50
+    standard_apply = strong_core_fit and experience >= 0.50 and not insufficient_description
+    high_upside_experience_exception = (
+        strong_core_fit
+        and not insufficient_description
+        and experience >= 0.40
+        and career >= 0.90
+        and role >= 0.85
+        and backend >= 0.90
+        and stack >= 0.70
+        and flexibility >= 0.65
+        and (answers.career_value.confidence or 0.0) >= 0.40
+    )
+    if standard_apply or high_upside_experience_exception:
+        messages = [
+            "Role relevance, backend fit, stack transferability, and requirements flexibility make this worth applying for."
+        ]
+        if experience < 0.50:
+            messages.append(
+                "Borderline experience is accepted because career value and the other fit signals are exceptionally strong."
+            )
+        return _decision_result(
+            context,
+            evidence,
+            FinalDecision.APPLY,
+            tuple(messages),
+            rubric_version,
+            policy_version=POLICY_VERSION_V2,
+        )
+
+    review_reasons: list[StructuredReviewReason] = []
+    if experience < 0.50:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.EXPERIENCE_BORDERLINE,
+            message=f"Experience accessibility {experience:.2f} is below the standard APPLY level of 0.50 and does not meet the high-upside exception.",
+        ))
+    if role < 0.75 or backend < 0.70:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
+            message=f"Role/backend fit is not decisive enough for APPLY (role {role:.2f}; backend {backend:.2f}).",
+        ))
+    if stack < 0.60 or flexibility < 0.50:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.STACK_UNCERTAIN,
+            message=f"Stack transferability or requirements flexibility is too uncertain for APPLY (stack {stack:.2f}; flexibility {flexibility:.2f}).",
+        ))
+    salary = context.deterministic.signals.salary
+    if (
+        salary.evaluation.value == "UNKNOWN"
+        and (context.candidate.preferences.minimum_salary is not None
+             or context.candidate.preferences.target_salary is not None)
+    ):
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.COMPENSATION_UNKNOWN,
+            message="A salary threshold is configured, but the offer does not provide a comparable salary range.",
+        ))
+    if (
+        context.deterministic.signals.seniority.status.value == "UNKNOWN"
+        and (context.candidate.preferences.minimum_seniority is not None
+             or context.candidate.preferences.maximum_seniority is not None)
+    ):
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.SENIORITY_UNCERTAIN,
+            message="The posting does not establish seniority clearly enough to compare with the configured seniority range.",
+        ))
+    if quality < 0.35 and not insufficient_description:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.INSUFFICIENT_DESCRIPTION,
+            message="Observable role quality is low; review the posting for missing responsibilities or requirements.",
+        ))
+    if not review_reasons:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.OTHER,
+            message="The available signals leave a material question that needs human review.",
+        ))
+    if insufficient_description:
+        review_reasons.append(StructuredReviewReason(
+            code=ReviewReasonCode.INSUFFICIENT_DESCRIPTION,
+            message=f"The offer description has only {description_length} characters, which is not enough to verify responsibilities or requirements.",
+        ))
+    return _v2_review(context, evidence, tuple(review_reasons), rubric_version)
+
+
+def apply_versioned_decision_policy(
+    context: JobDecisionContext,
+    evidence: DecisionEvidence,
+    *,
+    policy_version: str = POLICY_VERSION_V1,
+    rubric_version: str = RUBRIC_VERSION,
+) -> JobDecisionResult:
+    if policy_version == POLICY_VERSION_V1:
+        return apply_decision_policy(context, evidence, rubric_version=rubric_version)
+    if policy_version == POLICY_VERSION_V2:
+        return apply_decision_policy_v2(context, evidence, rubric_version=rubric_version)
+    raise JobDecisionError(f"Unsupported decision policy version: {policy_version}.")
+
+
+def _v2_review(
+    context: JobDecisionContext,
+    evidence: DecisionEvidence,
+    review_reasons: tuple[StructuredReviewReason, ...],
+    rubric_version: str,
+) -> JobDecisionResult:
+    return _decision_result(
+        context,
+        evidence,
+        FinalDecision.REVIEW,
+        tuple(reason.message for reason in review_reasons),
+        rubric_version,
+        policy_version=POLICY_VERSION_V2,
+        review_reasons=review_reasons,
+    )
+
+
+def _structured_reason_for_signal(name: str, message: str) -> StructuredReviewReason:
+    code_by_signal = {
+        "role_relevance": ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
+        "experience_accessibility": ReviewReasonCode.EXPERIENCE_BORDERLINE,
+        "backend_relevance": ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
+        "stack_transferability": ReviewReasonCode.STACK_UNCERTAIN,
+        "requirements_flexibility": ReviewReasonCode.STACK_UNCERTAIN,
+        "career_value": ReviewReasonCode.OTHER,
+        "observable_role_quality": ReviewReasonCode.INSUFFICIENT_DESCRIPTION,
+    }
+    return StructuredReviewReason(code=code_by_signal.get(name, ReviewReasonCode.OTHER), message=message)
+
+
+def _has_material_location_uncertainty(context: JobDecisionContext) -> bool:
+    """Catch explicit hybrid/onsite location text the normalized facts could not classify."""
+
+    if context.offer.remote_policy is not None:
+        return False
+    location = context.facts.location or ""
+    explicit_mode = re.search(r"\b(?:hybrid|on[ -]?site|in[ -]?office)\b", location, re.IGNORECASE)
+    if explicit_mode is None:
+        return False
+
+    preferences = context.candidate.preferences
+    profile = context.candidate.profile
+    remote_preference = getattr(
+        preferences.remote_preference,
+        "value",
+        preferences.remote_preference,
+    )
+    if remote_preference == "ANY" and not preferences.acceptable_locations:
+        return False
+
+    mode = explicit_mode.group(0).casefold().replace(" ", "-")
+    mode_conflicts = (
+        (mode == "hybrid" and remote_preference in {"REMOTE_ONLY", "ONSITE_ONLY"})
+        or (mode in {"on-site", "onsite", "in-office"} and remote_preference in {"REMOTE_ONLY", "HYBRID_OR_REMOTE"})
+    )
+    if mode_conflicts:
+        return True
+
+    configured_locations = (
+        profile.current_city,
+        profile.current_country,
+        *profile.eligible_countries,
+        *preferences.acceptable_locations,
+        *preferences.preferred_locations,
+    )
+    return bool(configured_locations) and not any(
+        _location_text_matches(location, configured)
+        for configured in configured_locations
+        if configured
+    )
+
+
+def _location_text_matches(offer_location: str, configured_location: str) -> bool:
+    def normalized(value: str) -> str:
+        decomposed = unicodedata.normalize("NFKD", value.casefold())
+        ascii_text = "".join(char for char in decomposed if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", " ", ascii_text).strip()
+
+    offer_text = normalized(offer_location)
+    configured_text = normalized(configured_location)
+    return bool(configured_text and (configured_text in offer_text or offer_text in configured_text))
+
+
 def _decision_result(
     context: JobDecisionContext,
     evidence: DecisionEvidence,
     decision: FinalDecision,
     reasons: tuple[str, ...],
     rubric_version: str,
+    *,
+    policy_version: str = POLICY_VERSION_V1,
+    review_reasons: tuple[StructuredReviewReason, ...] = (),
 ) -> JobDecisionResult:
     return JobDecisionResult(
         final_decision=decision,
@@ -333,6 +666,8 @@ def _decision_result(
         model_version=evidence.model_version,
         engine_configuration=evidence.engine_configuration,
         rubric_version=rubric_version,
+        policy_version=policy_version,
+        review_reasons=review_reasons,
         evaluated_at=datetime.now(UTC),
         input_tokens=evidence.input_tokens,
         output_tokens=evidence.output_tokens,
@@ -345,28 +680,59 @@ def evaluate_job_decision(
     *,
     cache: DecisionCache | None = None,
     rubric_version: str = RUBRIC_VERSION,
+    policy_version: str = POLICY_VERSION_V1,
 ) -> JobDecisionResult:
     """Apply deterministic hard gates, consult cache, then call the engine once."""
 
+    if policy_version not in SUPPORTED_POLICY_VERSIONS:
+        raise JobDecisionError(f"Unsupported decision policy version: {policy_version}.")
     if context.duplicate_reason is not None:
-        return _hard_skip(context, context.duplicate_reason, engine.cache_identity, rubric_version)
+        return _hard_skip(
+            context,
+            context.duplicate_reason,
+            engine.cache_identity,
+            rubric_version,
+            policy_version=policy_version,
+        )
     if context.deterministic.decision is PreFilterDecision.REJECT:
         return _hard_skip(
             context,
             "Deterministic prefilter rejected the offer; Jev was not called.",
             engine.cache_identity,
             rubric_version,
+            policy_version=policy_version,
         )
 
     key = cache.key_for(context, engine.cache_identity, rubric_version) if cache else None
     if cache is not None and key is not None:
         cached_result = cache.get(key)
         if cached_result is not None:
-            return cached_result.model_copy(update={"cache_hit": True})
+            if cached_result.jev_answers is None:
+                return cached_result.model_copy(
+                    update={"cache_hit": True, "policy_version": policy_version}
+                )
+            cached_evidence = DecisionEvidence(
+                answers=cached_result.jev_answers,
+                model_version=cached_result.model_version or "unknown-cached-model",
+                engine_configuration=cached_result.engine_configuration or engine.cache_identity,
+                input_tokens=cached_result.input_tokens,
+                output_tokens=cached_result.output_tokens,
+            )
+            return apply_versioned_decision_policy(
+                context,
+                cached_evidence,
+                policy_version=policy_version,
+                rubric_version=rubric_version,
+            ).model_copy(update={"cache_hit": True})
 
     try:
         evidence = DecisionEvidence.model_validate(engine.evaluate(context))
-        result = apply_decision_policy(context, evidence, rubric_version=rubric_version)
+        result = apply_versioned_decision_policy(
+            context,
+            evidence,
+            policy_version=policy_version,
+            rubric_version=rubric_version,
+        )
     except JobDecisionError:
         raise
     except (ValidationError, TypeError, ValueError) as error:
@@ -480,6 +846,8 @@ def _hard_skip(
     reason: str,
     engine_configuration: str,
     rubric_version: str,
+    *,
+    policy_version: str = POLICY_VERSION_V1,
 ) -> JobDecisionResult:
     reasons = (reason,) if context.duplicate_reason else context.deterministic.reasons
     if context.duplicate_reason:
@@ -497,6 +865,7 @@ def _hard_skip(
         model_version=None,
         engine_configuration=engine_configuration,
         rubric_version=rubric_version,
+        policy_version=policy_version,
         evaluated_at=datetime.now(UTC),
     )
 

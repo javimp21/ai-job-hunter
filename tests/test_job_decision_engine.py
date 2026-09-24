@@ -8,6 +8,8 @@ import pytest
 
 from ai_job_hunter.candidates import CandidateConfig, PreFilterDecision, load_candidate_config
 from ai_job_hunter.decision_engine import (
+    POLICY_VERSION_V1,
+    POLICY_VERSION_V2,
     RUBRIC_VERSION,
     DecisionCache,
     DecisionEvidence,
@@ -16,7 +18,9 @@ from ai_job_hunter.decision_engine import (
     JobDecisionError,
     JevAnswers,
     JevSignal,
+    ReviewReasonCode,
     apply_decision_policy,
+    apply_decision_policy_v2,
     build_decision_contexts,
     evaluate_job_decision,
 )
@@ -423,6 +427,205 @@ def test_policy_uses_versioned_structured_answers_only() -> None:
     assert result.jev_answers is evidence.answers
 
 
+def test_v1_policy_keeps_its_borderline_experience_review() -> None:
+    answers = good_answers(experience_accessibility=signal(0.52))
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy(context_for(), evidence)
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert result.policy_version == POLICY_VERSION_V1
+
+
+def test_v2_strong_backend_fit_can_apply_with_borderline_experience() -> None:
+    context = context_for(sample_offer(description="Detailed role scope. " * 80))
+    answers = good_answers(experience_accessibility=signal(0.52))
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.APPLY
+    assert result.policy_version == POLICY_VERSION_V2
+
+
+def test_v2_high_career_value_can_support_a_lower_experience_apply() -> None:
+    context = context_for(sample_offer(description="Detailed role scope. " * 80))
+    answers = good_answers(
+        role_relevance=signal(0.90),
+        experience_accessibility=signal(0.42),
+        backend_relevance=signal(0.90, question_type="score", confidence=0.90),
+        stack_transferability=signal(0.75),
+        requirements_flexibility=signal(0.66),
+        career_value=signal(0.95, question_type="score", confidence=0.95),
+    )
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.APPLY
+    assert "exceptionally strong" in " ".join(result.reasons)
+
+
+def test_v2_very_low_experience_still_skips() -> None:
+    answers = good_answers(experience_accessibility=signal(0.10))
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context_for(), evidence)
+
+    assert result.final_decision is FinalDecision.SKIP
+    assert result.policy_version == POLICY_VERSION_V2
+
+
+def test_v2_career_value_does_not_rescue_irrelevant_role() -> None:
+    answers = good_answers(
+        role_relevance=signal(0.10),
+        career_value=signal(1.0, question_type="score", confidence=1.0),
+    )
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context_for(), evidence)
+
+    assert result.final_decision is FinalDecision.SKIP
+    assert result.reasons[0].startswith("Role relevance is extremely low")
+
+
+def test_v2_does_not_override_hard_geography_reject() -> None:
+    context = context_for(
+        sample_offer(location="United States", remote_eligibility="COUNTRY_RESTRICTED")
+    )
+    engine = FakeJobDecisionEngine(good_answers())
+
+    result = evaluate_job_decision(context, engine, policy_version=POLICY_VERSION_V2)
+
+    assert result.final_decision is FinalDecision.SKIP
+    assert result.policy_version == POLICY_VERSION_V2
+    assert result.jev_answers is None
+    assert engine.calls == []
+
+
+def test_v2_low_observable_quality_alone_does_not_block_strong_fit() -> None:
+    context = context_for(sample_offer(description="Detailed verifiable role scope. " * 70))
+    answers = good_answers(
+        observable_role_quality=signal(0.10, question_type="score", confidence=0.90)
+    )
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.APPLY
+    assert result.review_reasons == ()
+
+
+def test_v2_contradictory_role_and_backend_signals_require_structured_review() -> None:
+    context = context_for(sample_offer(description="Detailed backend role scope. " * 80))
+    answers = good_answers(
+        role_relevance=signal(0.95),
+        backend_relevance=signal(0.20, question_type="score", confidence=0.90),
+    )
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert ReviewReasonCode.ROLE_FAMILY_UNCERTAIN in {reason.code for reason in result.review_reasons}
+
+
+def test_v2_review_reasons_identify_experience_and_stack_uncertainty() -> None:
+    answers = good_answers(
+        experience_accessibility=signal(0.35),
+        stack_transferability=signal(0.48),
+        requirements_flexibility=signal(0.46),
+    )
+    evidence = DecisionEvidence(
+        answers=answers,
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context_for(sample_offer(description="Detailed job scope. " * 80)), evidence)
+
+    assert result.final_decision is FinalDecision.REVIEW
+    codes = {reason.code for reason in result.review_reasons}
+    assert ReviewReasonCode.EXPERIENCE_BORDERLINE in codes
+    assert ReviewReasonCode.STACK_UNCERTAIN in codes
+
+
+def test_v2_cross_border_hybrid_uncertainty_is_structured_review() -> None:
+    candidate = sample_candidate(
+        profile={"current_country": "Spain"},
+        preferences={
+            "remote_preference": "HYBRID_OR_REMOTE",
+            "acceptable_locations": ["Barcelona, Spain"],
+        },
+    )
+    context = context_for(
+        sample_offer(
+            location="Wroclaw, Poland (Hybrid)",
+            remote_policy=None,
+            description="Detailed role responsibilities. " * 80,
+        ),
+        candidate,
+    )
+    evidence = DecisionEvidence(
+        answers=good_answers(experience_accessibility=signal(0.58)),
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert ReviewReasonCode.LOCATION_UNCERTAIN in {reason.code for reason in result.review_reasons}
+
+
+def test_policy_version_switch_replays_cached_jev_answers_without_engine_call(tmp_path: Path) -> None:
+    cache = DecisionCache(tmp_path / "decisions.local.json")
+    context = context_for(sample_offer(description="Detailed backend role. " * 80))
+    engine = FakeJobDecisionEngine(
+        good_answers(experience_accessibility=signal(0.52))
+    )
+
+    first = evaluate_job_decision(context, engine, cache=cache)
+    second = evaluate_job_decision(context, engine, cache=cache, policy_version=POLICY_VERSION_V2)
+    third = evaluate_job_decision(context, engine, cache=cache, policy_version=POLICY_VERSION_V1)
+
+    assert first.final_decision is FinalDecision.REVIEW
+    assert second.final_decision is FinalDecision.APPLY
+    assert third.final_decision is FinalDecision.REVIEW
+    assert second.cache_hit is True and third.cache_hit is True
+    assert second.policy_version == POLICY_VERSION_V2
+    assert third.policy_version == POLICY_VERSION_V1
+    assert len(engine.calls) == 1
+
+
 def test_stack_context_contains_only_relevant_candidate_and_offer_fields() -> None:
     candidate = sample_candidate(
         profile={"technologies": ["Java", "Spring Boot"], "primary_skills": ["Backend"]}
@@ -626,6 +829,11 @@ def test_cli_live_mode_fails_without_key_before_loading_remotive(
     from ai_job_hunter import remotive_cli
 
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(
+        remotive_cli,
+        "get_settings",
+        lambda: SimpleNamespace(typesafe_api_key=None),
+    )
     monkeypatch.setattr(
         remotive_cli.RemotiveConnector,
         "fetch_jobs",
