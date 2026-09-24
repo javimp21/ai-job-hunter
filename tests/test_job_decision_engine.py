@@ -535,6 +535,39 @@ def test_jev_engine_uses_official_typed_sdk_client_factory() -> None:
     assert client.questions["stack_transferability"].type == "noul"
 
 
+def test_jev_engine_passes_dotenv_key_to_official_sdk_without_logging(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import sys
+
+    from ai_job_hunter import jev
+    from ai_job_hunter.config import Settings
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("TYPESAFE_API_KEY=fake-test-key\n", encoding="utf-8")
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(jev, "get_settings", lambda: Settings(_env_file=env_file))
+    client = FakeSdkClient(_synthetic_response())
+    client_options: dict[str, object] = {}
+
+    class FakeSdkModule:
+        Noul = staticmethod(lambda **kwargs: SimpleNamespace(type="noul", **kwargs))
+        Score = staticmethod(lambda **kwargs: SimpleNamespace(type="score", **kwargs))
+
+        @staticmethod
+        def TypeSafeClient(**kwargs):
+            client_options.update(kwargs)
+            return client
+
+    monkeypatch.setitem(sys.modules, "typesafe_sdk", FakeSdkModule)
+
+    evidence = JevJobDecisionEngine().evaluate(context_for())
+
+    assert evidence.model_version == "jev-1.13.0"
+    assert client_options == {"model": "jev-latest", "api_key": "fake-test-key"}
+
+
 def test_cli_dry_run_uses_snapshot_only_and_applies_limit(
     monkeypatch,
     tmp_path: Path,

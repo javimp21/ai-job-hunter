@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from ai_job_hunter.config import get_settings
 from ai_job_hunter.candidates import (
     CandidateConfig,
     CandidateConfigError,
@@ -130,11 +130,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("decision evaluation cannot be combined with --ingest")
     if args.max_jev_jobs is not None and not (args.decision_engine or args.dry_run_jev):
         parser.error("--max-jev-jobs requires --decision-engine jev or --dry-run-jev")
-    if args.decision_engine == "jev" and not os.environ.get("TYPESAFE_API_KEY", "").strip():
-        LOGGER.error(
-            "The Jev engine needs TYPESAFE_API_KEY. Set the environment variable before using --decision-engine jev."
-        )
-        return 1
+    if args.decision_engine == "jev":
+        api_key = get_settings().typesafe_api_key
+        if api_key is None or not api_key.get_secret_value().strip():
+            LOGGER.error(
+                "The Jev decision engine needs TYPESAFE_API_KEY. Set it in the environment or local .env file."
+            )
+            return 1
 
     candidate_config = None
     if args.candidate_config:

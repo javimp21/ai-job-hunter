@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from ai_job_hunter.config import get_settings
 from ai_job_hunter.decision_engine import (
     DecisionEvidence,
     JobDecisionContext,
@@ -177,9 +178,18 @@ class JevJobDecisionEngine:
                 "install the project with `pip install -e '.[jev]'`."
             ) from error
 
-        factory = self._client_factory or (
-            lambda: typesafe_sdk.TypeSafeClient(model=self.model)
-        )
+        factory = self._client_factory
+        if factory is None:
+            configured_key = get_settings().typesafe_api_key
+            api_key = (
+                configured_key.get_secret_value().strip()
+                if configured_key is not None
+                else ""
+            )
+            factory = lambda: typesafe_sdk.TypeSafeClient(
+                model=self.model,
+                api_key=api_key or None,
+            )
         try:
             with factory() as client:
                 response = client.system_one(
