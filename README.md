@@ -4,9 +4,13 @@ AI Job Hunter is the foundation for a personal system that discovers job opportu
 
 ## Current architecture
 
-The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, and Alembic migrations. A small connector protocol accepts any source adapter that yields `NormalizedJob` records. A connector is responsible for translating its own source-specific/raw data into that provider-independent Pydantic model; the core does not know about a particular provider.
+The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. The first real source is Remotive; its adapter translates the public JSON API response into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
 
-`run_ingestion_pipeline` fetches normalized offers and passes each to the ingestion service. The service resolves a company when a name is present, then creates or refreshes the canonical `Job` and its `JobSource` occurrence in one transaction. `FakeJobConnector` is an in-memory development/test adapter. Tests exercise a batch with two jobs from one company and a repeated source ID.
+```text
+External source -> connector -> NormalizedJob -> deduplication -> ingestion -> database
+```
+
+`run_ingestion_pipeline` fetches normalized offers and passes each to the ingestion service. The service resolves a company when a name is present, then creates or refreshes the canonical `Job` and its `JobSource` occurrence in one transaction.
 
 ## Normalized offers and persistence
 
@@ -36,7 +40,49 @@ Each offer is committed in its own transaction. A failed offer is rolled back an
 
 This is deterministic deduplication only. There is no fuzzy-match library, semantic search, embeddings, or LLM matching; those may be considered in a later iteration with explicit review and evaluation.
 
-There is no real source connection, scraping, LLM integration, Jev integration, application tracking, outreach, or automatic application behavior in this iteration.
+## Remotive source
+
+`RemotiveConnector` uses the official public endpoint `https://remotive.com/api/remote-jobs` through `httpx`. Remotive documents a single JSON response containing `jobs`; there is no page parameter or pagination. The optional `limit`, `search`, `category`, and `company_name` parameters are supported. In a live check, a request for three returned 19 offers; the connector therefore also applies the requested limit locally and logs when the endpoint over-delivers. The CLI requests five offers by default; `--all` omits the limit.
+
+The connector maps the documented fields conservatively:
+
+| Remotive field | Normalized field / behavior |
+| --- | --- |
+| `id`, `url`, `title`, `company_name` | `external_id`, Remotive `source_url`, title, company |
+| `candidate_required_location` | `location`; exact `Spain` / `Worldwide` are mapped, other non-empty values become `COUNTRY_RESTRICTED`, absent values remain `UNKNOWN` |
+| endpoint's remote-job listing | `remote_policy=REMOTE` |
+| `job_type` | Known full-time, part-time, contract and internship values map directly; freelance maps to `OTHER`; unknown values remain null |
+| `salary` | A clear two-value range with an explicit currency is parsed. A period is mapped only when explicitly stated. Ambiguous dollar signs and single figures remain unstructured; original text remains in metadata. |
+| `publication_date` | Parsed only when it includes an explicit timezone; a timezone-naive source date remains in raw metadata and `published_at` is null. |
+| `description` | Plain text is stored for canonical use; the original HTML remains in `raw_metadata`. |
+| `company_logo`, category, and other response fields | Preserved in `raw_metadata`; a logo URL is not mistaken for a company website. |
+
+The [official API documentation](https://github.com/remotive-com/remote-jobs-api) says the public API is intended to let developers share Remotive jobs, requires linking to each Remotive listing and naming Remotive as the source, and prohibits submitting its jobs to third-party job sites. It says listings are delayed by 24 hours, recommends no more than four requests per day, and warns that more than two requests per minute will be blocked. The [site terms](https://remotive.com/terms-of-use) also restrict scraping and redistribution. This connector uses the documented API only for the personal local database; do not publish, resell, or republish its listings. The preview CLI includes a Remotive attribution and direct listing link.
+
+The API does not expose a company website or apply URL in its documented job record. These remain null rather than being guessed from the company logo or Remotive listing. The API's salary field is free text and publication timestamps may lack a timezone, so some structured salary/date fields will intentionally remain empty.
+
+Preview a small sample without connecting to the database:
+
+```powershell
+python -m ai_job_hunter.remotive_cli --limit 3 --show 3
+```
+
+The optional source-side filters are general-purpose, not candidate preferences:
+
+```powershell
+python -m ai_job_hunter.remotive_cli --category software-dev --search "backend engineer" --limit 10
+```
+
+To persist a bounded sample, first configure `DATABASE_URL` and apply migrations, then run:
+
+```powershell
+alembic upgrade head
+python -m ai_job_hunter.remotive_cli --limit 5 --ingest
+```
+
+`--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
+
+There is no LinkedIn/Indeed connector, browser scraping, Jev integration, LLM integration, frontend, application tracking, outreach, or automatic application behavior.
 
 ## Stack
 
@@ -44,6 +90,7 @@ There is no real source connection, scraping, LLM integration, Jev integration, 
 - PostgreSQL
 - SQLAlchemy 2.x and Alembic
 - Pydantic Settings v2
+- httpx
 - pytest
 
 ## Setup (Windows PowerShell)
