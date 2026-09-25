@@ -121,6 +121,10 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 There is no LinkedIn/Indeed connector, browser scraping, external Company Intelligence, frontend, application tracking, outreach, or automatic application behavior.
 
+## Company Intelligence
+
+Company Intelligence stores source-backed company evidence independently from candidate preferences and job decisions. It does not assign a company score or change Jev, `job_decision_v1`, or `job_decision_v2`. See [the Company Intelligence guide](docs/company-intelligence.md) for source scope, refresh behavior, and query examples.
+
 ## Candidate profile and deterministic pre-filter
 
 `CandidateProfile` stores facts about a fictional or real candidate: experience, current role and salary, skills, technologies, languages, education, location, work authorization, eligible countries, and remote-work capability. `CandidatePreferences` stores search choices separately: salary floor and target, role/location preferences, acceptable employment types, work mode, relocation, technologies to prioritize or learn, seniority boundaries, and openness to international remote work. The configuration is validated with Pydantic and loaded from UTF-8 JSON; candidate data is not written to PostgreSQL.
