@@ -14,7 +14,9 @@ from ai_job_hunter.deduplication.matcher import (
 )
 from ai_job_hunter.deduplication.normalization import (
     extract_company_domain,
+    is_job_specific_url,
     normalize_company_name,
+    normalize_job_url,
 )
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 from ai_job_hunter.models import Company, Job, JobSource
@@ -38,6 +40,7 @@ class IngestionResult:
     job_source_id: UUID
     company_id: UUID | None
     refreshed: bool = False
+    materially_changed: bool = False
     deduplication: DeduplicationResult | None = None
     possible_matches: tuple[DeduplicationResult, ...] = ()
 
@@ -55,6 +58,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
 
         if existing_source is not None:
             job = existing_source.job
+            previous_inputs = _source_material_inputs(existing_source)
             _complete_company_if_missing(session, job, offer)
             _fill_missing_canonical_fields(job, offer)
             _refresh_source(existing_source, offer, is_new=False)
@@ -65,6 +69,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
                 job_source_id=existing_source.id,
                 company_id=job.company_id,
                 refreshed=True,
+                materially_changed=previous_inputs != _offer_material_inputs(offer),
             )
 
         candidates = _find_plausible_candidates(session, offer)
@@ -91,6 +96,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
                 job_id=job.id,
                 job_source_id=source.id,
                 company_id=job.company_id,
+                materially_changed=True,
                 deduplication=match,
                 possible_matches=tuple(possible_matches),
             )
@@ -127,6 +133,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
             job_id=job.id,
             job_source_id=source.id,
             company_id=job.company_id,
+            materially_changed=True,
             possible_matches=tuple(sorted(possible_matches, key=lambda item: str(item.candidate_job_id))),
         )
 
@@ -227,18 +234,55 @@ def _find_plausible_candidates(session: Session, offer: NormalizedJob) -> list[D
 
 def _find_source(session: Session, offer: NormalizedJob) -> JobSource | None:
     if offer.external_id is None:
-        return None
-    return session.scalar(
-        select(JobSource).where(
-            JobSource.provider == offer.provider,
-            JobSource.external_id == offer.external_id,
+        exact_source = None
+    else:
+        exact_source = session.scalar(
+            select(JobSource).where(
+                JobSource.provider == offer.provider,
+                JobSource.external_id == offer.external_id,
+            )
         )
-    )
+    if exact_source is not None:
+        return exact_source
+
+    incoming_urls = {
+        normalized
+        for value in (offer.canonical_url, offer.source_url, offer.apply_url)
+        if is_job_specific_url(value) and (normalized := normalize_job_url(value))
+    }
+    if not incoming_urls:
+        return None
+
+    # Some ATS records have no stable external identifier. A unique, exact
+    # provider-owned job URL still identifies that source snapshot and makes
+    # repeated fetches idempotent without merging separate canonical jobs.
+    sources = session.scalars(
+        select(JobSource)
+        .where(JobSource.provider == offer.provider)
+        .order_by(JobSource.id)
+    ).all()
+    matches = [
+        source
+        for source in sources
+        if incoming_urls
+        & {
+            normalized
+            for value in (source.canonical_url, source.original_url, source.apply_url)
+            if is_job_specific_url(value) and (normalized := normalize_job_url(value))
+        }
+    ]
+    # Older runs may already have produced multiple rows for one canonical
+    # job. Reuse its oldest source row when the URL points to only one Job;
+    # refuse to choose if the same provider URL is attached to distinct Jobs.
+    if matches and len({source.job_id for source in matches}) == 1:
+        return matches[0]
+    return None
 
 
 def _refresh_source(source: JobSource, offer: NormalizedJob, *, is_new: bool) -> None:
     source.provider = offer.provider
-    source.external_id = offer.external_id
+    if offer.external_id is not None:
+        source.external_id = offer.external_id
     if offer.source_url is not None:
         source.original_url = offer.source_url
     if offer.canonical_url is not None:
@@ -247,23 +291,54 @@ def _refresh_source(source: JobSource, offer: NormalizedJob, *, is_new: bool) ->
         source.apply_url = offer.apply_url
     if offer.company_website is not None:
         source.company_website = offer.company_website
+    # These fields describe the current provider snapshot, so missing values
+    # must clear stale values when an existing posting changes.
+    source.source_title = offer.title
+    source.source_description = offer.description
+    source.source_location = offer.location
     if offer.raw_metadata is not None:
         source.raw_metadata = offer.raw_metadata
-    if offer.salary_min is not None:
-        source.salary_min = offer.salary_min
-    if offer.salary_max is not None:
-        source.salary_max = offer.salary_max
-    if offer.currency is not None:
-        source.salary_currency = offer.currency
-    if offer.salary_period is not None:
-        source.salary_period = offer.salary_period.value
-    if offer.employment_type is not None:
-        source.employment_type = offer.employment_type.value
-    if offer.remote_policy is not None:
-        source.remote_policy = offer.remote_policy.value
-    if is_new or offer.remote_eligibility.value != "UNKNOWN":
-        source.remote_eligibility = offer.remote_eligibility.value
-    if offer.published_at is not None:
-        source.published_at = offer.published_at
+    source.salary_min = offer.salary_min
+    source.salary_max = offer.salary_max
+    source.salary_currency = offer.currency
+    source.salary_period = offer.salary_period.value if offer.salary_period else None
+    source.employment_type = offer.employment_type.value if offer.employment_type else None
+    source.remote_policy = offer.remote_policy.value if offer.remote_policy else None
+    source.remote_eligibility = offer.remote_eligibility.value
+    source.published_at = offer.published_at
     if is_new:
         source.discovered_at = offer.discovered_at
+
+
+def _offer_material_inputs(offer: NormalizedJob) -> tuple[object, ...]:
+    """Return only provider-supplied facts that can change deterministic/Jev input."""
+
+    return (
+        offer.title,
+        offer.description,
+        offer.location,
+        offer.remote_policy.value if offer.remote_policy else None,
+        offer.remote_eligibility.value,
+        str(offer.salary_min) if offer.salary_min is not None else None,
+        str(offer.salary_max) if offer.salary_max is not None else None,
+        offer.currency,
+        offer.salary_period.value if offer.salary_period else None,
+        offer.employment_type.value if offer.employment_type else None,
+    )
+
+
+def _source_material_inputs(source: JobSource) -> tuple[object, ...]:
+    """Match the normalized provider facts retained for an existing source."""
+
+    return (
+        source.source_title or source.job.title,
+        source.source_description,
+        source.source_location,
+        source.remote_policy,
+        source.remote_eligibility,
+        str(source.salary_min) if source.salary_min is not None else None,
+        str(source.salary_max) if source.salary_max is not None else None,
+        source.salary_currency,
+        source.salary_period,
+        source.employment_type,
+    )

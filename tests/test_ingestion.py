@@ -83,3 +83,34 @@ def test_missing_external_id_never_auto_merges_without_strong_url(db_session) ->
     assert db_session.scalar(select(func.count()).select_from(Job)) == 2
     assert db_session.scalar(select(func.count()).select_from(JobSource)) == 2
     assert db_session.scalar(select(func.count()).select_from(Company)) == 1
+
+
+def test_missing_external_id_refreshes_unique_provider_job_url_in_place(db_session) -> None:
+    original = NormalizedJob(
+        provider="example-board",
+        external_id=None,
+        source_url="https://jobs.example.test/roles/123",
+        canonical_url="https://jobs.example.test/roles/123",
+        title="Backend Engineer",
+        company_name="Example Company",
+        description="Original role description",
+        discovered_at=datetime(2026, 9, 24, tzinfo=UTC),
+    )
+    updated = original.model_copy(
+        update={"description": "Updated role description", "discovered_at": datetime(2026, 9, 25, tzinfo=UTC)}
+    )
+
+    first = ingest_job(db_session, original)
+    second = ingest_job(db_session, updated)
+
+    assert first.status is IngestionStatus.CREATED
+    assert second.status is IngestionStatus.ALREADY_KNOWN
+    assert second.job_id == first.job_id
+    assert second.job_source_id == first.job_source_id
+    assert second.materially_changed is True
+    assert db_session.scalar(select(func.count()).select_from(Job)) == 1
+    assert db_session.scalar(select(func.count()).select_from(JobSource)) == 1
+    source = db_session.get(JobSource, first.job_source_id)
+    assert source is not None
+    assert source.external_id is None
+    assert source.source_description == "Updated role description"

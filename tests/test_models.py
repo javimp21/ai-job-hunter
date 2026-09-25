@@ -2,19 +2,41 @@ from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import Session, configure_mappers
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models import Company, CompanyEvidence, Job, JobSource
+from ai_job_hunter.models import (
+    Application,
+    ApplicationEvent,
+    Company,
+    CompanyEvidence,
+    Job,
+    JobEvaluation,
+    JobReview,
+    JobSource,
+)
 
 
 def test_models_import_and_relationships_are_configured() -> None:
     configure_mappers()
 
-    assert set(Base.metadata.tables) == {"companies", "company_evidence", "jobs", "job_sources"}
+    assert set(Base.metadata.tables) == {
+        "applications",
+        "application_events",
+        "companies",
+        "company_evidence",
+        "job_evaluations",
+        "job_reviews",
+        "jobs",
+        "job_sources",
+    }
     assert Company.jobs.property.mapper.class_ is Job
     assert Company.evidence_items.property.mapper.class_ is CompanyEvidence
     assert Job.company.property.mapper.class_ is Company
     assert Job.sources.property.mapper.class_ is JobSource
     assert JobSource.job.property.mapper.class_ is Job
     assert CompanyEvidence.company.property.mapper.class_ is Company
+    assert JobEvaluation.job.property.mapper.class_ is Job
+    assert JobReview.job.property.mapper.class_ is Job
+    assert Application.job.property.mapper.class_ is Job
+    assert ApplicationEvent.application.property.mapper.class_ is Application
 
 
 def test_company_job_and_multiple_source_relationships() -> None:

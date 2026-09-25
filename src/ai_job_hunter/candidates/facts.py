@@ -73,13 +73,21 @@ class JobFacts:
 
     @classmethod
     def from_job_source(cls, job: Job, source: JobSource) -> JobFacts:
-        """Build the same facts from a canonical persisted job and one source."""
+        """Build facts from a source's latest provider snapshot when available."""
 
         return cls._from_values(
-            title=job.title,
-            description=job.description,
-            location=job.location,
-            remote_policy=job.remote_policy or source.remote_policy,
+            title=(getattr(source, "source_title", None) or job.title),
+            description=(
+                source.source_description
+                if hasattr(source, "source_description")
+                else job.description
+            ),
+            location=(
+                source.source_location
+                if hasattr(source, "source_location")
+                else job.location
+            ),
+            remote_policy=source.remote_policy or job.remote_policy,
             remote_eligibility=source.remote_eligibility,
             salary_min=source.salary_min,
             salary_max=source.salary_max,

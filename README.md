@@ -214,6 +214,38 @@ The program, not Jev, chooses the final recommendation:
 
 Jev handles ambiguous role relevance, experience accessibility, backend relevance, stack transferability, requirement flexibility, career value, and observable role-description quality. It does not enforce geography, perform salary arithmetic, infer seniority tokens, extract technologies, identify source records, deduplicate, decide database behavior, auto-apply, or estimate the probability of getting hired. No external Company Intelligence, application submission, or outreach is part of this feature.
 
+## Opportunity feed and application tracking
+
+The local workflow composes the existing monitor and decision layers:
+
+```text
+Company Monitor -> ATS fetch -> ingestion/deduplication -> new or changed source facts
+  -> deterministic prefilter -> Jev + job_decision_v2 -> opportunity feed
+  -> human review -> application tracking
+```
+
+Run the Alembic migration before the first refresh, then use the unified CLI:
+
+```powershell
+alembic upgrade head
+python -m ai_job_hunter.cli refresh --limit-companies 10 --max-jobs-per-company 100 --max-jev-jobs 20
+python -m ai_job_hunter.cli opportunities --decision apply --limit 10
+python -m ai_job_hunter.cli opportunities --decision review --limit 10
+python -m ai_job_hunter.cli opportunities --status new --remote --company Example --technology python
+python -m ai_job_hunter.cli show JOB_ID
+python -m ai_job_hunter.cli seen JOB_ID
+python -m ai_job_hunter.cli save JOB_ID
+python -m ai_job_hunter.cli dismiss JOB_ID
+python -m ai_job_hunter.cli apply JOB_ID --source "company site" --url https://example.test/apply
+python -m ai_job_hunter.cli application JOB_ID --status interview --note "First interview"
+```
+
+`--no-jev` records uncached eligible jobs as `PENDING`; pending work is not represented as `REVIEW`. `--max-jev-jobs` bounds new Jev calls for one refresh while usable cache entries are still read. Jobs deferred by that budget stay pending on an identical refresh; raise the budget or pass `--retry-pending` to explicitly resume them. `--dry-run` fetches and prefilters without database or Jev writes. The refresh is limited to currently monitored Greenhouse, Lever, and Ashby boards and does not call Remotive.
+
+`JobEvaluation` is versioned by a fingerprint covering source/job facts, candidate profile and preferences, prefilter/policy, rubric, and relevant engine configuration. A changed input gets a new evaluation; an unchanged evaluated fingerprint is reused. `JobReview` independently stores `NEW`, `SEEN`, `SAVED`, or `DISMISSED`, so system `SKIP` and human dismissal remain distinct. Repeated ingestion and another source deduplicated to the same job do not reset that state. Applications are separate and keep an append-only status event history.
+
+The feed hides system `SKIP`, dismissed jobs, and jobs with a tracked application by default; explicit filters can show those records. Within visible `APPLY` and `REVIEW`, priority is the rounded equal-weight mean of `role_relevance`, `backend_relevance`, `stack_transferability`, `experience_accessibility`, `requirements_flexibility`, and `career_value`, scaled to 0–100. If any signal is missing, priority is `UNKNOWN`. This is a deterministic ordering aid, not an estimate of hiring probability. `APPLY` means the system recommends considering an application; it does not submit one. Company salary/evidence, ATS support, and freshness appear as context only and do not alter `job_decision_v2`.
+
 ### Official SDK and authentication
 
 The implementation uses TypeSafe AI's official [`typesafe-sdk` Python SDK](https://github.com/typesafe-ai/typesafe-sdk-python), pinned to **0.7.1**. Its client reads `TYPESAFE_API_KEY` from the process environment and defaults to the currently recommended `jev-latest` model; the CLI records the concrete model name returned by each request. Sync `TypeSafeClient.system_one(state=..., questions=...)` accepts named `Noul` and `Score` question objects and returns typed answers, model metadata, and reported token usage. The official `system-one-adapter-python` was reviewed, but is not installed: it requires configuring a separate LLM provider and is unnecessary for offline tests or the Jev integration.

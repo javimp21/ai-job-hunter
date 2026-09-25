@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, JSON, Numeric, String, Uuid, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, JSON, Numeric, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
@@ -34,6 +34,9 @@ class JobSource(Base):
     canonical_url: Mapped[str | None] = mapped_column(String(2048))
     apply_url: Mapped[str | None] = mapped_column(String(2048))
     company_website: Mapped[str | None] = mapped_column(String(2048))
+    source_title: Mapped[str | None] = mapped_column(String(255))
+    source_description: Mapped[str | None] = mapped_column(Text)
+    source_location: Mapped[str | None] = mapped_column(String(255))
     salary_min: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     salary_max: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     salary_currency: Mapped[str | None] = mapped_column(String(3))
