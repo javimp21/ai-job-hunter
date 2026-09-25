@@ -188,7 +188,7 @@ def test_multiple_providers_are_attached_to_one_normalized_company(db_session) -
     assert len(facts.compensation_evidence) == 1
     assert facts.source_count == 3
     assert {page.ats_provider for page in facts.career_pages} == {ATSProvider.GREENHOUSE, ATSProvider.ASHBY}
-    assert sum(page.is_supported for page in facts.career_pages) == 1
+    assert sum(page.is_supported for page in facts.career_pages) == 2
     assert not hasattr(facts, "company_score")
 
     summary = summarize_company_catalog(db_session)
@@ -247,7 +247,7 @@ def test_supported_ats_identification_never_fetches_or_follows_urls() -> None:
     assert identify_ats("https://boards.greenhouse.io/acme/jobs/123")[0] is ATSProvider.GREENHOUSE
     assert identify_ats("https://jobs.lever.co/acme/123")[0] is ATSProvider.LEVER
     assert identify_ats("https://jobs.ashbyhq.com/acme")[0] is ATSProvider.ASHBY
-    assert identify_ats("https://careers.acme.example/jobs")[0] is ATSProvider.OTHER
+    assert identify_ats("https://careers.acme.example/jobs")[0] is ATSProvider.UNKNOWN
     assert identify_ats(None) == (ATSProvider.UNKNOWN, None)
 
 
@@ -293,7 +293,7 @@ def test_monitor_filters_are_structured_and_require_at_least_one_filter(db_sessi
             evidence_type=CompanyEvidenceType.PUBLIC_SALARY.value,
             structured_data={
                 "public_salary": True,
-                "career_page_url": "https://jobs.ashbyhq.com/other-co",
+                "career_page_url": "https://www.linkedin.com/company/other/jobs/",
             },
         )
     )

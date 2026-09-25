@@ -4,13 +4,23 @@ AI Job Hunter is the foundation for a personal system that discovers job opportu
 
 ## Current architecture
 
-The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. Sources include Remotive, a job aggregator, and direct employer job boards hosted by Greenhouse or Lever (ATS platforms). Each adapter translates its public postings into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
+The package has typed configuration, SQLAlchemy models, a PostgreSQL-ready engine/session factory, Alembic migrations, and a structural connector protocol. Sources include Remotive, a job aggregator, and public employer job boards hosted by Greenhouse, Lever, or Ashby (ATS platforms). Each adapter translates public postings into provider-independent `NormalizedJob` records. The fake in-memory connector remains available for tests and development.
 
 ```text
 External source -> connector -> NormalizedJob
                                       +-> deduplication -> ingestion -> database
                                       +-> candidate pre-filter -> preview output
 ```
+
+Company Intelligence can also discover a bounded set of employer boards without page scraping:
+
+```text
+Company Intelligence -> ATS URL/evidence discovery -> monitor target
+  -> Greenhouse / Lever / Ashby public API -> NormalizedJob
+  -> existing deduplication pipeline -> candidate pre-filter -> optional Jev
+```
+
+ATS discovery recognizes exact public board hosts in career URLs and direct ATS providers already recorded by existing job sources. LinkedIn and generic career pages remain `UNKNOWN`; no ATS is guessed by fetching a page. Observed job-source evidence takes precedence over a career-URL hostname inference.
 
 `run_ingestion_pipeline` fetches normalized offers and passes each to the ingestion service. The service resolves a company when a name is present, then creates or refreshes the canonical `Job` and its `JobSource` occurrence in one transaction.
 
@@ -65,13 +75,14 @@ The API does not expose a company website or apply URL in its documented job rec
 
 ## Greenhouse and Lever sources
 
-Remotive is an **aggregator**: one API supplies jobs from many employers. Greenhouse and Lever are **ATS platforms**: each configured source points to one employer's publicly published job board. Add or remove employers in a local source list; no connector code changes are needed.
+Remotive is an **aggregator**: one API supplies jobs from many employers. Greenhouse, Lever, and Ashby are **ATS platforms**: each configured source points to one employer's publicly published job board. Add or remove employers in a local source list; no connector code changes are needed.
 
 ```text
 Sources
 ├── Remotive — aggregator
 ├── Greenhouse — employer ATS
-└── Lever — employer ATS
+├── Lever — employer ATS
+└── Ashby — employer ATS
 ```
 
 The Greenhouse connector calls the public Job Board API at `https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs?content=true`. The board token is the slug from the company's public Greenhouse job-board URL. Its GET endpoints require no authentication. The jobs response does not document pagination; `content=true` includes descriptions, departments, and offices. A job post's `id`, `title`, `location.name`, `updated_at`, `absolute_url`, and optional `content`/`metadata` are mapped when present. The board API supplies one job URL, so the connector does not invent a separate apply URL. Employment type, salary, remote work, and eligibility remain unknown unless the API provides a structured field (custom board metadata is preserved in `raw_metadata`).
@@ -119,11 +130,11 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 `--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
 
-There is no LinkedIn/Indeed connector, browser scraping, external Company Intelligence, frontend, application tracking, outreach, or automatic application behavior.
+There is no LinkedIn/Indeed/Wellfound connector, browser scraping, outreach, or automatic application behavior.
 
 ## Company Intelligence
 
-Company Intelligence stores source-backed company evidence independently from candidate preferences and job decisions. It does not assign a company score or change Jev, `job_decision_v1`, or `job_decision_v2`. See [the Company Intelligence guide](docs/company-intelligence.md) for source scope, refresh behavior, and query examples.
+Company Intelligence stores source-backed company evidence independently from candidate preferences and job decisions. It can build monitor targets for supported ATS boards, save normalized snapshots, and optionally run the deterministic pre-filter. It does not assign a company score or change Jev, `job_decision_v1`, or `job_decision_v2`. See [the Company Intelligence guide](docs/company-intelligence.md) for source scope, refresh behavior, and query examples.
 
 ## Candidate profile and deterministic pre-filter
 

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from ai_job_hunter.connectors import (
+    AshbyConnector,
     GreenhouseConnector,
     LeverConnector,
     build_job_connectors,
@@ -14,7 +15,7 @@ from ai_job_hunter.job_sources import (
 )
 
 
-def test_config_loads_multiple_companies_across_both_ats(tmp_path):
+def test_config_loads_multiple_companies_across_supported_ats(tmp_path):
     path = tmp_path / "job_sources.local.json"
     path.write_text(
         json.dumps(
@@ -23,6 +24,7 @@ def test_config_loads_multiple_companies_across_both_ats(tmp_path):
                     {"provider": "greenhouse", "identifier": "company-a", "company_name": "Company A"},
                     {"provider": "greenhouse", "identifier": "company-b"},
                     {"provider": "lever", "identifier": "startup-x", "region": "eu", "max_jobs": 35},
+                    {"provider": "ashby", "identifier": "product-y", "company_name": "Product Y"},
                 ]
             }
         ),
@@ -32,7 +34,7 @@ def test_config_loads_multiple_companies_across_both_ats(tmp_path):
     config = load_job_sources(path)
     connectors = build_job_connectors(config)
     try:
-        assert len(connectors) == 3
+        assert len(connectors) == 4
         assert isinstance(connectors[0], GreenhouseConnector)
         assert isinstance(connectors[1], GreenhouseConnector)
         assert connectors[0].board_token == "company-a"
@@ -41,15 +43,17 @@ def test_config_loads_multiple_companies_across_both_ats(tmp_path):
         assert connectors[2].site == "startup-x"
         assert connectors[2].region == "eu"
         assert connectors[2].max_jobs == 35
+        assert isinstance(connectors[3], AshbyConnector)
+        assert connectors[3].job_board_name == "product-y"
     finally:
         for connector in connectors:
             connector.close()
 
 
 def test_unknown_provider_is_rejected_with_clear_error():
-    with pytest.raises(ValueError, match="provider must be one of: greenhouse, lever"):
+    with pytest.raises(ValueError, match="provider must be one of: greenhouse, lever, ashby"):
         JobSourcesConfig.model_validate(
-            {"sources": [{"provider": "ashby", "identifier": "sample"}]}
+            {"sources": [{"provider": "remotive", "identifier": "sample"}]}
         )
 
 
@@ -70,6 +74,10 @@ def test_duplicate_sources_and_invalid_provider_options_are_rejected():
     with pytest.raises(ValueError, match="only supported by Lever"):
         JobSourcesConfig.model_validate(
             {"sources": [{"provider": "greenhouse", "identifier": "site", "region": "eu"}]}
+        )
+    with pytest.raises(ValueError, match="only supported by Lever"):
+        JobSourcesConfig.model_validate(
+            {"sources": [{"provider": "ashby", "identifier": "site", "region": "eu"}]}
         )
 
 

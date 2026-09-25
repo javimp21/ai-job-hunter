@@ -12,6 +12,12 @@
       "company_name": "Example Startup",
       "region": "eu",
       "max_jobs": 25
+    },
+    {
+      "provider": "ashby",
+      "identifier": "example-product",
+      "company_name": "Example Product Co",
+      "max_jobs": 25
     }
   ]
 }

@@ -2,24 +2,34 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Iterable
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from ai_job_hunter.ats_discovery import discover_ats_url
 from ai_job_hunter.company_sources import CompanySourceBatch, REMOTE_ES, SkippedCompanySource
-from ai_job_hunter.deduplication.normalization import extract_company_domain, normalize_company_name
+from ai_job_hunter.deduplication.normalization import (
+    extract_company_domain,
+    normalize_company_name,
+)
 from ai_job_hunter.domain.company_intelligence import (
+    ATSDiscoveryConfidence,
+    ATSProvider,
     CompanyEvidenceRecord,
     CompanyEvidenceType,
     CompanyFacts,
+    CompanyMonitorTarget,
     FactStatus,
     company_facts,
 )
+from ai_job_hunter.domain.normalized_job import NormalizedJob
 from ai_job_hunter.models import Company, CompanyEvidence, Job
+from ai_job_hunter.models.job_source import JobSource
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,12 +55,22 @@ class CompanyCatalogSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class ATSObservationSummary:
+    sources_examined: int
+    companies_with_observed_ats: int
+    evidence_created: int
+    evidence_updated: int
+
+
+@dataclass(frozen=True, slots=True)
 class CompanyMonitorFilters:
     spanish_top_tech: bool = False
     remote_from_spain: bool = False
     has_career_page: bool = False
     supported_ats: bool = False
     public_salary: bool = False
+    compensation_evidence: bool = False
+    multiple_evidence_sources: bool = False
 
     @property
     def is_empty(self) -> bool:
@@ -61,6 +81,8 @@ class CompanyMonitorFilters:
                 self.has_career_page,
                 self.supported_ats,
                 self.public_salary,
+                self.compensation_evidence,
+                self.multiple_evidence_sources,
             )
         )
 
@@ -202,7 +224,10 @@ def summarize_company_catalog(session: Session) -> CompanyCatalogSummary:
         companies_with_public_salary=sum(item.public_salary is FactStatus.YES for item in facts),
         companies_with_compensation_evidence=sum(bool(item.compensation_evidence) for item in facts),
         companies_with_career_page=sum(bool(item.career_pages) for item in facts),
-        companies_with_supported_ats=sum(any(page.is_supported for page in item.career_pages) for item in facts),
+        companies_with_supported_ats=sum(
+            any(discovery.is_supported for discovery in item.ats_discoveries)
+            for item in facts
+        ),
         evidence_by_provider=evidence_by_provider,
     )
 
@@ -222,13 +247,329 @@ def find_companies_to_monitor(
         checks = (
             (not filters.spanish_top_tech or _has_evidence(facts, "compensation", "spanish_top_tech_companies")),
             (not filters.remote_from_spain or facts.remote_from_spain is FactStatus.YES),
-            (not filters.has_career_page or bool(facts.career_pages)),
-            (not filters.supported_ats or any(page.is_supported for page in facts.career_pages)),
+            (not filters.has_career_page or bool(facts.career_pages or facts.ats_discoveries)),
+            (not filters.supported_ats or any(item.is_supported for item in facts.ats_discoveries)),
             (not filters.public_salary or facts.public_salary is FactStatus.YES),
+            (not filters.compensation_evidence or bool(facts.compensation_evidence)),
+            (not filters.multiple_evidence_sources or facts.source_count > 1),
         )
         if all(checks):
             results.append(facts)
     return results
+
+
+def build_company_monitor_targets(
+    session: Session,
+    filters: CompanyMonitorFilters,
+    *,
+    company_name: str | None = None,
+    provider: ATSProvider | None = None,
+    limit_companies: int = 10,
+) -> list[CompanyMonitorTarget]:
+    """Build bounded public-board targets from supported, identified ATS facts."""
+
+    if limit_companies < 1:
+        raise ValueError("limit_companies must be positive")
+    name_key = normalize_company_name(company_name) if company_name else None
+    if company_name and name_key is None:
+        raise ValueError("company_name must contain a normalizable name")
+    if filters.is_empty and name_key is None and provider is None:
+        raise ValueError("At least one company filter is required to build monitor targets.")
+
+    companies = session.scalars(
+        select(Company).options(selectinload(Company.evidence_items)).order_by(Company.name)
+    ).all()
+    targets: list[CompanyMonitorTarget] = []
+    included_company_ids: set[UUID] = set()
+    seen_targets: set[tuple[UUID, ATSProvider, str, str | None]] = set()
+    for company in companies:
+        if name_key is not None and normalize_company_name(company.name) != name_key:
+            continue
+        facts = company_facts(company)
+        checks = (
+            (not filters.spanish_top_tech or _has_evidence(facts, "compensation", "spanish_top_tech_companies")),
+            (not filters.remote_from_spain or facts.remote_from_spain is FactStatus.YES),
+            (not filters.has_career_page or bool(facts.career_pages or facts.ats_discoveries)),
+            (not filters.public_salary or facts.public_salary is FactStatus.YES),
+            (not filters.compensation_evidence or bool(facts.compensation_evidence)),
+            (not filters.multiple_evidence_sources or facts.source_count > 1),
+        )
+        if not all(checks):
+            continue
+
+        company_targets: list[CompanyMonitorTarget] = []
+        for discovery in facts.ats_discoveries:
+            if not discovery.is_supported or (provider is not None and discovery.provider is not provider):
+                continue
+            identifier = discovery.identifier
+            assert identifier is not None
+            key = (company.id, discovery.provider, identifier.casefold(), discovery.region)
+            if key in seen_targets:
+                continue
+            careers_url = discovery.source_url or _public_board_url(
+                discovery.provider, identifier, discovery.region
+            )
+            company_targets.append(
+                CompanyMonitorTarget(
+                    company_id=company.id,
+                    company_name=company.name,
+                    provider=discovery.provider,
+                    identifier=identifier,
+                    region=discovery.region,
+                    careers_url=careers_url,
+                    evidence_source=(
+                        "observed_job_source"
+                        if discovery.confidence is ATSDiscoveryConfidence.OBSERVED_JOB_SOURCE
+                        else "career_url"
+                    ),
+                    confidence=discovery.confidence,
+                )
+            )
+        if not company_targets:
+            continue
+        if company.id not in included_company_ids and len(included_company_ids) >= limit_companies:
+            break
+        included_company_ids.add(company.id)
+        for target in company_targets:
+            targets.append(target)
+            seen_targets.add((target.company_id, target.provider, target.identifier.casefold(), target.region))
+    return targets
+
+
+def sync_ats_evidence_from_job_sources(
+    session: Session,
+    *,
+    normalized_jobs: Iterable[NormalizedJob] | None = None,
+    source_label: str = "persisted_job_source",
+) -> ATSObservationSummary:
+    """Record observed ATS boards from persisted JobSources or an existing normalized snapshot."""
+
+    if normalized_jobs is None:
+        job_sources = session.scalars(
+            select(JobSource)
+            .options(selectinload(JobSource.job).selectinload(Job.company))
+            .where(JobSource.provider.in_(("greenhouse", "lever", "ashby")))
+            .order_by(JobSource.provider, JobSource.id)
+        ).all()
+        observations = [
+            _observation_from_job_source(source)
+            for source in job_sources
+            if source.job is not None and source.job.company is not None
+        ]
+    else:
+        observations = [_observation_from_normalized_job(job) for job in normalized_jobs]
+    observations = [observation for observation in observations if observation is not None]
+    if not observations:
+        return ATSObservationSummary(0, 0, 0, 0)
+
+    grouped: dict[tuple[str, str, str | None, str | None], list[dict[str, object]]] = defaultdict(list)
+    source_by_group: dict[tuple[str, str, str | None, str | None], tuple[str, str | None, UUID | None]] = {}
+    for observation in observations:
+        key = (
+            observation["company_identity"],
+            observation["provider"],
+            observation["identifier"],
+            observation["region"],
+        )
+        grouped[key].append(observation["supporting_job_source"])
+        source_by_group[key] = (
+            observation["company_name"],
+            observation["company_website"],
+            observation["company_id"],
+        )
+
+    created = 0
+    updated = 0
+    companies_observed: set[str] = set()
+    transaction = session.begin_nested() if session.in_transaction() else session.begin()
+    with transaction:
+        companies = list(session.scalars(select(Company).order_by(Company.id)).all())
+        companies_by_name: dict[str, list[Company]] = {}
+        companies_by_domain: dict[str, list[Company]] = {}
+        for company in companies:
+            name = normalize_company_name(company.name)
+            domain = extract_company_domain(company.website_url)
+            if name:
+                companies_by_name.setdefault(name, []).append(company)
+            if domain:
+                companies_by_domain.setdefault(domain, []).append(company)
+
+        for group, support_rows in grouped.items():
+            company_name, website_url, company_id = source_by_group[group]
+            company = session.get(Company, company_id) if company_id is not None else None
+            if company is None:
+                identity_record = CompanyEvidenceRecord(
+                    provider="observed_job_source",
+                    evidence_type=CompanyEvidenceType.ATS_OBSERVED,
+                    source_key="pending-identity",
+                    company_name=company_name,
+                    website_url=website_url,
+                )
+                company, _created, _possible = _find_or_create_company(
+                    session,
+                    identity_record,
+                    companies_by_name=companies_by_name,
+                    companies_by_domain=companies_by_domain,
+                )
+                session.flush()
+            _, ats_provider, identifier, region = group
+            source_key = ":".join(
+                (
+                    company.id.hex,
+                    ats_provider,
+                    identifier or "unresolved",
+                    region or "default",
+                )
+            )
+            merged_support: dict[str, dict[str, object]] = {}
+            existing = session.scalar(
+                select(CompanyEvidence).where(
+                    CompanyEvidence.provider == "observed_job_source",
+                    CompanyEvidence.evidence_type == CompanyEvidenceType.ATS_OBSERVED.value,
+                    CompanyEvidence.source_key == source_key,
+                )
+            )
+            if existing is not None:
+                previous = (existing.structured_data or {}).get("supporting_job_sources", [])
+                if isinstance(previous, list):
+                    for ref in previous:
+                        if isinstance(ref, dict) and isinstance(ref.get("reference_key"), str):
+                            merged_support[ref["reference_key"]] = ref
+            for ref in support_rows:
+                reference_key = str(ref["reference_key"])
+                merged_support[reference_key] = ref
+            sorted_support = [merged_support[key] for key in sorted(merged_support)]
+            structured_data = {
+                "ats_provider": ats_provider.upper(),
+                "identifier": identifier,
+                "region": region,
+                "supporting_job_sources": sorted_support,
+                "observation_basis": source_label,
+            }
+            source_url = next(
+                (ref.get("source_url") for ref in sorted_support if ref.get("source_url")),
+                None,
+            )
+            if existing is None:
+                session.add(
+                    CompanyEvidence(
+                        company=company,
+                        provider="observed_job_source",
+                        source_key=source_key,
+                        source_url=source_url,
+                        external_identifier=identifier,
+                        evidence_type=CompanyEvidenceType.ATS_OBSERVED.value,
+                        structured_data=structured_data,
+                        raw_metadata={"observation_basis": source_label},
+                    )
+                )
+                created += 1
+            else:
+                existing.structured_data = structured_data
+                existing.source_url = source_url
+                existing.external_identifier = identifier
+                existing.raw_metadata = {"observation_basis": source_label}
+                existing.updated_at = datetime.now(UTC)
+                updated += 1
+            companies_observed.add(company.id.hex)
+            session.flush()
+    return ATSObservationSummary(len(observations), len(companies_observed), created, updated)
+
+
+def _observation_from_job_source(source: JobSource) -> dict[str, object] | None:
+    company = source.job.company
+    if company is None:
+        return None
+    urls = (source.canonical_url, source.original_url, source.apply_url)
+    return _make_ats_observation(
+        company_name=company.name,
+        company_website=company.website_url,
+        company_id=company.id,
+        provider=source.provider,
+        external_id=source.external_id,
+        urls=urls,
+        discovered_at=source.discovered_at,
+        reference_key=f"job_source:{source.id}",
+        job_id=source.job_id,
+        job_source_id=source.id,
+    )
+
+
+def _observation_from_normalized_job(job: NormalizedJob) -> dict[str, object] | None:
+    if not job.company_name:
+        return None
+    return _make_ats_observation(
+        company_name=job.company_name,
+        company_website=job.company_website,
+        company_id=None,
+        provider=job.provider,
+        external_id=job.external_id,
+        urls=(job.canonical_url, job.source_url, job.apply_url),
+        discovered_at=job.discovered_at,
+        reference_key=f"snapshot:{job.provider}:{job.external_id or job.source_url or job.canonical_url}",
+        job_id=None,
+        job_source_id=None,
+    )
+
+
+def _make_ats_observation(
+    *,
+    company_name: str,
+    company_website: str | None,
+    company_id: UUID | None,
+    provider: str,
+    external_id: str | None,
+    urls: tuple[str | None, ...],
+    discovered_at: datetime | None,
+    reference_key: str,
+    job_id: UUID | None,
+    job_source_id: UUID | None,
+) -> dict[str, object] | None:
+    try:
+        ats_provider = ATSProvider(provider.strip().upper())
+    except ValueError:
+        return None
+    if ats_provider is ATSProvider.UNKNOWN:
+        return None
+    url_discoveries = [discover_ats_url(url) for url in urls if url]
+    matching_url = next((result for result in url_discoveries if result.provider is ats_provider), None)
+    identifier = matching_url.identifier if matching_url else None
+    region = matching_url.region if matching_url else ("global" if ats_provider is ATSProvider.LEVER else None)
+    source_url = matching_url.source_url if matching_url else next((url for url in urls if url), None)
+    ref = {
+        "reference_key": reference_key,
+        "provider": ats_provider.value.casefold(),
+        "external_id": external_id,
+        "job_id": str(job_id) if job_id else None,
+        "job_source_id": str(job_source_id) if job_source_id else None,
+        "source_url": source_url,
+        "discovered_at": discovered_at.isoformat() if discovered_at else None,
+    }
+    identity = normalize_company_name(company_name)
+    if identity is None:
+        return None
+    return {
+        "company_identity": company_id.hex if company_id else identity,
+        "company_name": company_name,
+        "company_website": company_website,
+        "company_id": company_id,
+        "provider": ats_provider.value.casefold(),
+        "identifier": identifier,
+        "region": region,
+        "supporting_job_source": ref,
+    }
+
+
+def _public_board_url(provider: ATSProvider, identifier: str, region: str | None) -> str:
+    from urllib.parse import quote
+
+    slug = quote(identifier, safe="")
+    if provider is ATSProvider.GREENHOUSE:
+        return f"https://boards.greenhouse.io/{slug}"
+    if provider is ATSProvider.LEVER:
+        host = "jobs.eu.lever.co" if region == "eu" else "jobs.lever.co"
+        return f"https://{host}/{slug}"
+    return f"https://jobs.ashbyhq.com/{slug}"
 
 
 def _has_evidence(facts: CompanyFacts, evidence_type: str, provider: str | None = None) -> bool:

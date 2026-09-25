@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 
+from ai_job_hunter.connectors.ashby import AshbyConnector
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnector
 from ai_job_hunter.connectors.lever import LeverConnector
 from ai_job_hunter.connectors.protocol import JobConnector
@@ -36,6 +37,16 @@ def build_job_connectors(
                     source.identifier,
                     company_name=source.company_name,
                     region=source.region or "global",
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                )
+            )
+        elif source.provider == "ashby":
+            connectors.append(
+                AshbyConnector(
+                    source.identifier,
+                    company_name=source.company_name,
                     max_jobs=source.max_jobs,
                     timeout=timeout,
                     client=client,
