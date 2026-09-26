@@ -41,6 +41,7 @@ candidate.local.*
 candidate.*.local.json
 candidate.*.local.yaml
 candidate.*.local.yml
+candidate_projects.local.json
 /.postgres-data/
 /postgres-data/
 /pgdata/

@@ -7,10 +7,13 @@ from ai_job_hunter.models import (
     ApplicationEvent,
     Company,
     CompanyEvidence,
+    Contact,
     Job,
     JobEvaluation,
     JobReview,
     JobSource,
+    Outreach,
+    OutreachEvent,
 )
 
 
@@ -22,10 +25,13 @@ def test_models_import_and_relationships_are_configured() -> None:
         "application_events",
         "companies",
         "company_evidence",
+        "contacts",
         "job_evaluations",
         "job_reviews",
         "jobs",
         "job_sources",
+        "outreaches",
+        "outreach_events",
     }
     assert Company.jobs.property.mapper.class_ is Job
     assert Company.evidence_items.property.mapper.class_ is CompanyEvidence
@@ -37,6 +43,13 @@ def test_models_import_and_relationships_are_configured() -> None:
     assert JobReview.job.property.mapper.class_ is Job
     assert Application.job.property.mapper.class_ is Job
     assert ApplicationEvent.application.property.mapper.class_ is Application
+    assert Contact.company.property.mapper.class_ is Company
+    assert Outreach.company.property.mapper.class_ is Company
+    assert Outreach.job.property.mapper.class_ is Job
+    assert Outreach.contact.property.mapper.class_ is Contact
+    assert Outreach.application.property.mapper.class_ is Application
+    assert Outreach.events.property.mapper.class_ is OutreachEvent
+    assert OutreachEvent.outreach.property.mapper.class_ is Outreach
 
 
 def test_company_job_and_multiple_source_relationships() -> None:

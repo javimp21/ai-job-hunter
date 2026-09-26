@@ -7,6 +7,15 @@ from ai_job_hunter.models.job import Job
 from ai_job_hunter.models.job_evaluation import EvaluationStatus, JobEvaluation
 from ai_job_hunter.models.job_review import HumanReviewStatus, JobReview
 from ai_job_hunter.models.job_source import JobSource
+from ai_job_hunter.models.contact import Contact, ContactType
+from ai_job_hunter.models.outreach import (
+    Outreach,
+    OutreachChannel,
+    OutreachEvent,
+    OutreachEventType,
+    OutreachPurpose,
+    OutreachStatus,
+)
 
 __all__ = [
     "Application",
@@ -14,10 +23,18 @@ __all__ = [
     "ApplicationStatus",
     "Company",
     "CompanyEvidence",
+    "Contact",
+    "ContactType",
     "EvaluationStatus",
     "HumanReviewStatus",
     "Job",
     "JobEvaluation",
     "JobReview",
     "JobSource",
+    "Outreach",
+    "OutreachChannel",
+    "OutreachEvent",
+    "OutreachEventType",
+    "OutreachPurpose",
+    "OutreachStatus",
 ]

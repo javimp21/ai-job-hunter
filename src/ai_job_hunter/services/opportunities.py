@@ -73,6 +73,11 @@ from ai_job_hunter.models import (
     JobSource,
 )
 from ai_job_hunter.models.company import Company
+from ai_job_hunter.models.outreach import Outreach, OutreachStatus
+from ai_job_hunter.outreach.recommendations import (
+    OutreachRecommendation,
+    recommend_outreach,
+)
 from ai_job_hunter.services.company_intelligence import (
     CompanyMonitorFilters,
     build_company_monitor_targets,
@@ -160,6 +165,7 @@ class Opportunity:
     jev_signals: dict[str, Any] | None
     jev_reasons: dict[str, Any] | list[Any] | None
     company_facts: CompanyFacts | None = None
+    outreach_recommendation: OutreachRecommendation = OutreachRecommendation.NO_OUTREACH
 
 
 @dataclass(frozen=True, slots=True)
@@ -468,6 +474,23 @@ def list_opportunities(
         row.job_id: row
         for row in session.scalars(select(Application)).all()
     }
+    active_outreach_jobs = {
+        job_id
+        for job_id in session.scalars(
+            select(Outreach.job_id).where(
+                Outreach.job_id.is_not(None),
+                Outreach.status.in_(
+                    (
+                        OutreachStatus.DRAFT.value,
+                        OutreachStatus.APPROVED.value,
+                        OutreachStatus.SENT.value,
+                        OutreachStatus.REPLIED.value,
+                    )
+                ),
+            )
+        ).all()
+        if job_id is not None
+    }
     evaluations_by_job: dict[UUID, list[JobEvaluation]] = {}
     for row in session.scalars(
         select(JobEvaluation).order_by(JobEvaluation.created_at.desc(), JobEvaluation.id.desc())
@@ -548,6 +571,10 @@ def list_opportunities(
             continue
         answers = evaluation.jev_signals if evaluation and not stale else None
         score = _priority(answers)
+        role_relevance = _signal_value(answers, "role_relevance")
+        strong_mismatch = _has_strong_mismatch(
+            evaluation.deterministic_result if evaluation and not stale else None
+        )
         company_name = job.company.name if job.company is not None else snapshot.context.offer.company_name or "Unknown company"
         published = snapshot.context.offer.published_at
         item = Opportunity(
@@ -575,6 +602,14 @@ def list_opportunities(
             jev_signals=answers if isinstance(answers, dict) else None,
             jev_reasons=evaluation.jev_reasons if evaluation and not stale else None,
             company_facts=company_facts(job.company) if job.company is not None else None,
+            outreach_recommendation=recommend_outreach(
+                final_decision,
+                score,
+                role_relevance,
+                strong_mismatch,
+                app_status.value if app_status is not None else None,
+                job.id in active_outreach_jobs,
+            ),
         )
         decision_rank = {FinalDecision.APPLY: 0, FinalDecision.REVIEW: 1, FinalDecision.SKIP: 2}.get(final_decision, 3)
         output.append((
@@ -1202,6 +1237,25 @@ def _priority(signals: dict[str, Any] | None) -> int | None:
             return None
         values.append(float(value))
     return round(sum(values) / len(values) * 100)
+
+
+def _signal_value(signals: dict[str, Any] | None, name: str) -> float | None:
+    if not isinstance(signals, dict):
+        return None
+    item = signals.get(name)
+    value = item.get("value") if isinstance(item, dict) else None
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    return float(value)
+
+
+def _has_strong_mismatch(deterministic_result: dict[str, Any] | None) -> bool:
+    if not isinstance(deterministic_result, dict):
+        return False
+    signals = deterministic_result.get("signals")
+    technology = signals.get("technology") if isinstance(signals, dict) else None
+    mismatches = technology.get("critical_mismatches") if isinstance(technology, dict) else None
+    return isinstance(mismatches, (list, tuple)) and bool(mismatches)
 
 
 def _prefilter_payload(result: JobPreFilterResult) -> dict[str, Any]:

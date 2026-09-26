@@ -1,0 +1,11 @@
+{
+  "projects": [
+    {
+      "name": "Example Backend Service",
+      "url": "https://example.test/backend-service",
+      "short_description": "A sample API project for demonstrating local project matching.",
+      "technologies": ["Python", "FastAPI", "PostgreSQL"],
+      "tags": ["backend", "api"]
+    }
+  ]
+}

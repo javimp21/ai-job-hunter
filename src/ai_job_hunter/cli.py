@@ -26,6 +26,18 @@ from ai_job_hunter.models import (
     HumanReviewStatus,
     Job,
 )
+from ai_job_hunter.models.company import Company
+from ai_job_hunter.models.outreach import Outreach, OutreachStatus
+from ai_job_hunter.contact_discovery import (
+    ContactCandidate,
+    ContactLookupStrategy,
+    ManualContactProvider,
+)
+from ai_job_hunter.outreach import (
+    DraftChannel,
+    OutreachRecommendation,
+)
+from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
@@ -36,9 +48,20 @@ from ai_job_hunter.services.opportunities import (
     set_review_state,
     transition_application,
 )
+from ai_job_hunter.services.outreach_persistence import (
+    OutreachPersistenceError,
+    get_outreach_history,
+    list_contacts_for_company,
+    transition_outreach,
+)
+from ai_job_hunter.services.outreach_workflow import (
+    create_initial_outreach_drafts,
+    plan_outreach_for_job,
+)
 
 
 DEFAULT_CANDIDATE_CONFIG = Path("candidate.local.json")
+DEFAULT_CANDIDATE_PROJECTS_CONFIG = Path("candidate_projects.local.json")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -103,6 +126,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     application.add_argument("--cv-version")
     application.add_argument("--note")
 
+    outreach = subparsers.add_parser("outreach", help="prepare and track local outreach drafts; no sending")
+    outreach_commands = outreach.add_subparsers(dest="outreach_command", required=True)
+
+    outreach_candidates = outreach_commands.add_parser(
+        "candidates", help="list opportunities eligible for initial outreach"
+    )
+    outreach_candidates.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+    outreach_candidates.add_argument("--limit", type=int, default=20)
+
+    outreach_strategy = outreach_commands.add_parser(
+        "strategy", help="show the outreach recommendation and contextual contact roles"
+    )
+    outreach_strategy.add_argument("job_id", type=UUID)
+    outreach_strategy.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
+    outreach_contacts = outreach_commands.add_parser(
+        "contacts", help="list locally saved contacts for a job's company; no external lookup"
+    )
+    outreach_contacts.add_argument("job_id", type=UUID)
+
+    outreach_draft = outreach_commands.add_parser("draft", help="create local DRAFT records only")
+    outreach_draft.add_argument("job_id", type=UUID)
+    outreach_draft.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+    outreach_draft.add_argument("--projects-config", type=Path, default=DEFAULT_CANDIDATE_PROJECTS_CONFIG)
+    outreach_draft.add_argument(
+        "--channel", choices=tuple(item.value.casefold() for item in DraftChannel), default="linkedin"
+    )
+
+    outreach_show = outreach_commands.add_parser("show", help="show one saved outreach and its history")
+    outreach_show.add_argument("outreach_id", type=UUID)
+
+    outreach_approve = outreach_commands.add_parser(
+        "approve", help="record human approval of a DRAFT; does not send it"
+    )
+    outreach_approve.add_argument("outreach_id", type=UUID)
+    outreach_approve.add_argument("--note")
+
+    for command_parser in outreach_commands.choices.values():
+        command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
+
     # Allow the database override before or after the subcommand.
     for command_parser in subparsers.choices.values():
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
@@ -117,9 +180,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--max-jev-jobs cannot be negative")
     if args.command == "opportunities" and args.limit < 1:
         parser.error("--limit must be positive")
+    if (
+        args.command == "outreach"
+        and args.outreach_command == "candidates"
+        and args.limit < 1
+    ):
+        parser.error("--limit must be positive")
 
     candidate = None
-    if args.command in {"refresh", "opportunities", "show"}:
+    if args.command in {"refresh", "opportunities", "show"} or (
+        args.command == "outreach"
+        and args.outreach_command in {"candidates", "strategy", "draft"}
+    ):
         try:
             candidate = load_candidate_config(args.candidate_config)
         except CandidateConfigError as error:
@@ -173,6 +245,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _print_opportunity(item, show_company_facts=True)
                 _print_application_history(session, args.job_id)
                 return 0
+            if args.command == "outreach":
+                return _run_outreach_command(args, session, candidate)
             if args.command in {"seen", "save", "dismiss"}:
                 review = set_review_state(session, args.job_id, args.review_state)
                 print(f"Review state: {review.state}")
@@ -206,6 +280,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except OpportunityServiceError as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
+    except (OutreachPersistenceError, CandidateProjectsConfigError) as error:
+        print(f"OUTREACH ERROR: {error}", file=sys.stderr)
+        return 1
     except SQLAlchemyError as error:
         # Keep connection details and DATABASE_URL out of terminal output.
         print(f"DATABASE ERROR: {type(error).__name__}. Confirm the local database is running and run `alembic upgrade head`.", file=sys.stderr)
@@ -223,6 +300,157 @@ def _monitor_filters(args) -> CompanyMonitorFilters:
         multiple_evidence_sources=args.multiple_evidence_sources,
         remote_from_spain=args.remote_from_spain,
     )
+
+
+def _run_outreach_command(args, session, candidate) -> int:
+    command = args.outreach_command
+    if command == "candidates":
+        rows = list_opportunities(
+            session,
+            candidate,
+            limit=10000,
+            include_applied=False,
+            include_skip=False,
+        )
+        eligible = [
+            row
+            for row in rows
+            if row.outreach_recommendation is not OutreachRecommendation.NO_OUTREACH
+        ][: args.limit]
+        print(f"OUTREACH CANDIDATES: {len(eligible)}")
+        for row in eligible:
+            label = _outreach_label(row.outreach_recommendation)
+            priority = row.priority if row.priority is not None else "UNKNOWN"
+            print(f"[{label}] {row.title} — {row.company} | priority={priority} | job={row.job_id}")
+        return 0
+
+    if command == "strategy":
+        plan = plan_outreach_for_job(session, args.job_id, candidate)
+        if plan is None:
+            print(f"Job not found in the current opportunity feed: {args.job_id}", file=sys.stderr)
+            return 2
+        item = plan.opportunity
+        print(f"[{_outreach_label(item.outreach_recommendation)}] {item.title} — {item.company}")
+        print("Contact types: " + ", ".join(plan.preferred_contact_types))
+        print("Recommendation reasons:")
+        for reason in plan.recommendation_reasons:
+            print(f"  - {reason}")
+        print("Contact strategy reasons:")
+        for reason in plan.contact_strategy_reasons:
+            print(f"  - {reason}")
+        return 0
+
+    if command == "contacts":
+        job = session.get(Job, args.job_id)
+        if job is None:
+            print(f"Job not found: {args.job_id}", file=sys.stderr)
+            return 2
+        if job.company_id is None:
+            print("Job has no linked company; no local contacts can be listed.")
+            return 0
+        company = session.get(Company, job.company_id)
+        if company is None:
+            print("Job company was not found.", file=sys.stderr)
+            return 2
+        records = list_contacts_for_company(session, company.id)
+        candidates = tuple(
+            ContactCandidate(
+                provider=record.source_provider or "manual",
+                external_id=record.external_id,
+                full_name=record.name,
+                company=company.name,
+                job_title=record.title,
+                email=record.email,
+                linkedin_url=record.linkedin_url,
+            )
+            for record in records
+        )
+        lookup = ContactLookupStrategy([ManualContactProvider(candidates)]).search_company(company.name)
+        print(f"LOCAL CONTACTS: {len(lookup.contacts)} | {company.name}")
+        if not lookup.contacts:
+            print("No local contacts are saved. No external provider was queried.")
+        for contact in lookup.contacts:
+            print(
+                f"{contact.full_name or 'UNKNOWN'} | {contact.job_title or 'UNKNOWN ROLE'} | "
+                f"email={contact.email or 'UNKNOWN'} | LinkedIn={contact.linkedin_url or 'UNKNOWN'}"
+            )
+        print(f"Strong duplicates suppressed: {len(lookup.strong_duplicates)}")
+        print(f"Possible matches requiring review: {len(lookup.possible_matches)}")
+        return 0
+
+    if command == "draft":
+        results = create_initial_outreach_drafts(
+            session,
+            args.job_id,
+            candidate,
+            projects_path=args.projects_config,
+            channel=DraftChannel(args.channel.upper()),
+        )
+        session.commit()
+        print(f"DRAFT RECORDS: {len(results)}")
+        for result in results:
+            item = result.outreach
+            company = item.company.name if item.company is not None else "UNKNOWN COMPANY"
+            print(
+                f"{'Created' if result.created else 'Existing'} {item.status}: {item.purpose} "
+                f"| {company} | job={item.job_id} | recipient type={item.recipient_contact_type or 'UNKNOWN'} "
+                "| contact=not identified"
+            )
+            if item.subject:
+                print(f"Subject: {item.subject}")
+            if item.body:
+                print(item.body)
+                print()
+        print("No message was sent or approved.")
+        return 0
+
+    if command == "show":
+        item = session.get(Outreach, args.outreach_id)
+        if item is None:
+            print(f"Outreach not found: {args.outreach_id}", file=sys.stderr)
+            return 2
+        print(f"Outreach: {item.id} | {item.status} | {item.purpose} | {item.channel}")
+        if item.company is not None:
+            print(f"Company: {item.company.name}")
+        if item.job is not None:
+            print(f"Job: {item.job.title}")
+        if item.contact is not None:
+            print(f"Contact: {item.contact.name} | {item.contact.title or 'UNKNOWN ROLE'}")
+        elif item.recipient_contact_type:
+            print(f"Recipient type: {item.recipient_contact_type} | identity not provided")
+        if item.subject:
+            print(f"Subject: {item.subject}")
+        if item.body:
+            print(item.body)
+        print("History:")
+        for event in get_outreach_history(session, item.id):
+            before = event.from_status or "START"
+            print(f"  {event.occurred_at.isoformat()} {before} → {event.to_status}")
+            if event.note:
+                print(f"    {event.note}")
+        return 0
+
+    if command == "approve":
+        item = transition_outreach(
+            session,
+            args.outreach_id,
+            OutreachStatus.APPROVED,
+            note=args.note,
+        )
+        session.commit()
+        print(f"Outreach approved: {item.id}")
+        print("Approval only changes local state. No message was sent.")
+        return 0
+
+    raise OutreachPersistenceError("Unknown outreach command.")
+
+
+def _outreach_label(value: OutreachRecommendation) -> str:
+    return {
+        OutreachRecommendation.OUTREACH_RECOMMENDED: "RECOMMENDED",
+        OutreachRecommendation.OUTREACH_OPTIONAL: "OPTIONAL",
+        OutreachRecommendation.NO_OUTREACH: "NO",
+    }[value]
 
 
 def _print_refresh_summary(summary: RefreshSummary) -> None:
@@ -264,6 +492,7 @@ def _print_opportunity(item: Opportunity, *, show_company_facts: bool = False) -
     print(f"Job ID: {item.job_id}")
     print(f"Location: {item.location or 'UNKNOWN'} | Work mode: {item.remote_policy or 'UNKNOWN'}")
     print(f"Human status: {item.review_state.value}")
+    print(f"Outreach: {_outreach_label(item.outreach_recommendation)}")
     if item.application_status is not None:
         print(f"Application: {item.application_status.value}")
     if item.priority is not None:

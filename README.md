@@ -130,7 +130,7 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 `--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
 
-There is no LinkedIn/Indeed/Wellfound connector, browser scraping, outreach, or automatic application behavior.
+There is no LinkedIn/Indeed/Wellfound job connector or browser scraping. Outreach can prepare local drafts, but this project does not send messages or submit applications.
 
 ## Company Intelligence
 
@@ -212,7 +212,7 @@ The program, not Jev, chooses the final recommendation:
 - Career value ≥ `0.80` may lower the stack threshold to `0.45` and requirements-flexibility threshold to `0.35`. It cannot override relevance, accessibility, backend, quality, or deterministic constraints.
 - Contradictory role/backend, backend/stack, or experience/career-value signals yield `REVIEW`. Other results that do not meet all `APPLY` gates are also `REVIEW` with reasons constructed from the signal values.
 
-Jev handles ambiguous role relevance, experience accessibility, backend relevance, stack transferability, requirement flexibility, career value, and observable role-description quality. It does not enforce geography, perform salary arithmetic, infer seniority tokens, extract technologies, identify source records, deduplicate, decide database behavior, auto-apply, or estimate the probability of getting hired. No external Company Intelligence, application submission, or outreach is part of this feature.
+Jev handles ambiguous role relevance, experience accessibility, backend relevance, stack transferability, requirement flexibility, career value, and observable role-description quality. It does not enforce geography, perform salary arithmetic, infer seniority tokens, extract technologies, identify source records, deduplicate, decide database behavior, auto-apply, or estimate the probability of getting hired. The evaluation path does not perform external Company Intelligence, application submission, or outreach.
 
 ## Opportunity feed and application tracking
 
@@ -245,6 +245,41 @@ python -m ai_job_hunter.cli application JOB_ID --status interview --note "First 
 `JobEvaluation` is versioned by a fingerprint covering source/job facts, candidate profile and preferences, prefilter/policy, rubric, and relevant engine configuration. A changed input gets a new evaluation; an unchanged evaluated fingerprint is reused. `JobReview` independently stores `NEW`, `SEEN`, `SAVED`, or `DISMISSED`, so system `SKIP` and human dismissal remain distinct. Repeated ingestion and another source deduplicated to the same job do not reset that state. Applications are separate and keep an append-only status event history.
 
 The feed hides system `SKIP`, dismissed jobs, and jobs with a tracked application by default; explicit filters can show those records. Within visible `APPLY` and `REVIEW`, priority is the rounded equal-weight mean of `role_relevance`, `backend_relevance`, `stack_transferability`, `experience_accessibility`, `requirements_flexibility`, and `career_value`, scaled to 0–100. If any signal is missing, priority is `UNKNOWN`. This is a deterministic ordering aid, not an estimate of hiring probability. `APPLY` means the system recommends considering an application; it does not submit one. Company salary/evidence, ATS support, and freshness appear as context only and do not alter `job_decision_v2`.
+
+## Outreach and referrals
+
+Outreach is a separate, conservative workflow. It does not modify `job_decision_v2` or the candidate profile/preferences:
+
+```text
+Opportunity
+  -> outreach recommendation
+  -> contact strategy
+  -> ContactProvider
+  -> local draft
+  -> human approval
+  -> [future sending integration]
+```
+
+**No messages are sent by AI Job Hunter.** There is no send command or delivery client. `approve` only changes the saved draft's lifecycle state. The `SENT` state is reserved for a future manual record of a message sent outside the application.
+
+The initial recommendation rules are deterministic: `APPLY` with no application record and no active outreach is `OUTREACH_RECOMMENDED`; `REVIEW` is `OUTREACH_OPTIONAL` only when priority is at least 70, role relevance is at least 0.75, there is no strong mismatch, and no application or active outreach exists; `SKIP`, an existing application record, active outreach, or an unmet/unknown `REVIEW` gate produces `NO_OUTREACH`. This is an eligibility rule, not a probability or a change to the job decision.
+
+Contact roles are suggested from the job title and any explicit company-size evidence; the order is contextual rather than a universal ranking. The provider interface currently ships only `ManualContactProvider` and `FakeContactProvider`. They make no network requests. There is no LinkedIn scraping, private API use, or live contact search. Existing local contacts can be reviewed with `outreach contacts JOB_ID`.
+
+The deterministic templates cover recruiter introductions, referral requests, hiring-manager introductions, engineer/potential-referral messages, and cold outreach when no job is attached. Drafts use only configured candidate facts, job facts, explicitly entered contact facts, and at most one relevant configured project. No candidate identity, relationship, email address, job requirement, or prior familiarity is invented. If no local contact exists, a draft records only a contact-type placeholder; it does not create a fictional person.
+
+Copy [`config/examples/candidate_projects.example.json`](config/examples/candidate_projects.example.json) to `candidate_projects.local.json` only if you want to configure public project details. The local file is ignored by Git. Contact records and saved drafts live in the ignored local database; do not add them to fixtures or tracked configuration.
+
+```powershell
+python -m ai_job_hunter.cli outreach candidates
+python -m ai_job_hunter.cli outreach strategy JOB_ID
+python -m ai_job_hunter.cli outreach contacts JOB_ID
+python -m ai_job_hunter.cli outreach draft JOB_ID
+python -m ai_job_hunter.cli outreach show OUTREACH_ID
+python -m ai_job_hunter.cli outreach approve OUTREACH_ID
+```
+
+Apply the new additive migration with `alembic upgrade head` before using outreach persistence. The feed displays a compact `RECOMMENDED`, `OPTIONAL`, or `NO` outreach label. No contacts are looked up automatically, and no drafts are approved automatically.
 
 ### Official SDK and authentication
 
@@ -361,7 +396,7 @@ Tests use in-memory SQLite and do not require Internet access or a running Postg
 4. Phase 4 - Company Intelligence
 5. Phase 5 - Decision Engine + Jev (implemented)
 6. Phase 6 - Application Tracking
-7. Phase 7 - Outreach / Referrals
+7. Phase 7 - Outreach / Referrals (local draft workflow implemented; sending remains future work)
 8. Phase 8 - Assisted Application Agent
 
 Future applications, outreach, and messages should require explicit user approval before they are sent.
