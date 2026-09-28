@@ -62,12 +62,28 @@ def _canonical(value: str) -> str:
     return re.sub(r"\s+", " ", value.casefold().replace("_", " ")).strip()
 
 
+def _candidate_role(value: str | None) -> str | None:
+    """Render a complete, readable role or omit it instead of clipping a word."""
+
+    if value is None:
+        return None
+    cleaned = " ".join(value.split())
+    if not cleaned:
+        return None
+    # Candidate profiles sometimes hold two synonymous role labels separated
+    # by " / ". Prefer the first complete label when it is concise.
+    primary = re.split(r"\s+/\s+", cleaned, maxsplit=1)[0].strip()
+    if primary != cleaned and len(primary) <= 64:
+        return primary
+    return cleaned if len(cleaned) <= 64 else None
+
+
 def _experience_text(profile: CandidateProfile | None, job_technologies: Sequence[str]) -> str:
     if profile is None:
         return "I’m exploring this opening based on its published role details."
 
     facts: list[str] = []
-    if role := _clip(profile.current_role, 48):
+    if role := _candidate_role(profile.current_role):
         facts.append(f"My current role is {role}.")
     if profile.years_of_experience is not None:
         years = _format_decimal(profile.years_of_experience)

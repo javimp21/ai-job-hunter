@@ -156,6 +156,42 @@ def test_draft_uses_singular_year_for_one_year_of_experience():
     assert "1 years of experience" not in draft.body
 
 
+def test_draft_uses_complete_primary_role_label_without_ellipsis():
+    profile = CandidateProfile(
+        current_role="Backend Software Engineer / Java Backend Developer",
+        years_of_experience=Decimal("1"),
+    )
+    draft = generate_draft(
+        DraftTemplate.RECRUITER_INTRO,
+        DraftChannel.LINKEDIN,
+        "Example Company",
+        job_title="Backend Engineer",
+        candidate_profile=profile,
+    )
+
+    assert "My current role is Backend Software Engineer." in draft.body
+    assert "Develo…" not in draft.body
+    assert "…" not in draft.body
+
+
+def test_draft_omits_overlong_single_role_instead_of_cutting_it():
+    profile = CandidateProfile(
+        current_role="Lead Backend Platform Infrastructure Engineer with Distributed Systems Specialization",
+        years_of_experience=Decimal("1"),
+    )
+    draft = generate_draft(
+        DraftTemplate.RECRUITER_INTRO,
+        DraftChannel.LINKEDIN,
+        "Example Company",
+        job_title="Backend Engineer",
+        candidate_profile=profile,
+    )
+
+    assert "My current role is" not in draft.body
+    assert "Distributed Systems Specialization" not in draft.body
+    assert "…" not in draft.body
+
+
 def test_draft_never_adds_an_irrelevant_project(projects):
     draft = generate_draft(
         DraftTemplate.RECRUITER_INTRO,
