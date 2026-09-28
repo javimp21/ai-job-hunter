@@ -7,7 +7,9 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pathlib import Path
+
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class _FrozenModel(BaseModel):
@@ -149,13 +151,46 @@ class ApplicationQuestion(_FrozenModel):
 
 class CandidateDocument(_FrozenModel):
     type: CandidateDocumentType
-    name: str = Field(min_length=1, max_length=160)
-    local_reference: str = Field(min_length=1, max_length=2048)
+    id: str = Field(min_length=1, max_length=160)
+    local_path: str = Field(
+        min_length=1,
+        max_length=2048,
+        validation_alias=AliasChoices("local_path", "local_reference"),
+    )
+    # `name` and `local_reference` are accepted for backwards compatibility
+    # with application packages created before candidate_documents.local.json.
+    name: str | None = Field(default=None, min_length=1, max_length=160)
     tags: tuple[str, ...] = ()
     technologies: tuple[str, ...] = ()
     role_families: tuple[str, ...] = ()
     language: str | None = Field(default=None, max_length=80)
     updated_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_document_metadata(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        result = dict(value)
+        legacy_path = result.get("local_reference")
+        if "local_path" not in result and isinstance(legacy_path, str):
+            result["local_path"] = legacy_path
+        result.pop("local_reference", None)
+        if "id" not in result:
+            label = result.get("name") or result.get("local_path") or legacy_path
+            if isinstance(label, str) and label.strip():
+                result["id"] = Path(label).stem[:160] or "candidate-document"
+        return result
+
+    @property
+    def local_reference(self) -> str:
+        """Legacy read-only alias; file contents are never opened by this model."""
+
+        return self.local_path
+
+    @property
+    def display_name(self) -> str:
+        return self.name or self.id
 
     @field_validator("updated_at")
     @classmethod

@@ -130,7 +130,7 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 `--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
 
-There is no LinkedIn/Indeed/Wellfound job connector or browser scraping. Outreach can prepare local drafts, and assisted application preparation can draft a private review package; this project does not send messages, submit applications, or upload documents.
+There is no LinkedIn/Indeed/Wellfound job connector or job-board browser scraping. Outreach can prepare local drafts, and assisted application preparation can inspect a hosted application form in an isolated browser and fill explicit factual fields for review; this project does not send messages, submit applications, or upload documents.
 
 ## Company Intelligence
 
@@ -251,9 +251,10 @@ The feed hides system `SKIP`, dismissed jobs, and jobs with a tracked applicatio
 The local-only `apply prepare JOB_ID` workflow extracts requirements and
 structured questions already present in saved ATS data, maps them to configured
 candidate facts, and prepares draft answers and document recommendations for
-human review. It does not change APPLY/REVIEW/SKIP decisions, use browser
-automation, submit forms, or upload documents. Packages are kept in the ignored
-`data/local/application-packages.local.json` file. See
+human review. It does not change APPLY/REVIEW/SKIP decisions, submit forms, or
+upload documents. Browser sessions use a separate ignored local store.
+Packages are kept in the ignored `data/local/application-packages.local.json`
+file. See
 [`docs/assisted-application.md`](docs/assisted-application.md) for the full
 workflow, local configuration, readiness rules, and ATS capability comparison.
 
@@ -275,8 +276,12 @@ Document Recommendation
 Human Review
  ↓
 READY_TO_SUBMIT
- ↓
-[Future Assisted Browser Submission]
+↓
+Assisted Browser Inspection and Safe Factual Fill
+↓
+Human Review
+↓
+[STOP — no application submission]
 ```
 
 ## Outreach and referrals

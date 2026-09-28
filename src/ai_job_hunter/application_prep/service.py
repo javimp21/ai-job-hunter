@@ -196,7 +196,7 @@ def recommend_cv_variant(
     if not ranked:
         return None
     ranked.sort(key=lambda row: (-row[0], -row[1]))
-    return ranked[0][2].name
+    return ranked[0][2].display_name
 
 
 def assess_readiness(package: ApplicationPackage) -> ApplicationReadiness:
@@ -204,6 +204,10 @@ def assess_readiness(package: ApplicationPackage) -> ApplicationReadiness:
     details: list[str] = []
     blocked = False
     needs_input = package.question_schema_status is not QuestionSchemaStatus.AVAILABLE
+    if package.suggested_cv_variant is None:
+        needs_input = True
+        reasons.append(ApplicationReadinessReason.MISSING_DOCUMENT)
+        details.append("No matching local CV metadata is configured; choose a real CV before final review.")
     if package.question_schema_status is not QuestionSchemaStatus.AVAILABLE:
         reasons.append(ApplicationReadinessReason.OTHER)
         details.append("Verify the hosted application form because a complete schema is unavailable.")

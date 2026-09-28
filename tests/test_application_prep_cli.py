@@ -11,6 +11,19 @@ from ai_job_hunter.application_prep.models import (
     ApplicationQuestionType,
     QuestionSchemaStatus,
 )
+from ai_job_hunter.application_prep.browser.models import (
+    ApplicationFormSnapshot,
+    ApplicationSession,
+    ApplicationSessionStatus,
+    ATSProvider,
+    FormField,
+    FormFieldType,
+    FieldMapping,
+    CanonicalField,
+    MappingConfidence,
+    AnswerPolicy,
+)
+from ai_job_hunter.application_prep.browser.store import ApplicationSessionStore
 from ai_job_hunter.application_prep.store import ApplicationPackageStore
 from ai_job_hunter.cli import _parse_apply_command, _question_schema_state, main
 
@@ -103,7 +116,7 @@ def test_apply_without_subcommand_prints_help_without_opening_store(capsys):
     assert main(["apply"]) == 0
     output = capsys.readouterr().out
     assert "apply prepare JOB_ID" in output
-    assert "No browser automation" in output
+    assert "no application submission" in output
 
 
 def test_submit_is_not_a_supported_command(capsys):
@@ -112,6 +125,48 @@ def test_submit_is_not_a_supported_command(capsys):
 
     assert error.value.code == 2
     assert "invalid choice" in capsys.readouterr().err
+
+
+def test_browser_inspect_cli_reads_redacted_saved_session(tmp_path, capsys):
+    package = _package()
+    packages_path = tmp_path / "packages.local.json"
+    sessions_path = tmp_path / "sessions.local.json"
+    ApplicationPackageStore(packages_path).save(package)
+    snapshot = ApplicationFormSnapshot(
+        url="https://jobs.eu.lever.co/example/job/apply?candidate=private",
+        ats=ATSProvider.LEVER,
+        fields=(FormField(id="email", label="Email address", field_type=FormFieldType.EMAIL, required=True),),
+    )
+    session = ApplicationSession(
+        job_id=package.job_id,
+        application_package_id=package.id,
+        url=snapshot.url,
+        ats=ATSProvider.LEVER,
+        snapshot=snapshot,
+        snapshots=(snapshot,),
+        mappings=(FieldMapping(
+            field_id="email",
+            canonical_field=CanonicalField.EMAIL,
+            confidence=MappingConfidence.HIGH,
+            evidence=("Exact visible label.",),
+            source_label="Email address",
+            answer_policy=AnswerPolicy.NEEDS_USER_INPUT,
+        ),),
+        pending_field_ids=("email",),
+        status=ApplicationSessionStatus.NEEDS_INPUT,
+    )
+    ApplicationSessionStore(sessions_path).save(session)
+
+    result = main([
+        "apply", "inspect", str(package.job_id),
+        "--packages-path", str(packages_path),
+        "--sessions-path", str(sessions_path),
+    ])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Email address" in output
+    assert "candidate=private" not in output
 
 
 def test_question_schema_detection_requires_structured_application_field():
@@ -134,10 +189,12 @@ def test_private_application_preparation_paths_are_git_ignored_and_untracked():
     root = Path(__file__).resolve().parents[1]
     private_paths = (
         "candidate.local.json",
+        "candidate_application.local.json",
         "candidate_projects.local.json",
         "candidate_documents.local.json",
         "candidate_writing.local.json",
         "data/local/application-packages.local.json",
+        "data/local/application-sessions.local.json",
     )
 
     for private_path in private_paths:

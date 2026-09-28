@@ -43,7 +43,11 @@ _HISTORICAL_SALARY_RE = re.compile(
     r"(?:salary|compensation|pay|earnings)\b",
     re.I,
 )
-_YEARS_RE = re.compile(r"\b(?:how many|number of|years? of experience|years? experience)\b", re.I)
+_YEARS_RE = re.compile(
+    r"\b(?:how many|number of)\b|\byears? (?:of (?:[\w+#./-]+\s+){0,4})?experience\b|\byears? experience\b",
+    re.I,
+)
+_CURRENT_ROLE_RE = re.compile(r"\bcurrent\s+(?:job\s+)?(?:role|position|title)\b", re.I)
 _TECH_RE = re.compile(
     r"\b(?:technology|technologies|tech stack|programming languages?|frameworks?|tools?)\b",
     re.I,
@@ -179,7 +183,7 @@ def _candidate_fact_answer(
                 f"Candidate configuration explicitly lists {', '.join(mentions)}.",
             )
 
-    if any(term in folded for term in ("current role", "current position", "job title")) and profile.current_role:
+    if _CURRENT_ROLE_RE.search(label) and profile.current_role:
         return f"My current role is {profile.current_role}.", (
             f"Candidate configuration lists current role: {profile.current_role}.",
         )

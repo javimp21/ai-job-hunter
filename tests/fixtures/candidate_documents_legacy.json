@@ -1,0 +1,9 @@
+{
+  "documents": [
+    {
+      "type": "CV",
+      "name": "backend-resume",
+      "local_reference": "private/backend.pdf"
+    }
+  ]
+}

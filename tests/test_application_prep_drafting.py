@@ -106,6 +106,20 @@ def test_profile_facts_can_produce_a_concise_about_me_answer():
     assert result.answer_evidence
 
 
+def test_current_role_does_not_answer_a_generic_job_title_question():
+    current_position, generic_title = _draft(
+        [
+            _question("current", "What is your current job title?"),
+            _question("title", "What is your job title?"),
+        ]
+    )
+
+    assert current_position.answer == "My current role is Backend Engineer."
+    assert current_position.answer_status is ApplicationAnswerStatus.DRAFTED
+    assert generic_title.answer is None
+    assert generic_title.answer_status is ApplicationAnswerStatus.NEEDS_USER_INPUT
+
+
 def test_salary_is_only_a_review_required_preference_suggestion():
     expected = _question("salary", "What are your salary expectations?", normalized_type=ApplicationQuestionType.NUMBER)
     current = _question("current", "What is your current salary?", normalized_type=ApplicationQuestionType.NUMBER)

@@ -71,6 +71,7 @@ def _package(*, questions=(), schema=QuestionSchemaStatus.AVAILABLE, url="https:
         application_url=url,
         question_schema_status=schema,
         questions=list(questions),
+        suggested_cv_variant="configured-cv",
     )
 
 
@@ -178,6 +179,15 @@ def test_cover_letter_is_generated_only_when_requested_or_required():
 def test_no_document_recommendation_without_explicit_metadata():
     result = recommend_cv_variant("Backend Engineer", ("Java",), (), ())
     assert result is None
+
+
+def test_missing_configured_cv_keeps_application_readiness_at_needs_input():
+    package = _package().model_copy(update={"suggested_cv_variant": None})
+
+    readiness = assess_readiness(package)
+
+    assert readiness.status is ApplicationReadinessStatus.NEEDS_INPUT
+    assert ApplicationReadinessReason.MISSING_DOCUMENT in readiness.reasons
 
 
 def test_missing_schema_and_url_require_input_and_never_claim_readiness():

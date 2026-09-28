@@ -21,6 +21,8 @@ from ai_job_hunter.db.session import create_database_engine, create_session_fact
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.application_prep.configuration import (
     ApplicationPreparationConfigError,
+    DEFAULT_APPLICATION_FACTS_PATH,
+    load_candidate_application_facts,
     load_candidate_documents,
     load_candidate_writing_style,
 )
@@ -138,12 +140,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "apply",
         help="prepare a local application package; legacy `apply JOB_ID` still records application status",
         description=(
-            "Prepare application materials locally. This command has no browser, submission, or upload capability. "
+            "Prepare and inspect application materials in assisted browser mode. "
+            "This command has no application submission or document-upload operation. "
             "For application tracking, the legacy `apply JOB_ID` form remains available."
         ),
         epilog=(
-            "Commands: prepare, show, questions, answer, ready, cancel.\n"
-            "Examples: apply prepare JOB_ID; apply questions JOB_ID; apply ready JOB_ID --confirm-reviewed"
+            "Commands: prepare, show, questions, answer, ready, cancel, browser, inspect, fill-safe, pending, review.\n"
+            "Examples: apply browser JOB_ID; apply fill-safe JOB_ID; apply review JOB_ID"
         ),
     )
     apply.add_argument("apply_args", nargs=argparse.REMAINDER)
@@ -355,7 +358,7 @@ def _parse_apply_command(values: Sequence[str]):
     if not values:
         return argparse.Namespace(action="help")
     first = values[0]
-    if first not in {"prepare", "show", "questions", "answer", "ready", "cancel", "record", "-h", "--help"}:
+    if first not in {"prepare", "show", "questions", "answer", "ready", "cancel", "record", "inspect", "browser", "fill-safe", "pending", "review", "-h", "--help"}:
         try:
             UUID(first)
         except ValueError:
@@ -389,10 +392,27 @@ def _parse_apply_command(values: Sequence[str]):
         ("questions", "list detected questions and answer status"),
         ("ready", "record explicit human review when all readiness checks pass"),
         ("cancel", "cancel a saved local package"),
+        ("inspect", "show the last redacted browser form snapshot"),
+        ("pending", "list browser form fields waiting for review or input"),
+        ("review", "review the last inspected browser form and drafts"),
     ):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("job_id", type=UUID)
         command.add_argument("--packages-path", type=Path)
+        if name in {"inspect", "pending", "review"}:
+            command.add_argument("--sessions-path", type=Path)
+    for name, help_text in (
+        ("browser", "open and inspect the hosted form in an isolated browser"),
+        ("fill-safe", "inspect the form and fill only explicit factual fields"),
+    ):
+        command = commands.add_parser(name, help=help_text)
+        command.add_argument("job_id", type=UUID)
+        command.add_argument("--packages-path", type=Path)
+        command.add_argument("--sessions-path", type=Path)
+        command.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+        command.add_argument("--facts-config", type=Path, default=DEFAULT_APPLICATION_FACTS_PATH)
+        command.add_argument("--projects-config", type=Path, default=DEFAULT_CANDIDATE_PROJECTS_CONFIG)
+        command.add_argument("--documents-config", type=Path, default=Path("candidate_documents.local.json"))
     answer = commands.add_parser("answer", help="save a human-entered answer locally")
     answer.add_argument("job_id", type=UUID)
     answer.add_argument("question_id")
@@ -407,9 +427,13 @@ def _parse_apply_command(values: Sequence[str]):
 def _run_local_apply_command(args) -> int:
     if args.action == "help":
         print("Use `ai-job-hunter apply prepare JOB_ID` to create a local package.")
-        print("Commands: prepare, show, questions, answer, ready, cancel.")
-        print("No browser automation, submit, or document-upload command exists.")
+        print("Commands: prepare, show, questions, answer, ready, cancel, browser, inspect, fill-safe, pending, review.")
+        print("Browser mode has no application submission or document-upload operation.")
         return 0
+    if args.action in {"inspect", "pending", "review"}:
+        return _run_browser_session_report(args)
+    if args.action in {"browser", "fill-safe"}:
+        return _run_browser_apply_command(args)
     store = ApplicationPackageStore(args.packages_path)
     package = store.get_by_job(args.job_id)
     if package is None:
@@ -458,6 +482,112 @@ def _run_local_apply_command(args) -> int:
         print("Local application package cancelled.")
         return 0
     return 2
+
+
+def _run_browser_apply_command(args) -> int:
+    from ai_job_hunter.application_prep.browser.service import inspect_application_package
+    from ai_job_hunter.application_prep.browser.safety import BrowserSafetyError
+    from ai_job_hunter.application_prep.browser.store import (
+        ApplicationSessionStore,
+        ApplicationSessionStoreError,
+    )
+
+    package_store = ApplicationPackageStore(args.packages_path)
+    package = package_store.get_by_job(args.job_id)
+    if package is None:
+        print(f"No local application package found for job {args.job_id}.", file=sys.stderr)
+        return 2
+    try:
+        candidate = load_candidate_config(args.candidate_config)
+        facts = load_candidate_application_facts(args.facts_config)
+        projects = tuple(load_candidate_projects(args.projects_config))
+        documents = tuple(load_candidate_documents(args.documents_config).documents)
+        session = inspect_application_package(
+            package,
+            candidate=candidate,
+            facts=facts,
+            projects=projects,
+            documents=documents,
+            fill_safe=args.action == "fill-safe",
+        )
+        ApplicationSessionStore(args.sessions_path).save(session)
+    except (
+        ApplicationPreparationConfigError,
+        CandidateConfigError,
+        CandidateProjectsConfigError,
+        ApplicationPackageStoreError,
+        ApplicationSessionStoreError,
+        BrowserSafetyError,
+    ) as error:
+        print(f"BROWSER APPLY STOPPED: {error}", file=sys.stderr)
+        return 1
+    print(f"Session: {session.id}")
+    print(f"ATS: {session.ats.value}")
+    print(f"Steps inspected: {len(session.snapshots)}")
+    print(f"Fields extracted: {sum(len(item.fields) for item in session.snapshots)}")
+    print(f"Safe fields filled: {len(session.filled_safe_field_ids)}")
+    print(f"Fields pending review/input: {len(session.pending_field_ids)}")
+    if session.snapshot and session.snapshot.manual_intervention_required:
+        print(f"Manual intervention: {session.snapshot.manual_intervention_reason.value}")
+    print(f"Session status: {session.status.value}")
+    print("No application was submitted and no document was uploaded.")
+    return 0
+
+
+def _run_browser_session_report(args) -> int:
+    from ai_job_hunter.application_prep.browser.models import AnswerPolicy
+    from ai_job_hunter.application_prep.browser.store import (
+        ApplicationSessionStore,
+        ApplicationSessionStoreError,
+    )
+
+    try:
+        session = ApplicationSessionStore(args.sessions_path).get_by_job(args.job_id)
+    except ApplicationSessionStoreError as error:
+        print(f"BROWSER SESSION ERROR: {error}", file=sys.stderr)
+        return 1
+    if session is None:
+        print("No saved browser session for this job; run `apply browser JOB_ID` first.", file=sys.stderr)
+        return 2
+    mappings = {item.field_id: item for item in session.mappings}
+    if args.action == "pending":
+        pending = [mappings[item] for item in session.pending_field_ids if item in mappings]
+        print(f"PENDING FORM FIELDS: {len(pending)}")
+        for item in pending:
+            print(f"{item.answer_policy.value} | {item.source_label}")
+        return 0
+    if args.action == "inspect":
+        print(f"ATS: {session.ats.value} | status={session.status.value} | steps={len(session.snapshots)}")
+        snapshots = session.snapshots or ((session.snapshot,) if session.snapshot else ())
+        for index, snapshot in enumerate(snapshots, start=1):
+            print(f"STEP {snapshot.step or index}: {len(snapshot.fields)} fields")
+            for field in snapshot.fields:
+                mapping = mappings.get(field.id)
+                policy = mapping.answer_policy.value if mapping else AnswerPolicy.NEEDS_USER_INPUT.value
+                required = "required" if field.required else "optional"
+                present = "value present" if field.current_value_present else "empty"
+                print(f"{field.field_type.value} | {required} | {policy} | {present} | {field.label}")
+            for action in snapshot.actions:
+                intent = "SUBMISSION BLOCKED" if action.submission_intent else "action"
+                print(f"{intent} | {action.label}")
+        if session.snapshot and session.snapshot.manual_intervention_reason:
+            print(f"Manual intervention required: {session.snapshot.manual_intervention_reason.value}")
+        return 0
+    print(f"ATS: {session.ats.value}")
+    print(f"Status: {session.status.value}")
+    print(f"Steps: {len(session.snapshots)}")
+    print(f"Filled factual fields: {len(session.filled_safe_field_ids)}")
+    print(f"Pending fields: {len(session.pending_field_ids)}")
+    for item in session.mappings:
+        if item.answer_policy is AnswerPolicy.SAFE_AUTO_FILL:
+            continue
+        print(f"[{item.answer_policy.value}] {item.source_label}")
+        if item.recommendation:
+            print(f"  document recommendation: {item.recommendation}")
+        if item.suggested_answer:
+            print(f"  suggested answer for review: {item.suggested_answer}")
+    print("Review the form and every suggested answer in the original ATS flow before proceeding manually.")
+    return 0
 
 
 def _prepare_application_from_database(args, session, candidate) -> int:

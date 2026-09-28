@@ -1,24 +1,3 @@
 {
-  "documents": [
-    {
-      "type": "CV",
-      "name": "Example backend-java CV",
-      "local_reference": "private/example-backend-java-cv.pdf",
-      "tags": ["backend", "software engineering"],
-      "technologies": ["Java", "Spring", "PostgreSQL"],
-      "role_families": ["backend engineer", "platform engineer"],
-      "language": "en",
-      "updated_at": "2026-01-15T10:00:00Z"
-    },
-    {
-      "type": "CV",
-      "name": "Example general software CV",
-      "local_reference": "private/example-general-software-cv.pdf",
-      "tags": ["software engineering", "general"],
-      "technologies": ["Python", "SQL"],
-      "role_families": ["software engineer"],
-      "language": "en",
-      "updated_at": "2026-01-15T10:00:00Z"
-    }
-  ]
+  "documents": []
 }

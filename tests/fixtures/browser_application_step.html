@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <body>
+    <main>
+      <h1>Job application</h1>
+      <p>Step 1 of 2</p>
+      <form>
+        <label for="first">First name</label>
+        <input id="first" name="first_name" type="text" required value="PERSONAL_VALUE_SENTINEL">
+        <label>Email address <input name="email" type="email" required></label>
+        <label for="country">Country</label>
+        <select id="country" name="country" required>
+          <option value="">Choose one</option>
+          <option value="Spain">Spain</option>
+          <option value="Portugal">Portugal</option>
+        </select>
+        <label for="city">City</label>
+        <input id="city" name="city" type="text" required>
+        <label for="role">Current role</label>
+        <input id="role" name="current_role" type="text">
+        <label for="title">Job title</label>
+        <input id="title" name="job_title" type="text">
+        <label for="overall">Total years of experience</label>
+        <input id="overall" name="overall_years" type="number">
+        <label><input type="checkbox" name="terms" required> I agree to the terms</label>
+        <fieldset>
+          <legend>Work authorization</legend>
+          <label><input type="radio" name="authorization" value="yes"> Yes</label>
+          <label><input type="radio" name="authorization" value="no"> No</label>
+        </fieldset>
+        <fieldset>
+          <legend>Voluntary self-identification</legend>
+          <label><input type="radio" name="gender" value="woman"> Woman</label>
+          <label><input type="radio" name="gender" value="man"> Man</label>
+        </fieldset>
+        <label for="why">Why are you interested in this role?</label>
+        <textarea id="why" name="motivation">DRAFT_VALUE_SENTINEL</textarea>
+        <label for="years">Years of Python experience</label>
+        <input id="years" name="python_years" type="number" required>
+        <label for="project">Tell us about a project</label>
+        <textarea id="project" name="project"></textarea>
+        <label for="resume">Resume / CV</label>
+        <input id="resume" name="resume" type="file" required>
+        <label for="salary">Expected salary</label>
+        <input id="salary" name="salary" type="number">
+        <button type="button">Next</button>
+      </form>
+    </main>
+  </body>
+</html>
