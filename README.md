@@ -130,7 +130,7 @@ python -m ai_job_hunter.remotive_cli --limit 5 --ingest
 
 `--ingest` uses the existing transaction, exact-ID idempotency and conservative cross-source matching, and logs the outcome counts. It does not apply to jobs or send messages. Tests use a small representative fixture and mocked HTTP responses, so normal test runs never call the network.
 
-There is no LinkedIn/Indeed/Wellfound job connector or browser scraping. Outreach can prepare local drafts, but this project does not send messages or submit applications.
+There is no LinkedIn/Indeed/Wellfound job connector or browser scraping. Outreach can prepare local drafts, and assisted application preparation can draft a private review package; this project does not send messages, submit applications, or upload documents.
 
 ## Company Intelligence
 
@@ -245,6 +245,39 @@ python -m ai_job_hunter.cli application JOB_ID --status interview --note "First 
 `JobEvaluation` is versioned by a fingerprint covering source/job facts, candidate profile and preferences, prefilter/policy, rubric, and relevant engine configuration. A changed input gets a new evaluation; an unchanged evaluated fingerprint is reused. `JobReview` independently stores `NEW`, `SEEN`, `SAVED`, or `DISMISSED`, so system `SKIP` and human dismissal remain distinct. Repeated ingestion and another source deduplicated to the same job do not reset that state. Applications are separate and keep an append-only status event history.
 
 The feed hides system `SKIP`, dismissed jobs, and jobs with a tracked application by default; explicit filters can show those records. Within visible `APPLY` and `REVIEW`, priority is the rounded equal-weight mean of `role_relevance`, `backend_relevance`, `stack_transferability`, `experience_accessibility`, `requirements_flexibility`, and `career_value`, scaled to 0–100. If any signal is missing, priority is `UNKNOWN`. This is a deterministic ordering aid, not an estimate of hiring probability. `APPLY` means the system recommends considering an application; it does not submit one. Company salary/evidence, ATS support, and freshness appear as context only and do not alter `job_decision_v2`.
+
+## Assisted application preparation
+
+The local-only `apply prepare JOB_ID` workflow extracts requirements and
+structured questions already present in saved ATS data, maps them to configured
+candidate facts, and prepares draft answers and document recommendations for
+human review. It does not change APPLY/REVIEW/SKIP decisions, use browser
+automation, submit forms, or upload documents. Packages are kept in the ignored
+`data/local/application-packages.local.json` file. See
+[`docs/assisted-application.md`](docs/assisted-application.md) for the full
+workflow, local configuration, readiness rules, and ATS capability comparison.
+
+```text
+Opportunity
+ ↓
+Application Preparation
+ ↓
+Requirements
+ ↓
+Candidate Fit
+ ↓
+Questions
+ ↓
+Draft Answers
+ ↓
+Document Recommendation
+ ↓
+Human Review
+ ↓
+READY_TO_SUBMIT
+ ↓
+[Future Assisted Browser Submission]
+```
 
 ## Outreach and referrals
 
@@ -397,6 +430,6 @@ Tests use in-memory SQLite and do not require Internet access or a running Postg
 5. Phase 5 - Decision Engine + Jev (implemented)
 6. Phase 6 - Application Tracking
 7. Phase 7 - Outreach / Referrals (local draft workflow implemented; sending remains future work)
-8. Phase 8 - Assisted Application Agent
+8. Phase 8 - Assisted application preparation (local drafts only; submission remains future work)
 
 Future applications, outreach, and messages should require explicit user approval before they are sent.

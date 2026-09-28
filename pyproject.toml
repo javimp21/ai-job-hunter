@@ -16,6 +16,9 @@ dependencies = [
     "SQLAlchemy>=2.0,<3",
 ]
 
+[project.scripts]
+ai-job-hunter = "ai_job_hunter.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",

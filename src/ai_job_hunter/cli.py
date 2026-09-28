@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from ai_job_hunter.candidates import (
     CandidateConfigError,
@@ -18,6 +19,27 @@ from ai_job_hunter.candidates import (
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.decision_engine import FinalDecision
+from ai_job_hunter.application_prep.configuration import (
+    ApplicationPreparationConfigError,
+    load_candidate_documents,
+    load_candidate_writing_style,
+)
+from ai_job_hunter.application_prep.extraction import extract_application_questions
+from ai_job_hunter.application_prep.models import (
+    QuestionSchemaStatus,
+)
+from ai_job_hunter.application_prep.service import (
+    ApplicationJobInput,
+    ApplicationPreparationError,
+    answer_application_question,
+    build_application_package,
+    cancel_application_package,
+    mark_ready_to_submit,
+)
+from ai_job_hunter.application_prep.store import (
+    ApplicationPackageStore,
+    ApplicationPackageStoreError,
+)
 from ai_job_hunter.services.company_intelligence import CompanyMonitorFilters
 from ai_job_hunter.models import (
     Application,
@@ -38,6 +60,7 @@ from ai_job_hunter.outreach import (
     OutreachRecommendation,
 )
 from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
+from ai_job_hunter.outreach.projects import load_candidate_projects
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
@@ -111,12 +134,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("job_id", type=UUID)
         command.set_defaults(review_state=state)
 
-    apply = subparsers.add_parser("apply", help="record that you applied; no application is sent")
-    apply.add_argument("job_id", type=UUID)
-    apply.add_argument("--source", help="application channel, such as company site or referral")
-    apply.add_argument("--url", help="application URL")
-    apply.add_argument("--cv-version")
-    apply.add_argument("--note")
+    apply = subparsers.add_parser(
+        "apply",
+        help="prepare a local application package; legacy `apply JOB_ID` still records application status",
+        description=(
+            "Prepare application materials locally. This command has no browser, submission, or upload capability. "
+            "For application tracking, the legacy `apply JOB_ID` form remains available."
+        ),
+        epilog=(
+            "Commands: prepare, show, questions, answer, ready, cancel.\n"
+            "Examples: apply prepare JOB_ID; apply questions JOB_ID; apply ready JOB_ID --confirm-reviewed"
+        ),
+    )
+    apply.add_argument("apply_args", nargs=argparse.REMAINDER)
 
     application = subparsers.add_parser("application", help="record an application status update")
     application.add_argument("job_id", type=UUID)
@@ -187,13 +217,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     ):
         parser.error("--limit must be positive")
 
+    if args.command == "apply":
+        try:
+            apply_args = _parse_apply_command(args.apply_args)
+        except SystemExit:
+            raise
+        args.apply_command = apply_args
+        nested_database_url = getattr(apply_args, "database_url", None)
+        if nested_database_url:
+            args.database_url = nested_database_url
+        if apply_args.action not in {"prepare", "record"}:
+            return _run_local_apply_command(apply_args)
+
     candidate = None
     if args.command in {"refresh", "opportunities", "show"} or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
-    ):
+    ) or (args.command == "apply" and args.apply_command.action == "prepare"):
         try:
-            candidate = load_candidate_config(args.candidate_config)
+            candidate_path = (
+                args.apply_command.candidate_config
+                if args.command == "apply"
+                else args.candidate_config
+            )
+            candidate = load_candidate_config(candidate_path)
         except CandidateConfigError as error:
             parser.error(str(error))
 
@@ -251,20 +298,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 review = set_review_state(session, args.job_id, args.review_state)
                 print(f"Review state: {review.state}")
                 return 0
-            if args.command == "apply":
+            if args.command == "apply" and args.apply_command.action == "record":
+                apply_args = args.apply_command
                 status = ApplicationStatus.APPLIED
                 application_record = transition_application(
                     session,
-                    args.job_id,
+                    apply_args.job_id,
                     status,
-                    note=args.note,
-                    source=args.source,
-                    application_url=args.url,
-                    cv_version=args.cv_version,
+                    note=apply_args.note,
+                    source=apply_args.source,
+                    application_url=apply_args.url,
+                    cv_version=apply_args.cv_version,
                 )
                 print(f"Application recorded: {application_record.status}")
                 print("No application was sent.")
                 return 0
+            if args.command == "apply" and args.apply_command.action == "prepare":
+                return _prepare_application_from_database(args.apply_command, session, candidate)
             if args.command == "application":
                 application_record = transition_application(
                     session,
@@ -283,6 +333,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OutreachPersistenceError, CandidateProjectsConfigError) as error:
         print(f"OUTREACH ERROR: {error}", file=sys.stderr)
         return 1
+    except (
+        ApplicationPreparationError,
+        ApplicationPreparationConfigError,
+        ApplicationPackageStoreError,
+    ) as error:
+        print(f"APPLICATION PREPARATION ERROR: {error}", file=sys.stderr)
+        return 1
     except SQLAlchemyError as error:
         # Keep connection details and DATABASE_URL out of terminal output.
         print(f"DATABASE ERROR: {type(error).__name__}. Confirm the local database is running and run `alembic upgrade head`.", file=sys.stderr)
@@ -290,6 +347,241 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         engine.dispose()
     return 0
+
+
+def _parse_apply_command(values: Sequence[str]):
+    """Parse nested preparation commands while preserving legacy `apply UUID`."""
+
+    if not values:
+        return argparse.Namespace(action="help")
+    first = values[0]
+    if first not in {"prepare", "show", "questions", "answer", "ready", "cancel", "record", "-h", "--help"}:
+        try:
+            UUID(first)
+        except ValueError:
+            pass
+        else:
+            first = "record"
+            values = (first, *values)
+
+    nested = argparse.ArgumentParser(prog="ai-job-hunter apply")
+    commands = nested.add_subparsers(dest="action", required=True)
+    record = commands.add_parser("record", help="record a manually submitted application (legacy behavior)")
+    record.add_argument("job_id", type=UUID)
+    record.add_argument("--source", help="application channel, such as company site or referral")
+    record.add_argument("--url", help="application URL")
+    record.add_argument("--cv-version")
+    record.add_argument("--note")
+    record.add_argument("--database-url", default=argparse.SUPPRESS)
+
+    prepare = commands.add_parser("prepare", help="prepare a local package for an existing APPLY opportunity")
+    prepare.add_argument("job_id", type=UUID)
+    prepare.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+    prepare.add_argument("--projects-config", type=Path, default=DEFAULT_CANDIDATE_PROJECTS_CONFIG)
+    prepare.add_argument("--documents-config", type=Path, default=Path("candidate_documents.local.json"))
+    prepare.add_argument("--writing-style-config", type=Path, default=Path("candidate_writing.local.json"))
+    prepare.add_argument("--packages-path", type=Path)
+    prepare.add_argument("--cover-letter", action="store_true", help="draft a cover letter for human review")
+    prepare.add_argument("--database-url", default=argparse.SUPPRESS)
+
+    for name, help_text in (
+        ("show", "show one saved local application package"),
+        ("questions", "list detected questions and answer status"),
+        ("ready", "record explicit human review when all readiness checks pass"),
+        ("cancel", "cancel a saved local package"),
+    ):
+        command = commands.add_parser(name, help=help_text)
+        command.add_argument("job_id", type=UUID)
+        command.add_argument("--packages-path", type=Path)
+    answer = commands.add_parser("answer", help="save a human-entered answer locally")
+    answer.add_argument("job_id", type=UUID)
+    answer.add_argument("question_id")
+    answer.add_argument("--value", help="answer text; omit to enter interactively")
+    answer.add_argument("--confirm-sensitive", action="store_true")
+    answer.add_argument("--packages-path", type=Path)
+    ready = commands.choices["ready"]
+    ready.add_argument("--confirm-reviewed", action="store_true", help="confirm you reviewed the package")
+    return nested.parse_args(values)
+
+
+def _run_local_apply_command(args) -> int:
+    if args.action == "help":
+        print("Use `ai-job-hunter apply prepare JOB_ID` to create a local package.")
+        print("Commands: prepare, show, questions, answer, ready, cancel.")
+        print("No browser automation, submit, or document-upload command exists.")
+        return 0
+    store = ApplicationPackageStore(args.packages_path)
+    package = store.get_by_job(args.job_id)
+    if package is None:
+        print(f"No local application package found for job {args.job_id}.", file=sys.stderr)
+        return 2
+    if args.action == "show":
+        _print_application_package(package)
+        return 0
+    if args.action == "questions":
+        print(f"QUESTIONS: {len(package.questions)}")
+        for item in package.questions:
+            required = "required" if item.required else "optional"
+            print(
+                f"{item.id} | {item.normalized_type.value} | {required} | "
+                f"{item.handling.value} | {item.answer_status.value} | {item.label}"
+            )
+            if item.answer is not None:
+                print(f"  draft answer: {item.answer}")
+        return 0
+    if args.action == "answer":
+        question = next((item for item in package.questions if item.id == args.question_id), None)
+        if question is None:
+            print("Application question was not found.", file=sys.stderr)
+            return 2
+        value = args.value if args.value is not None else input("Enter your answer: ")
+        package = answer_application_question(
+            package,
+            args.question_id,
+            value,
+            confirm_sensitive=args.confirm_sensitive,
+        )
+        store.save(package)
+        print(f"Answer saved locally; status={package.readiness.status.value}. No data was sent.")
+        return 0
+    if args.action == "ready":
+        if not args.confirm_reviewed:
+            print("Pass --confirm-reviewed after reviewing the package.", file=sys.stderr)
+            return 2
+        package = mark_ready_to_submit(package)
+        store.save(package)
+        print("Package marked READY_TO_SUBMIT after human review. Nothing was submitted.")
+        return 0
+    if args.action == "cancel":
+        package = cancel_application_package(package)
+        store.save(package)
+        print("Local application package cancelled.")
+        return 0
+    return 2
+
+
+def _prepare_application_from_database(args, session, candidate) -> int:
+    from ai_job_hunter.application_prep.service import build_application_package
+    from ai_job_hunter.services.opportunities import get_opportunity
+
+    opportunity = get_opportunity(session, args.job_id, candidate)
+    if opportunity is None:
+        raise ApplicationPreparationError("Job was not found in the local opportunity feed.")
+    if opportunity.evaluation_is_stale or opportunity.decision is not FinalDecision.APPLY:
+        raise ApplicationPreparationError("Only a current APPLY opportunity can be prepared.")
+    existing_store = ApplicationPackageStore(args.packages_path)
+    existing = existing_store.get_by_job(args.job_id)
+    if existing is not None:
+        print("A local package already exists; it was preserved. Use `apply show` to review it.")
+        return 0
+
+    job = session.scalar(
+        select(Job).options(selectinload(Job.sources), selectinload(Job.company)).where(Job.id == args.job_id)
+    )
+    if job is None:
+        raise ApplicationPreparationError("Job was not found in the local database.")
+    sources = list(job.sources)
+    if not sources:
+        raise ApplicationPreparationError("Job has no saved source metadata for preparation.")
+    source = sorted(
+        sources,
+        key=lambda item: (
+            0 if opportunity.url and opportunity.url in {item.apply_url, item.canonical_url, item.original_url} else 1,
+            0 if item.apply_url else 1,
+            item.provider.casefold(),
+        ),
+    )[0]
+    application = session.scalar(select(Application).where(Application.job_id == args.job_id))
+    projects = load_candidate_projects(args.projects_config)
+    documents = load_candidate_documents(args.documents_config).documents
+    style = load_candidate_writing_style(args.writing_style_config)
+    question_schema_status, schema_evidence = _question_schema_state(source.provider, source.raw_metadata, source.external_id)
+    package = build_application_package(
+        ApplicationJobInput(
+            job_id=job.id,
+            application_id=application.id if application else None,
+            title=job.title,
+            company=job.company.name if job.company else opportunity.company,
+            description=source.source_description or job.description,
+            provider=source.provider,
+            canonical_job_url=source.canonical_url or source.original_url,
+            application_url=source.apply_url,
+            raw_metadata=source.raw_metadata or {},
+            source_snapshot_at=source.discovered_at,
+            technologies=opportunity.technologies,
+            salary_min=source.salary_min,
+            salary_max=source.salary_max,
+            salary_currency=source.salary_currency,
+            salary_period=source.salary_period,
+            location=source.source_location or job.location,
+        ),
+        candidate,
+        projects=projects,
+        documents=documents,
+        writing_style=style,
+        question_schema_status=question_schema_status,
+        question_schema_evidence=schema_evidence,
+        request_cover_letter=args.cover_letter,
+    )
+    package.notes.append("Local preparation only. No browser automation, submission, or document upload was performed.")
+    existing_store.save(package)
+    print(f"Package prepared: {opportunity.company} — {opportunity.title}")
+    print(f"Package status: {package.status.value}; readiness: {package.readiness.status.value}")
+    print(f"Questions detected: {len(package.questions)}; requirements extracted: {len(package.requirements)}")
+    print("No application was sent and no application status was changed.")
+    return 0
+
+
+def _question_schema_state(provider: str, metadata: dict | None, external_id: str | None):
+    if extract_application_questions(metadata or {}, provider=provider):
+        return QuestionSchemaStatus.AVAILABLE, "Structured application fields exist in saved ATS metadata."
+    provider_name = (provider or "").casefold()
+    if provider_name == "lever":
+        return (
+            QuestionSchemaStatus.UNAVAILABLE,
+            "Lever's public postings API does not expose custom application questions; the hosted form must be reviewed manually.",
+        )
+    if provider_name == "ashby":
+        return (
+            QuestionSchemaStatus.UNAVAILABLE,
+            "Ashby's unauthenticated public job-board response has no form schema; its employer integration requires customer authorization.",
+        )
+    if provider_name == "greenhouse" and external_id == "5356493008":
+        return (
+            QuestionSchemaStatus.UNAVAILABLE,
+            "The documented public Greenhouse questions=true request returned HTTP 404 on 2026-09-28.",
+        )
+    return QuestionSchemaStatus.NOT_CHECKED, "No structured application-form questions were present in the saved posting metadata."
+
+
+def _print_application_package(package) -> None:
+    print(f"Package: {package.id}")
+    print(f"Job ID: {package.job_id}")
+    if package.company_name or package.job_title:
+        print(f"Opportunity: {package.company_name or 'Unknown company'} — {package.job_title or 'Untitled role'}")
+    if package.location:
+        print(f"Location: {package.location}")
+    if package.salary_min is not None or package.salary_max is not None:
+        low = format(package.salary_min, "f") if package.salary_min is not None else "unspecified"
+        high = format(package.salary_max, "f") if package.salary_max is not None else "unspecified"
+        currency = f" {package.salary_currency}" if package.salary_currency else ""
+        period = f" per {package.salary_period.casefold()}" if package.salary_period else ""
+        print(f"Published salary: {low}–{high}{currency}{period}")
+    print(f"ATS: {package.source_ats or 'unknown'}")
+    print(f"Package status: {package.status.value}")
+    print(f"Readiness: {package.readiness.status.value}")
+    print(f"Canonical job URL: {package.canonical_job_url or 'unavailable'}")
+    print(f"Application URL: {package.application_url or 'unavailable in saved source data'}")
+    print(f"Requirements: {package.requirements_summary}")
+    print(f"Candidate fit: {package.candidate_fit_summary}")
+    print(f"Suggested CV: {package.suggested_cv_variant or 'not configured'}")
+    print(f"Questions: {len(package.questions)}")
+    for item in package.questions:
+        print(f"- {item.label} [{item.normalized_type.value}, {item.answer_status.value}]")
+        if item.answer is not None:
+            print(f"  answer: {item.answer}")
+    for item in package.missing_information:
+        print(f"Needs attention: {item}")
 
 
 def _monitor_filters(args) -> CompanyMonitorFilters:

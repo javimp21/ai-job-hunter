@@ -1,0 +1,7 @@
+{
+  "concise": true,
+  "direct": true,
+  "tone": "informal-professional",
+  "max_words_short_answer": 80,
+  "avoid_buzzwords": true
+}
