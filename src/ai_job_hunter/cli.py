@@ -523,6 +523,9 @@ def _run_browser_apply_command(args) -> int:
         return 1
     print(f"Session: {session.id}")
     print(f"ATS: {session.ats.value}")
+    print(f"Redirects observed: {len(session.redirects_observed)}")
+    for redirect_url in session.redirects_observed:
+        print(f"  {redirect_url}")
     print(f"Steps inspected: {len(session.snapshots)}")
     print(f"Fields extracted: {sum(len(item.fields) for item in session.snapshots)}")
     print(f"Safe fields filled: {len(session.filled_safe_field_ids)}")
@@ -558,6 +561,8 @@ def _run_browser_session_report(args) -> int:
         return 0
     if args.action == "inspect":
         print(f"ATS: {session.ats.value} | status={session.status.value} | steps={len(session.snapshots)}")
+        for redirect_url in session.redirects_observed:
+            print(f"REDIRECT | {redirect_url}")
         snapshots = session.snapshots or ((session.snapshot,) if session.snapshot else ())
         for index, snapshot in enumerate(snapshots, start=1):
             print(f"STEP {snapshot.step or index}: {len(snapshot.fields)} fields")

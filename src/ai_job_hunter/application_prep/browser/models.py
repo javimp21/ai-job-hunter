@@ -10,6 +10,25 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+def _canonical_https_url(value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        raise ValueError("URL must be absolute HTTPS without credentials") from None
+    if (
+        parsed.scheme.casefold() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or (port is not None and port != 443)
+    ):
+        raise ValueError("URL must be absolute HTTPS without credentials")
+    host = parsed.hostname.casefold().rstrip(".")
+    path = parsed.path.rstrip("/") or "/"
+    return urlunsplit(("https", host, path, "", ""))
+
+
 class ATSProvider(StrEnum):
     GREENHOUSE = "GREENHOUSE"
     LEVER = "LEVER"
@@ -34,6 +53,7 @@ class ManualInterventionReason(StrEnum):
     UNKNOWN_ATS = "UNKNOWN_ATS"
     NO_VISIBLE_FORM = "NO_VISIBLE_FORM"
     NETWORK_POLICY = "NETWORK_POLICY"
+    UNEXPECTED_PAGE = "UNEXPECTED_PAGE"
 
 
 class FormFieldType(StrEnum):
@@ -136,13 +156,7 @@ class ApplicationFormSnapshot(_FrozenModel):
     @field_validator("url")
     @classmethod
     def store_url_without_query_or_fragment(cls, value: str) -> str:
-        parsed = urlsplit(value)
-        if parsed.scheme.casefold() != "https" or not parsed.hostname:
-            raise ValueError("application URL must be absolute HTTPS")
-        host = parsed.hostname.casefold()
-        if parsed.port:
-            host = f"{host}:{parsed.port}"
-        return urlunsplit(("https", host, parsed.path, "", ""))
+        return _canonical_https_url(value)
 
     @field_validator("extracted_at")
     @classmethod
@@ -169,6 +183,7 @@ class ApplicationSession(_FrozenModel):
     job_id: UUID
     application_package_id: UUID
     url: str = Field(min_length=1, max_length=2048)
+    redirects_observed: tuple[str, ...] = ()
     ats: ATSProvider
     current_step: int | None = Field(default=None, ge=1)
     snapshot: ApplicationFormSnapshot | None = None
@@ -184,10 +199,12 @@ class ApplicationSession(_FrozenModel):
     @field_validator("url")
     @classmethod
     def store_session_url_without_query_or_fragment(cls, value: str) -> str:
-        parsed = urlsplit(value)
-        if parsed.scheme.casefold() != "https" or not parsed.hostname:
-            raise ValueError("application URL must be absolute HTTPS")
-        host = parsed.hostname.casefold()
-        if parsed.port:
-            host = f"{host}:{parsed.port}"
-        return urlunsplit(("https", host, parsed.path, "", ""))
+        return _canonical_https_url(value)
+
+    @field_validator("redirects_observed")
+    @classmethod
+    def store_redirects_without_query_or_fragment(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        sanitized: list[str] = []
+        for value in values:
+            sanitized.append(_canonical_https_url(value))
+        return tuple(dict.fromkeys(sanitized))

@@ -13,6 +13,7 @@ from ai_job_hunter.application_prep.browser.extraction import (
 from ai_job_hunter.application_prep.browser.mapping import map_form_fields, safe_fill_plan
 from ai_job_hunter.application_prep.browser.models import (
     AnswerPolicy,
+    ApplicationFormSnapshot,
     ApplicationSession,
     ApplicationSessionStatus,
     ATSProvider,
@@ -22,10 +23,14 @@ from ai_job_hunter.application_prep.browser.models import (
 from ai_job_hunter.application_prep.browser.playwright_driver import MappingAndFillPlan, PlaywrightAssistedBrowser
 from ai_job_hunter.application_prep.browser.safety import (
     BrowserSafetyError,
+    NavigationTrust,
     NetworkDecision,
     SubmissionBlockedError,
     assert_safe_next_action,
+    canonicalize_application_url,
+    classify_navigation_url,
     detect_ats,
+    is_safe_application_popup,
     make_form_action,
     network_decision,
     validate_application_url,
@@ -322,6 +327,37 @@ def test_network_and_submit_guards_block_writes_enter_and_post_fill_traffic():
         url="https://example.test/collect", method="GET", resource_type="image", is_navigation=False,
         initial_url=OLX_URL, interacted_with_page=False,
     ) is NetworkDecision.BLOCK
+    assert network_decision(
+        url=OLX_URL + "?utm_source=listing#step-2", method="GET", resource_type="document", is_navigation=True,
+        initial_url=OLX_URL + "#apply", interacted_with_page=False,
+    ) is NetworkDecision.ALLOW
+    assert network_decision(
+        url=OLX_URL + "/", method="HEAD", resource_type="document", is_navigation=True,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.ALLOW
+    assert network_decision(
+        url="https://jobs.lever.co/olx/fixture-id/apply?from=eu",
+        method="GET", resource_type="document", is_navigation=True,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.ALLOW
+    assert network_decision(
+        url="https://jobs.lever.co/olx/another-job/apply",
+        method="GET", resource_type="document", is_navigation=True,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
+    assert network_decision(
+        url="about:blank", method="GET", resource_type="document", is_navigation=True,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
+    assert network_decision(
+        url="https://jobs.eu.lever.co/olx/41139c11-553a-4dde-9a12-316334a1d2b3/submit",
+        method="GET", resource_type="fetch", is_navigation=False,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
+    assert network_decision(
+        url=OLX_URL + "?action=submit", method="GET", resource_type="fetch", is_navigation=False,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
     assert "event.key === 'Enter'" in __import__(
         "ai_job_hunter.application_prep.browser.safety", fromlist=["SUBMIT_GUARD_INIT_SCRIPT"]
     ).SUBMIT_GUARD_INIT_SCRIPT
@@ -332,6 +368,14 @@ def test_network_and_submit_guards_block_writes_enter_and_post_fill_traffic():
     assert not callable(getattr(PlaywrightAssistedBrowser, "upload", None))
     assert not callable(getattr(PlaywrightAssistedBrowser, "click", None))
     assert not callable(getattr(PlaywrightAssistedBrowser, "keyboard", None))
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+def test_network_policy_blocks_all_write_methods(method):
+    assert network_decision(
+        url=OLX_URL, method=method, resource_type="document", is_navigation=True,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
 
 
 def test_browser_runner_does_not_advance_when_native_submit_control_is_visible():
@@ -351,16 +395,17 @@ def test_browser_runner_does_not_advance_when_native_submit_control_is_visible()
     }
 
     class Page:
-        url = OLX_URL
+        url = "about:blank"
         locator_called = False
 
-        def goto(self, *args, **kwargs):
-            pass
+        def goto(self, target_url, **kwargs):
+            self.url = target_url
 
         def wait_for_load_state(self, *args, **kwargs):
             pass
 
         def evaluate(self, script):
+            assert self.url != "about:blank"
             return raw
 
         def locator(self, selector):
@@ -384,6 +429,10 @@ def test_browser_runner_does_not_advance_when_native_submit_control_is_visible()
 
         def new_page(self):
             return page
+
+        @property
+        def pages(self):
+            return [page]
 
         def close(self):
             pass
@@ -423,6 +472,200 @@ def test_browser_runner_does_not_advance_when_native_submit_control_is_visible()
     assert page.locator_called is False
 
 
+def test_browser_runner_waits_for_delayed_dom_navigation_without_fixed_sleep():
+    states = [
+        {
+            "fields": [{"tag": "input", "type": "text", "id": "one", "label": "Optional one", "required": False, "visible": True, "ordinal": 0}],
+            "actions": [{"label": "Next", "control_type": "button", "ordinal": 0, "click_ordinal": 0, "visible": True}],
+            "step_text": "Step 1 of 2", "captcha_detected": False, "captcha_text_detected": False, "login_detected": False,
+        },
+        {
+            "fields": [{"tag": "input", "type": "text", "id": "two", "label": "Optional two", "required": False, "visible": True, "ordinal": 0}],
+            "actions": [],
+            "step_text": "Step 2 of 2", "captcha_detected": False, "captcha_text_detected": False, "login_detected": False,
+        },
+    ]
+
+    class Button:
+        def is_visible(self):
+            return True
+
+        def inner_text(self):
+            return "Next"
+
+        def evaluate(self, script):
+            return {"tag": "button", "type": "button", "role": ""}
+
+        def click(self, **kwargs):
+            pass
+
+    class ButtonCollection:
+        def nth(self, ordinal):
+            assert ordinal == 0
+            return Button()
+
+    class Page:
+        url = "about:blank"
+        step = 0
+        transition_waits = 0
+
+        def goto(self, target_url, **kwargs):
+            self.url = target_url
+
+        def wait_for_load_state(self, *args, **kwargs):
+            pass
+
+        def evaluate(self, script):
+            if "MutationObserver" in script:
+                return None
+            assert self.url != "about:blank"
+            return states[self.step]
+
+        def locator(self, selector):
+            return ButtonCollection()
+
+        def wait_for_function(self, expression, **kwargs):
+            self.transition_waits += 1
+            if "location.href" in expression:
+                # Simulate the form's asynchronous second step after Next.
+                self.step = 1
+
+    page = Page()
+
+    class Context:
+        def add_init_script(self, script):
+            pass
+
+        def route(self, *args):
+            pass
+
+        def route_web_socket(self, *args):
+            pass
+
+        def new_page(self):
+            return page
+
+        @property
+        def pages(self):
+            return [page]
+
+        def close(self):
+            pass
+
+    class Browser:
+        def new_context(self, **kwargs):
+            return Context()
+
+        def close(self):
+            pass
+
+    class Playwright:
+        chromium = type("Chromium", (), {"launch": lambda self, **kwargs: Browser()})()
+
+    class SyncPlaywright:
+        def __enter__(self):
+            return Playwright()
+
+        def __exit__(self, *args):
+            pass
+
+    result = PlaywrightAssistedBrowser()._run(
+        SyncPlaywright, url=OLX_URL, provider=ATSProvider.LEVER,
+        plan_for_snapshot=lambda snapshot, page_url: MappingAndFillPlan(mappings=(), values_by_field_id={}),
+        fill_safe=False, max_steps=2,
+    )
+
+    assert len(result.snapshots) == 2
+    assert result.advanced_steps == 1
+    assert page.transition_waits >= 2
+
+
+@pytest.mark.parametrize(
+    ("popup_url", "expected_url", "expected_reason"),
+    [
+        (
+            "https://jobs.lever.co/olx/fixture-id/apply?ref=popup",
+            "https://jobs.lever.co/olx/fixture-id/apply",
+            None,
+        ),
+        ("https://example.test/olx/apply", OLX_URL, ManualInterventionReason.UNEXPECTED_PAGE),
+    ],
+)
+def test_browser_runner_adopts_only_allowlisted_application_popup(popup_url, expected_url, expected_reason):
+    raw = {
+        "fields": [{"tag": "input", "type": "text", "id": "name", "label": "Name", "required": False, "visible": True, "ordinal": 0}],
+        "actions": [], "step_text": "", "captcha_detected": False,
+        "captcha_text_detected": False, "login_detected": False,
+    }
+
+    class Page:
+        def __init__(self, page_url, *, active):
+            self.url = page_url
+            self.active = active
+
+        def goto(self, target_url, **kwargs):
+            self.url = target_url
+
+        def wait_for_load_state(self, *args, **kwargs):
+            pass
+
+        def wait_for_url(self, predicate, **kwargs):
+            pass
+
+        def evaluate(self, script):
+            assert self.active, "only the origin-checked popup may be inspected"
+            return raw
+
+    main_page = Page("about:blank", active=False)
+    popup = Page(popup_url, active=True)
+
+    class Context:
+        def add_init_script(self, script):
+            pass
+
+        def route(self, *args):
+            pass
+
+        def route_web_socket(self, *args):
+            pass
+
+        def new_page(self):
+            return main_page
+
+        @property
+        def pages(self):
+            return [main_page, popup]
+
+        def close(self):
+            pass
+
+    class Browser:
+        def new_context(self, **kwargs):
+            return Context()
+
+        def close(self):
+            pass
+
+    class Playwright:
+        chromium = type("Chromium", (), {"launch": lambda self, **kwargs: Browser()})()
+
+    class SyncPlaywright:
+        def __enter__(self):
+            return Playwright()
+
+        def __exit__(self, *args):
+            pass
+
+    result = PlaywrightAssistedBrowser()._run(
+        SyncPlaywright, url=OLX_URL, provider=ATSProvider.LEVER,
+        plan_for_snapshot=lambda snapshot, page_url: MappingAndFillPlan(mappings=(), values_by_field_id={}),
+        fill_safe=False, max_steps=1,
+    )
+
+    assert result.manual_intervention_reason is expected_reason
+    assert result.final_snapshot.url == expected_url
+
+
 def test_supported_ats_urls_are_https_and_host_allowlisted():
     assert detect_ats(OLX_URL) is ATSProvider.LEVER
     assert validate_application_url(OLX_URL, ATSProvider.LEVER) is ATSProvider.LEVER
@@ -432,3 +675,43 @@ def test_supported_ats_urls_are_https_and_host_allowlisted():
         validate_application_url("https://not-lever.co/olx/apply")
     with pytest.raises(BrowserSafetyError):
         validate_application_url("https://user:pass@jobs.lever.co/olx/apply")
+
+
+def test_url_canonicalization_and_navigation_trust_are_explicit_and_query_free():
+    original = "HTTPS://JOBS.EU.LEVER.CO:443/olx/job-123/apply/?source=private#step-1"
+    canonical = canonicalize_application_url(original)
+    assert canonical.url == "https://jobs.eu.lever.co/olx/job-123/apply"
+    assert canonical.origin == ("https", "jobs.eu.lever.co", 443)
+
+    assert classify_navigation_url(
+        original, "https://jobs.eu.lever.co/olx/job-123/apply?tracking=changed"
+    ) is NavigationTrust.EXPECTED_ORIGIN
+    assert classify_navigation_url(
+        original, "https://jobs.lever.co/olx/job-123/apply/?tracking=changed#step-2"
+    ) is NavigationTrust.ALLOWED_REDIRECT
+    assert classify_navigation_url(
+        original, "https://jobs.lever.co/other-company/job-123/apply"
+    ) is NavigationTrust.UNEXPECTED_ORIGIN
+    assert classify_navigation_url(
+        original, "https://malicious-lever.co/olx/job-123/apply"
+    ) is NavigationTrust.UNEXPECTED_ORIGIN
+    assert is_safe_application_popup(original, "https://jobs.lever.co/olx/job-123/apply?ref=popup")
+    assert not is_safe_application_popup(original, "https://jobs.lever.co/olx/job-123/other")
+    assert not is_safe_application_popup(original, "https://example.test/olx/job-123/apply")
+
+
+def test_session_and_snapshot_urls_canonicalize_query_fragment_host_port_and_slash():
+    snapshot = ApplicationFormSnapshot(
+        url="HTTPS://JOBS.EU.LEVER.CO:443/olx/job-123/apply/?candidate=private#step-2",
+        ats=ATSProvider.LEVER,
+    )
+    assert snapshot.url == "https://jobs.eu.lever.co/olx/job-123/apply"
+
+    session = ApplicationSession(
+        job_id=uuid4(), application_package_id=uuid4(),
+        url="HTTPS://JOBS.EU.LEVER.CO:443/olx/job-123/apply/?candidate=private#step-2",
+        ats=ATSProvider.LEVER,
+        redirects_observed=("HTTPS://JOBS.LEVER.CO:443/olx/job-123/apply/?token=private#fragment",),
+    )
+    assert session.url == "https://jobs.eu.lever.co/olx/job-123/apply"
+    assert session.redirects_observed == ("https://jobs.lever.co/olx/job-123/apply",)

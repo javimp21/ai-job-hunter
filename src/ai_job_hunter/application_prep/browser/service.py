@@ -91,6 +91,7 @@ def inspect_application_package(
         job_id=package.job_id,
         application_package_id=package.id,
         url=package.application_url,
+        redirects_observed=result.redirects_observed,
         ats=result.final_snapshot.ats,
         current_step=result.final_snapshot.step or len(result.snapshots),
         snapshot=result.final_snapshot,

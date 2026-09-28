@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import StrEnum
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit, urlunsplit
 
 from ai_job_hunter.application_prep.browser.models import (
     ATSProvider,
@@ -25,10 +26,38 @@ class NetworkDecision(StrEnum):
     BLOCK = "BLOCK"
 
 
+class NavigationTrust(StrEnum):
+    EXPECTED_ORIGIN = "EXPECTED_ORIGIN"
+    ALLOWED_REDIRECT = "ALLOWED_REDIRECT"
+    UNEXPECTED_ORIGIN = "UNEXPECTED_ORIGIN"
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalApplicationURL:
+    scheme: str
+    hostname: str
+    port: int
+    path: str
+
+    @property
+    def origin(self) -> tuple[str, str, int]:
+        return self.scheme, self.hostname, self.port
+
+    @property
+    def url(self) -> str:
+        port = f":{self.port}" if self.port != 443 else ""
+        return urlunsplit((self.scheme, f"{self.hostname}{port}", self.path, "", ""))
+
+
 _ATS_DOMAINS = {
     ATSProvider.GREENHOUSE: ("greenhouse.io",),
     ATSProvider.LEVER: ("lever.co",),
     ATSProvider.ASHBY: ("ashbyhq.com",),
+}
+# Lever documents separate global and EU hosted job sites. A cross-origin
+# redirect is accepted only between these exact hosts and for the same job path.
+_ALLOWED_REDIRECT_HOSTS = {
+    ATSProvider.LEVER: frozenset({"jobs.lever.co", "jobs.eu.lever.co"}),
 }
 _SUBMISSION_LABEL = re.compile(
     r"\b(?:submit|apply|send|complete|finish)\b",
@@ -66,6 +95,59 @@ def validate_application_url(url: str, expected_ats: ATSProvider | None = None) 
     ):
         raise BrowserSafetyError("Only HTTPS application URLs for a supported ATS are accepted.")
     return provider
+
+
+def canonicalize_application_url(url: str) -> CanonicalApplicationURL:
+    """Canonical URL identity without query/fragment or a trailing slash."""
+
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except (TypeError, ValueError):
+        raise BrowserSafetyError("Only HTTPS application URLs for a supported ATS are accepted.") from None
+    validate_application_url(url)
+    hostname = (parsed.hostname or "").casefold().rstrip(".")
+    path = parsed.path.rstrip("/") or "/"
+    return CanonicalApplicationURL(
+        scheme=parsed.scheme.casefold(),
+        hostname=hostname,
+        port=port or 443,
+        path=path,
+    )
+
+
+def classify_navigation_url(initial_url: str, candidate_url: str) -> NavigationTrust:
+    """Classify a navigation using canonical origin and narrow ATS redirect rules."""
+
+    try:
+        provider = validate_application_url(initial_url)
+        if validate_application_url(candidate_url) is not provider:
+            return NavigationTrust.UNEXPECTED_ORIGIN
+        initial = canonicalize_application_url(initial_url)
+        candidate = canonicalize_application_url(candidate_url)
+    except BrowserSafetyError:
+        return NavigationTrust.UNEXPECTED_ORIGIN
+    if initial.origin == candidate.origin:
+        return NavigationTrust.EXPECTED_ORIGIN
+    allowed_hosts = _ALLOWED_REDIRECT_HOSTS.get(provider, frozenset())
+    if (
+        initial.hostname in allowed_hosts
+        and candidate.hostname in allowed_hosts
+        and initial.path == candidate.path
+    ):
+        return NavigationTrust.ALLOWED_REDIRECT
+    return NavigationTrust.UNEXPECTED_ORIGIN
+
+
+def is_safe_application_popup(initial_url: str, candidate_url: str) -> bool:
+    """A popup is adoptable only for the same canonical application path."""
+
+    if classify_navigation_url(initial_url, candidate_url) is NavigationTrust.UNEXPECTED_ORIGIN:
+        return False
+    try:
+        return canonicalize_application_url(initial_url).path == canonicalize_application_url(candidate_url).path
+    except BrowserSafetyError:
+        return False
 
 
 def is_submission_intent(label: str, control_type: str = "button") -> bool:
@@ -120,30 +202,45 @@ def network_decision(
     if normalized_method not in {"GET", "HEAD"}:
         return NetworkDecision.BLOCK
     try:
-        requested = urlsplit(url)
-        initial = urlsplit(initial_url)
-    except ValueError:
+        canonicalize_application_url(url)
+        canonicalize_application_url(initial_url)
+        provider = detect_ats(initial_url)
+    except BrowserSafetyError:
         return NetworkDecision.BLOCK
-    if requested.scheme.casefold() != "https" or requested.hostname is None:
+    if _is_submission_endpoint(url):
         return NetworkDecision.BLOCK
-    try:
-        if requested.port != initial.port:
-            return NetworkDecision.BLOCK
-    except ValueError:
-        return NetworkDecision.BLOCK
-    if detect_ats(url) is ATSProvider.UNKNOWN or detect_ats(url) is not detect_ats(initial_url):
+    if detect_ats(url) is not provider:
         return NetworkDecision.BLOCK
     if interacted_with_page:
         return NetworkDecision.BLOCK
     if is_navigation:
-        # Only the explicitly requested first document can navigate. Redirects,
-        # form actions and link-based progression require a human decision.
-        if requested.hostname != initial.hostname or requested.path != initial.path or requested.query != initial.query:
+        if classify_navigation_url(initial_url, url) is NavigationTrust.UNEXPECTED_ORIGIN:
             return NetworkDecision.BLOCK
         return NetworkDecision.ALLOW
     if resource_type.casefold() in {"websocket", "eventsource"}:
         return NetworkDecision.BLOCK
     return NetworkDecision.ALLOW
+
+
+_SUBMISSION_ENDPOINT_RE = re.compile(
+    r"(?:^|/)(?:submit(?:-application)?|submitapplication|submission|send-application|"
+    r"application-submit|apply/submit)(?:/|$)", re.I
+)
+_SUBMISSION_QUERY_VALUE_RE = re.compile(r"^(?:submit|apply|send)(?:[-_ ]?application)?$", re.I)
+
+
+def _is_submission_endpoint(url: str) -> bool:
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return True
+    if _SUBMISSION_ENDPOINT_RE.search(unquote(parsed.path)):
+        return True
+    return any(
+        key.casefold() in {"action", "operation", "method", "event"}
+        and _SUBMISSION_QUERY_VALUE_RE.fullmatch(value.strip()) is not None
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+    )
 
 
 # Installed before page scripts. Browser code has no exposed generic click,

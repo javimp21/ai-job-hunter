@@ -139,15 +139,31 @@ local drafting rules and require human review. A configured CV can be
 recommended by metadata, but browser file fields are never populated.
 
 The browser runs in a new, non-persistent context with downloads and service
-workers disabled. Only HTTPS Greenhouse, Lever and Ashby hosts are accepted.
-The first read-only GET page load is allowed. Once the automation touches a
-field or attempts to advance, all network requests are blocked. A submit-event
-handler blocks native form submission and Enter; `form.submit()` and
-`requestSubmit()` are disabled. The browser layer exposes only inspection,
-factual fill, and a gated exact `Next`/`Continue` action. It advances only for
-an explicit non-submit button when all current required fields are resolved
-and no submission control is visible. No generic click, keyboard, JavaScript,
-submit, login, CAPTCHA, or file-upload operation is exposed.
+workers disabled. Only HTTPS Greenhouse, Lever and Ashby hosts on the default
+HTTPS port are accepted. URL identity uses the lowercase host, effective port,
+and path without a trailing slash; query strings and fragments do not affect
+identity and are removed from stored session URLs.
+
+Navigation on the original ATS origin is classified `EXPECTED_ORIGIN`. The
+only cross-origin redirect currently allowed is between the exact Lever hosts
+`jobs.eu.lever.co` and `jobs.lever.co`, and only when the canonical job path
+stays the same; this is `ALLOWED_REDIRECT`. Other ATS hosts, other Lever hosts,
+and a changed path across the global/EU host pair are `UNEXPECTED_ORIGIN` and
+are blocked. A popup is inspected only after it leaves `about:blank`, reaches
+DOMContentLoaded, and passes the same-host/path trust check.
+
+Before any page interaction, GET and HEAD requests to the same supported ATS
+are allowed for documents and read-only form resources. Known submission URL
+paths and submission-like `action`, `operation`, `method`, or `event` query
+values are blocked. All other HTTP methods, WebSocket and EventSource traffic,
+and every request after a field is touched or a Next/Continue action is
+attempted are blocked. The form guard blocks submit events, Enter, submit or
+image controls, and calls to `form.submit()` and `requestSubmit()`. The browser
+layer exposes only inspection, factual fill, and a gated exact `Next` or
+`Continue` action. It advances only for an explicit non-submit button when all
+current required fields are resolved and no submission control is visible.
+No generic click, keyboard, JavaScript, submit, login, CAPTCHA, or file-upload
+operation is exposed.
 
 The current adapters identify supported ATS domains and use generic visible
 DOM extraction; there are no special ATS selectors. Authentication, MFA,

@@ -15,9 +15,13 @@ from ai_job_hunter.application_prep.browser.models import (
 )
 from ai_job_hunter.application_prep.browser.safety import (
     BrowserSafetyError,
+    NavigationTrust,
     NetworkDecision,
     SUBMIT_GUARD_INIT_SCRIPT,
     assert_safe_next_action,
+    canonicalize_application_url,
+    classify_navigation_url,
+    is_safe_application_popup,
     network_decision,
     validate_application_url,
 )
@@ -101,6 +105,71 @@ def _form_signature(page_url: str, raw: dict) -> tuple:
     return page_url, str(raw.get("step_text", "")), fields, actions
 
 
+def _arm_dom_transition_observer(page) -> None:
+    page.evaluate(r"""() => {
+      window.__aiJobHunterTransitionObserver?.disconnect();
+      window.__aiJobHunterTransitionCount = 0;
+      window.__aiJobHunterLastTransition = 0;
+      const observer = new MutationObserver(() => {
+        window.__aiJobHunterTransitionCount += 1;
+        window.__aiJobHunterLastTransition = performance.now();
+      });
+      observer.observe(document.documentElement || document, {
+        attributes: true, childList: true, subtree: true
+      });
+      window.__aiJobHunterTransitionObserver = observer;
+    }""")
+
+
+def _wait_for_form_transition(page, previous_url: str) -> bool:
+    """Wait for an actual URL/DOM transition and a brief DOM quiet period."""
+
+    try:
+        page.wait_for_function(
+            "oldUrl => location.href !== oldUrl || (window.__aiJobHunterTransitionCount || 0) > 0",
+            arg=previous_url,
+            timeout=5000,
+            polling=50,
+        )
+        if page.url != previous_url:
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+        else:
+            page.wait_for_function(
+                "() => performance.now() - (window.__aiJobHunterLastTransition || 0) >= 200",
+                timeout=5000,
+                polling=50,
+            )
+        return True
+    except Exception:
+        return False
+
+
+def _adopt_safe_popup(context, current_page, *, initial_url: str, seen_page_ids: set[int]):
+    candidates = [candidate for candidate in context.pages if id(candidate) not in seen_page_ids]
+    if not candidates:
+        return current_page, None
+    if len(candidates) != 1:
+        return current_page, ManualInterventionReason.UNEXPECTED_PAGE
+    candidate = candidates[0]
+    if candidate.url.casefold() in {"", "about:blank"}:
+        try:
+            candidate.wait_for_url(
+                lambda observed: observed.casefold() not in {"", "about:blank"},
+                wait_until="domcontentloaded",
+                timeout=8000,
+            )
+        except Exception:
+            return current_page, ManualInterventionReason.UNEXPECTED_PAGE
+    try:
+        candidate.wait_for_load_state("domcontentloaded", timeout=10000)
+    except Exception:
+        return current_page, ManualInterventionReason.UNEXPECTED_PAGE
+    if not is_safe_application_popup(initial_url, candidate.url):
+        return current_page, ManualInterventionReason.UNEXPECTED_PAGE
+    seen_page_ids.add(id(candidate))
+    return candidate, None
+
+
 @dataclass(frozen=True, slots=True)
 class MappingAndFillPlan:
     mappings: tuple[FieldMapping, ...]
@@ -114,6 +183,7 @@ class BrowserRunResult:
     filled_safe_field_ids: tuple[str, ...]
     advanced_steps: int
     manual_intervention_reason: ManualInterventionReason | None = None
+    redirects_observed: tuple[str, ...] = ()
 
     @property
     def final_snapshot(self) -> ApplicationFormSnapshot:
@@ -161,6 +231,7 @@ class PlaywrightAssistedBrowser:
         snapshots: list[ApplicationFormSnapshot] = []
         mappings: list[FieldMapping] = []
         filled_ids: list[str] = []
+        redirects_observed: list[str] = []
         interacted = False
         manual_reason: ManualInterventionReason | None = None
         previous_signature: tuple | None = None
@@ -174,33 +245,66 @@ class PlaywrightAssistedBrowser:
             context.add_init_script(SUBMIT_GUARD_INIT_SCRIPT)
 
             def guard_route(route):
+                nonlocal manual_reason
                 request = route.request
+                is_navigation = request.is_navigation_request()
+                if is_navigation and getattr(request, "redirected_from", None) is not None:
+                    try:
+                        redirect_url = canonicalize_application_url(request.url).url
+                        initial_canonical = canonicalize_application_url(url).url
+                        if redirect_url != initial_canonical and redirect_url not in redirects_observed:
+                            redirects_observed.append(redirect_url)
+                    except BrowserSafetyError:
+                        pass
                 decision = network_decision(
                     url=request.url,
                     method=request.method,
                     resource_type=request.resource_type,
-                    is_navigation=request.is_navigation_request(),
+                    is_navigation=is_navigation,
                     initial_url=url,
                     interacted_with_page=interacted,
                 )
                 if decision is NetworkDecision.ALLOW:
                     route.continue_()
                 else:
+                    if is_navigation and not interacted:
+                        manual_reason = (
+                            ManualInterventionReason.UNSUPPORTED_REDIRECT
+                            if classify_navigation_url(url, request.url) is NavigationTrust.UNEXPECTED_ORIGIN
+                            else ManualInterventionReason.NETWORK_POLICY
+                        )
                     route.abort("blockedbyclient")
 
             context.route("**/*", guard_route)
             if hasattr(context, "route_web_socket"):
                 context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
+            seen_page_ids = {id(page)}
             try:
-                page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                navigation_failed = False
                 try:
-                    page.wait_for_load_state("load", timeout=5000)
+                    page.goto(url, wait_until="domcontentloaded", timeout=25000)
                 except Exception:
-                    pass
-                for step_number in range(1, max(1, min(max_steps, 5)) + 1):
+                    navigation_failed = True
+                    manual_reason = manual_reason or ManualInterventionReason.NETWORK_POLICY
+                if not navigation_failed:
+                    try:
+                        page.wait_for_load_state("load", timeout=5000)
+                    except Exception:
+                        pass
+                step_limit = max(1, min(max_steps, 5)) if not navigation_failed else 0
+                for step_number in range(1, step_limit + 1):
+                    page, popup_reason = _adopt_safe_popup(
+                        context,
+                        page,
+                        initial_url=url,
+                        seen_page_ids=seen_page_ids,
+                    )
+                    if popup_reason is not None:
+                        manual_reason = popup_reason
+                        break
                     page_url = page.url
-                    if validate_application_url(page_url) is not provider:
+                    if classify_navigation_url(url, page_url) is NavigationTrust.UNEXPECTED_ORIGIN:
                         manual_reason = ManualInterventionReason.UNSUPPORTED_REDIRECT
                         break
                     raw = page.evaluate(_DOM_INSPECT_SCRIPT)
@@ -310,12 +414,25 @@ class PlaywrightAssistedBrowser:
                     if next_action.control_type == "button-role" and live_control["role"] != "button":
                         break
                     previous_signature = _form_signature(page.url, page.evaluate(_DOM_INSPECT_SCRIPT))
+                    previous_url = page.url
+                    _arm_dom_transition_observer(page)
                     action_locator.click(timeout=2500, no_wait_after=True)
-                    page.wait_for_timeout(150)
+                    changed = _wait_for_form_transition(page, previous_url)
+                    page, popup_reason = _adopt_safe_popup(
+                        context,
+                        page,
+                        initial_url=url,
+                        seen_page_ids=seen_page_ids,
+                    )
+                    if popup_reason is not None:
+                        manual_reason = popup_reason
+                        break
+                    if not changed and page.url == previous_url:
+                        break
                 if not snapshots:
                     manual_reason = manual_reason or ManualInterventionReason.NO_VISIBLE_FORM
                     snapshots.append(snapshot_from_dom_records(
-                        url=page.url,
+                        url=canonicalize_application_url(url).url,
                         records=(),
                     ).model_copy(update={
                         "manual_intervention_required": True,
@@ -330,4 +447,5 @@ class PlaywrightAssistedBrowser:
             filled_safe_field_ids=tuple(filled_ids),
             advanced_steps=max(0, len(snapshots) - 1),
             manual_intervention_reason=manual_reason,
+            redirects_observed=tuple(redirects_observed),
         )
