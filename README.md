@@ -13,6 +13,32 @@ AI Job Hunter is an intelligent job discovery, evaluation, and assisted-applicat
 - Assisted Application Preparation for reviewing questions and selecting candidate documents.
 - Playwright browser-assisted workflows with a submission guard.
 
+## Architecture
+
+```text
+Job Sources
+    |
+    v
+Normalization
+    |
+    v
+Deduplication
+    |
+    v
+Deterministic Prefilter
+    |
+    v
+Jev Evaluation
+    |
+    v
+Opportunity Feed
+    |-- Application Tracking
+    |-- Outreach / Referrals
+    `-- Assisted Apply
+```
+
+The pipeline keeps deterministic filtering separate from model-based evaluation, then exposes the resulting opportunities through human-reviewed workflows rather than treating model output as an automatic application decision.
+
 ## Safety and privacy
 
 - No mass automatic applications or automatic message sending.
@@ -36,6 +62,47 @@ Copy-Item .env.example .env
 ```
 
 Set local database and optional TypeSafe credentials in `.env`. Never commit `.env` or candidate-specific `*.local.*` files. The checked-in templates in `config/examples/` use fictional values.
+
+## CLI examples
+
+Refresh monitored job sources and update the opportunity feed:
+
+```powershell
+ai-job-hunter refresh --limit-companies 10 --max-jev-jobs 20
+```
+
+Review the highest-priority opportunities currently classified as `APPLY`:
+
+```powershell
+ai-job-hunter opportunities --decision apply --limit 10
+```
+
+Inspect one opportunity and its saved application history:
+
+```powershell
+ai-job-hunter show <JOB_ID>
+```
+
+Prepare application materials locally, then inspect the hosted form without submitting it:
+
+```powershell
+ai-job-hunter apply prepare <JOB_ID>
+ai-job-hunter apply browser <JOB_ID>
+```
+
+Preview which factual fields the browser workflow could fill without changing the form:
+
+```powershell
+ai-job-hunter apply fill-safe <JOB_ID> --dry-run
+```
+
+Create an outreach draft for human review:
+
+```powershell
+ai-job-hunter outreach draft <JOB_ID> --channel linkedin
+```
+
+The CLI intentionally separates discovery, evaluation, review, outreach, and application preparation. Browser-assisted commands do not submit applications or upload documents.
 
 ## Tests
 
