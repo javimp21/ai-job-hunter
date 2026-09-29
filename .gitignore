@@ -33,7 +33,9 @@ venv/
 *.dump
 /data/
 /data/local/
+candidate*.local.json
 *.local.json
+*.local.md
 job_sources.local.*
 /private/
 /secrets/
@@ -42,6 +44,23 @@ candidate.*.local.json
 candidate.*.local.yaml
 candidate.*.local.yml
 candidate_projects.local.json
+# Candidate documents, personal PDFs, and browser authentication state
+*.pdf
+/cvs/
+/CVs/
+/resumes/
+/candidate_documents/
+/.playwright/
+/playwright/.auth/
+/browser-state/
+**/storage-state*.json
+**/storageState*.json
+**/storage_state*.json
+**/*cookies*.json
+**/*cookie*.txt
+**/browser-state*.json
+**/browser_state*.json
+**/user-data-dir/
 /.postgres-data/
 /postgres-data/
 /pgdata/
