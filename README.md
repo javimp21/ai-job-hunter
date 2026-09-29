@@ -54,14 +54,21 @@ Python 3.13, PostgreSQL, SQLAlchemy, Alembic, Pydantic Settings, httpx, Playwrig
 
 ## Local setup
 
+Before running the source commands, create the ignored `job_sources.local.json` from `config/examples/job_sources.example.json` and replace the example board identifiers with the public ATS boards you want to monitor.
+
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,browser,jev]"
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose up -d
+alembic upgrade head
+python -m ai_job_hunter.jobs_cli --sources job_sources.local.json --ingest
+python -m ai_job_hunter.company_cli monitor --supported-ats --limit-companies 3 --max-jobs-per-company 30
+ai-job-hunter refresh --limit-companies 3 --max-jobs-per-company 30 --max-jev-jobs 5
 ```
 
-Set local database and optional TypeSafe credentials in `.env`. Never commit `.env` or candidate-specific `*.local.*` files. The checked-in templates in `config/examples/` use fictional values.
+The Compose service provides a persistent local PostgreSQL 16 database on port `5432` with fictional development credentials. The copied `.env.example` already points to it. `python -m ai_job_hunter.jobs_cli --sources ... --ingest` fetches and stores actual postings; `company_cli monitor` synchronizes ATS evidence from those persisted postings so `refresh` has monitored targets. The `job_sources` table stores individual job postings, not board configuration. Set optional TypeSafe credentials in `.env`; never commit `.env` or candidate-specific `*.local.*` files. The checked-in templates in `config/examples/` use fictional values. Stop PostgreSQL with `docker compose stop` when you are done; its named volume keeps local database data between runs.
 
 ## CLI examples
 

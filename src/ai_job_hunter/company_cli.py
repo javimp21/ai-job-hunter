@@ -279,6 +279,10 @@ def _annual_eur(value) -> str:
 
 def _run_monitor(args, session) -> None:
     observation = sync_ats_evidence_from_job_sources(session)
+    # The source query above opens SQLAlchemy's implicit outer transaction;
+    # sync_ats_evidence_from_job_sources commits a nested savepoint in that case.
+    # Persist the observations so a later `ai-job-hunter refresh` can see targets.
+    session.commit()
     filters = CompanyMonitorFilters(
         supported_ats=True,
         public_salary=args.public_salary,
