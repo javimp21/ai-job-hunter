@@ -217,6 +217,11 @@ def network_decision(
         if classify_navigation_url(initial_url, url) is NavigationTrust.UNEXPECTED_ORIGIN:
             return NetworkDecision.BLOCK
         return NetworkDecision.ALLOW
+    try:
+        if canonicalize_application_url(url).origin != canonicalize_application_url(initial_url).origin:
+            return NetworkDecision.BLOCK
+    except BrowserSafetyError:
+        return NetworkDecision.BLOCK
     if resource_type.casefold() in {"websocket", "eventsource"}:
         return NetworkDecision.BLOCK
     return NetworkDecision.ALLOW

@@ -413,6 +413,8 @@ def _parse_apply_command(values: Sequence[str]):
         command.add_argument("--facts-config", type=Path, default=DEFAULT_APPLICATION_FACTS_PATH)
         command.add_argument("--projects-config", type=Path, default=DEFAULT_CANDIDATE_PROJECTS_CONFIG)
         command.add_argument("--documents-config", type=Path, default=Path("candidate_documents.local.json"))
+        if name == "fill-safe":
+            command.add_argument("--dry-run", action="store_true", help="plan safe fills without changing any form fields or advancing")
     answer = commands.add_parser("answer", help="save a human-entered answer locally")
     answer.add_argument("job_id", type=UUID)
     answer.add_argument("question_id")
@@ -484,6 +486,14 @@ def _run_local_apply_command(args) -> int:
     return 2
 
 
+def _safe_terminal_text(value: str) -> str:
+    """Render arbitrary ATS labels on legacy Windows console encodings safely."""
+
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    normalized = str(value).replace("\ufffd", "'").replace("’", "'").replace("‘", "'")
+    return normalized.encode(encoding, errors="replace").decode(encoding, errors="replace")
+
+
 def _run_browser_apply_command(args) -> int:
     from ai_job_hunter.application_prep.browser.service import inspect_application_package
     from ai_job_hunter.application_prep.browser.safety import BrowserSafetyError
@@ -509,6 +519,7 @@ def _run_browser_apply_command(args) -> int:
             projects=projects,
             documents=documents,
             fill_safe=args.action == "fill-safe",
+            dry_run=bool(getattr(args, "dry_run", False)),
         )
         ApplicationSessionStore(args.sessions_path).save(session)
     except (
@@ -529,10 +540,31 @@ def _run_browser_apply_command(args) -> int:
     print(f"Steps inspected: {len(session.snapshots)}")
     print(f"Fields extracted: {sum(len(item.fields) for item in session.snapshots)}")
     print(f"Safe fields filled: {len(session.filled_safe_field_ids)}")
+    if session.dry_run:
+        print("DRY RUN: no fields were filled and no form buttons were clicked.")
+        for label, field_ids in (
+            ("WOULD_FILL", session.would_fill_field_ids),
+            ("WOULD_SKIP", session.would_skip_field_ids),
+            ("NEEDS_INPUT", session.needs_input_field_ids),
+        ):
+            print(f"{label}: {len(field_ids)}")
+            for field_id in field_ids:
+                form_field = next((field for snap in session.snapshots for field in snap.fields if field.id == field_id), None)
+                if form_field is not None:
+                    print(f"  {field_id} | {_safe_terminal_text(form_field.label)}")
     print(f"Fields pending review/input: {len(session.pending_field_ids)}")
     if session.snapshot and session.snapshot.manual_intervention_required:
         print(f"Manual intervention: {session.snapshot.manual_intervention_reason.value}")
     print(f"Session status: {session.status.value}")
+    print(f"Required fields: {len(session.required_field_ids)}")
+    print(f"Legal review fields: {len(session.legal_field_ids)}")
+    print(f"Sensitive review fields: {len(session.sensitive_field_ids)}")
+    print(f"Required document fields: {len(session.required_document_field_ids)}")
+    for mapping in session.mappings:
+        if mapping.canonical_field.value == "CV" and (mapping.recommendation or "").startswith("NO_CV_CONFIGURED"):
+            print("DOCUMENT: NO_CV_CONFIGURED; add local metadata in candidate_documents.local.json. No upload was performed.")
+    for reason in session.readiness_reasons:
+        print(f"Readiness: {reason}")
     print("No application was submitted and no document was uploaded.")
     return 0
 
@@ -557,10 +589,13 @@ def _run_browser_session_report(args) -> int:
         pending = [mappings[item] for item in session.pending_field_ids if item in mappings]
         print(f"PENDING FORM FIELDS: {len(pending)}")
         for item in pending:
-            print(f"{item.answer_policy.value} | {item.source_label}")
+            print(f"{item.answer_policy.value} | {_safe_terminal_text(item.source_label)}")
         return 0
     if args.action == "inspect":
         print(f"ATS: {session.ats.value} | status={session.status.value} | steps={len(session.snapshots)}")
+        print(f"Readiness reasons: {len(session.readiness_reasons)}")
+        for reason in session.readiness_reasons:
+            print(f"READINESS | {reason}")
         for redirect_url in session.redirects_observed:
             print(f"REDIRECT | {redirect_url}")
         snapshots = session.snapshots or ((session.snapshot,) if session.snapshot else ())
@@ -571,10 +606,10 @@ def _run_browser_session_report(args) -> int:
                 policy = mapping.answer_policy.value if mapping else AnswerPolicy.NEEDS_USER_INPUT.value
                 required = "required" if field.required else "optional"
                 present = "value present" if field.current_value_present else "empty"
-                print(f"{field.field_type.value} | {required} | {policy} | {present} | {field.label}")
+                print(f"{field.field_type.value} | {required} | {policy} | {present} | {_safe_terminal_text(field.label)}")
             for action in snapshot.actions:
                 intent = "SUBMISSION BLOCKED" if action.submission_intent else "action"
-                print(f"{intent} | {action.label}")
+                print(f"{intent} | {_safe_terminal_text(action.label)}")
         if session.snapshot and session.snapshot.manual_intervention_reason:
             print(f"Manual intervention required: {session.snapshot.manual_intervention_reason.value}")
         return 0
@@ -586,11 +621,11 @@ def _run_browser_session_report(args) -> int:
     for item in session.mappings:
         if item.answer_policy is AnswerPolicy.SAFE_AUTO_FILL:
             continue
-        print(f"[{item.answer_policy.value}] {item.source_label}")
+        print(f"[{item.answer_policy.value}] {_safe_terminal_text(item.source_label)}")
         if item.recommendation:
-            print(f"  document recommendation: {item.recommendation}")
+            print(f"  document recommendation: {_safe_terminal_text(item.recommendation)}")
         if item.suggested_answer:
-            print(f"  suggested answer for review: {item.suggested_answer}")
+            print(f"  suggested answer for review: {_safe_terminal_text(item.suggested_answer)}")
     print("Review the form and every suggested answer in the original ATS flow before proceeding manually.")
     return 0
 

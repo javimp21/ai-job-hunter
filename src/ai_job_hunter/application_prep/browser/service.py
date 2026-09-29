@@ -34,6 +34,7 @@ def inspect_application_package(
     projects: tuple[CandidateProject, ...] = (),
     documents: tuple[CandidateDocument, ...] = (),
     fill_safe: bool = False,
+    dry_run: bool = False,
     browser: PlaywrightAssistedBrowser | None = None,
 ) -> ApplicationSession:
     if not package.application_url:
@@ -59,6 +60,7 @@ def inspect_application_package(
         expected_ats=expected_ats,
         plan_for_snapshot=planner,
         fill_safe=fill_safe,
+        dry_run=dry_run,
     )
     all_field_ids = {field.id for snapshot in result.snapshots for field in snapshot.fields}
     filled = set(result.filled_safe_field_ids)
@@ -66,31 +68,58 @@ def inspect_application_package(
         item.field_id for item in result.mappings
         if item.answer_policy is not AnswerPolicy.SAFE_AUTO_FILL or item.field_id not in filled
     )
+    mappings_by_id = {item.field_id: item for item in result.mappings}
+    required_fields = tuple(
+        field.id for snapshot in result.snapshots for field in snapshot.fields if field.required
+    )
+    sensitive_fields = tuple(
+        item.field_id for item in result.mappings
+        if item.answer_policy in {AnswerPolicy.SENSITIVE, AnswerPolicy.OPTIONAL_SELF_IDENTIFICATION}
+    )
+    legal_fields = tuple(
+        item.field_id for item in result.mappings if item.answer_policy is AnswerPolicy.LEGAL
+    )
+    required_documents = tuple(
+        field.id for snapshot in result.snapshots for field in snapshot.fields
+        if field.required and mappings_by_id.get(field.id) is not None
+        and mappings_by_id[field.id].canonical_field.value in {"CV", "COVER_LETTER", "PORTFOLIO_DOCUMENT", "OTHER_DOCUMENT"}
+    )
+    readiness_reasons: list[str] = []
     if result.manual_intervention_reason is not None:
         status = ApplicationSessionStatus.BLOCKED
+        readiness_reasons.append("Manual intervention is required before the ATS form can be used.")
     else:
-        mappings_by_id = {item.field_id: item for item in result.mappings}
         required_missing = any(
             field.required
             and (
+                not field.current_value_present
+                and (
                 mappings_by_id.get(field.id) is None
                 or mappings_by_id[field.id].answer_policy is not AnswerPolicy.SAFE_AUTO_FILL
                 or field.id not in filled
+                )
             )
             for snapshot in result.snapshots
             for field in snapshot.fields
         )
         if required_missing:
             status = ApplicationSessionStatus.NEEDS_INPUT
+            readiness_reasons.append("One or more required fields still need input or human review.")
         elif filled:
             status = ApplicationSessionStatus.PARTIALLY_FILLED
         else:
             status = ApplicationSessionStatus.READY_FOR_FINAL_REVIEW
     now = datetime.now(UTC)
+    if required_documents:
+        readiness_reasons.append("Required document metadata must be configured and reviewed locally.")
+    if legal_fields:
+        readiness_reasons.append("Legal and work-authorization answers require human review.")
+    if sensitive_fields:
+        readiness_reasons.append("Sensitive or optional self-identification fields require human review.")
     return ApplicationSession(
         job_id=package.job_id,
         application_package_id=package.id,
-        url=package.application_url,
+        url=result.final_snapshot.url,
         redirects_observed=result.redirects_observed,
         ats=result.final_snapshot.ats,
         current_step=result.final_snapshot.step or len(result.snapshots),
@@ -99,6 +128,15 @@ def inspect_application_package(
         mappings=result.mappings,
         filled_safe_field_ids=result.filled_safe_field_ids,
         pending_field_ids=tuple(dict.fromkeys(item for item in pending if item in all_field_ids)),
+        required_field_ids=tuple(dict.fromkeys(required_fields)),
+        sensitive_field_ids=tuple(dict.fromkeys(sensitive_fields)),
+        legal_field_ids=tuple(dict.fromkeys(legal_fields)),
+        required_document_field_ids=tuple(dict.fromkeys(required_documents)),
+        readiness_reasons=tuple(dict.fromkeys(readiness_reasons)),
+        dry_run=dry_run,
+        would_fill_field_ids=result.would_fill_field_ids,
+        would_skip_field_ids=result.would_skip_field_ids,
+        needs_input_field_ids=result.needs_input_field_ids,
         status=status,
         created_at=now,
         updated_at=now,

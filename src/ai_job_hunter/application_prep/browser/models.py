@@ -75,15 +75,23 @@ class FormFieldType(StrEnum):
 class CanonicalField(StrEnum):
     FIRST_NAME = "FIRST_NAME"
     LAST_NAME = "LAST_NAME"
+    FULL_NAME = "FULL_NAME"
     EMAIL = "EMAIL"
     PHONE = "PHONE"
     CITY = "CITY"
     COUNTRY = "COUNTRY"
     LOCATION = "LOCATION"
+    REGION = "REGION"
+    CURRENTLY_IN_SPAIN = "CURRENTLY_IN_SPAIN"
+    PREVIOUS_EMPLOYMENT = "PREVIOUS_EMPLOYMENT"
+    RELOCATION = "RELOCATION"
+    NOTICE_PERIOD = "NOTICE_PERIOD"
+    PREFERRED_PROGRAMMING_LANGUAGE = "PREFERRED_PROGRAMMING_LANGUAGE"
     LINKEDIN = "LINKEDIN"
     GITHUB = "GITHUB"
     PORTFOLIO = "PORTFOLIO"
     CURRENT_ROLE = "CURRENT_ROLE"
+    CURRENT_COMPANY = "CURRENT_COMPANY"
     OVERALL_EXPERIENCE_YEARS = "OVERALL_EXPERIENCE_YEARS"
     SALARY_EXPECTATION = "SALARY_EXPECTATION"
     WORK_AUTHORIZATION = "WORK_AUTHORIZATION"
@@ -127,6 +135,7 @@ class FormField(_FrozenModel):
     field_type: FormFieldType
     required: bool = False
     options: tuple[str, ...] = ()
+    option_ordinals: tuple[int, ...] = ()
     current_value_present: bool = False
     # Minimal selectors only; values and full DOM/HTML are deliberately absent.
     dom_hint: dict[str, str | int] = Field(default_factory=dict)
@@ -192,6 +201,15 @@ class ApplicationSession(_FrozenModel):
     filled_safe_field_ids: tuple[str, ...] = ()
     pending_field_ids: tuple[str, ...] = ()
     reviewed_answer_ids: tuple[str, ...] = ()
+    required_field_ids: tuple[str, ...] = ()
+    sensitive_field_ids: tuple[str, ...] = ()
+    legal_field_ids: tuple[str, ...] = ()
+    required_document_field_ids: tuple[str, ...] = ()
+    readiness_reasons: tuple[str, ...] = ()
+    dry_run: bool = False
+    would_fill_field_ids: tuple[str, ...] = ()
+    would_skip_field_ids: tuple[str, ...] = ()
+    needs_input_field_ids: tuple[str, ...] = ()
     status: ApplicationSessionStatus = ApplicationSessionStatus.CREATED
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

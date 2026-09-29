@@ -41,18 +41,40 @@ _DOM_INSPECT_SCRIPT = r"""
       .map(id => document.getElementById(id)).filter(Boolean).map(text).filter(Boolean).join(' ');
     const aria = el.getAttribute('aria-label') || '';
     const placeholder = el.getAttribute('placeholder') || '';
-    const groupLabel = el.closest('fieldset')?.querySelector('legend');
-    const groupText = groupLabel ? text(groupLabel) : '';
+    const questionContainer = el.closest('.application-question, [data-question], [role="group"]');
+    const fieldset = el.closest('fieldset');
+    const question = questionContainer || (fieldset?.querySelector('legend') ? fieldset : null);
+    const legend = question?.querySelector('legend');
+    const questionLabel = question?.querySelector(
+      ':scope > [data-question-label], :scope > .application-question-label, :scope > .application-question__label, :scope > .question-label, :scope > label'
+    );
+    const applicationLabel = question?.querySelector('.application-label');
+    const applicationPrompt = applicationLabel?.querySelector('.text') || applicationLabel;
+    const promptText = applicationPrompt
+      ? [...applicationPrompt.childNodes]
+          .filter(node => !(node.nodeType === Node.ELEMENT_NODE && node.matches('.required')))
+          .map(node => node.nodeType === Node.TEXT_NODE ? node.textContent : text(node))
+          .join(' ').replace(/[✱*]/g, ' ').replace(/\s+/g, ' ').trim()
+      : '';
+    const dataQuestion = question?.getAttribute('data-question') || '';
+    const groupText = (legend && text(legend)) || (questionLabel && text(questionLabel)) || promptText ||
+      (dataQuestion && dataQuestion !== 'true' ? dataQuestion : '') || question?.getAttribute('aria-label') || '';
     const ownLabel = labelText || labelledBy || aria || placeholder || '';
-    const label = groupText || ownLabel;
+    const label = (groupText || ownLabel)
+      .replace(/[✱*]/g, ' ')
+      .replace(/\s+attach\s+resume\/cv\b.*$/i, '')
+      .replace(/\s+/g, ' ').trim();
     const labelSource = labelText || labelledBy || groupText ? 'label' : aria ? 'aria' : placeholder ? 'placeholder' : 'attribute';
     const type = el.tagName === 'SELECT' ? (el.multiple ? 'multiple' : 'select') : el.tagName === 'TEXTAREA' ? 'textarea' : (el.type || 'text');
     const current = el.type === 'checkbox' || el.type === 'radio' ? !!el.checked : el.value !== undefined && String(el.value).length > 0;
     return {
       tag: el.tagName.toLowerCase(), type, id: el.id || el.name || `field-${ordinal + 1}`,
       name: el.name || '', label, group_label: groupText,
-      option_label: el.type === 'radio' ? ownLabel : '', label_source: labelSource, visible: visible(el),
-      required: !!el.required || el.getAttribute('aria-required') === 'true',
+      option_label: el.type === 'radio' || el.type === 'checkbox' ? ownLabel : '', label_source: labelSource, visible: visible(el),
+      option_ordinal: el.type === 'radio' || el.type === 'checkbox' ? ordinal : null,
+      required: !!el.required || el.getAttribute('aria-required') === 'true' ||
+        !!question?.querySelector('.required') || !!question?.classList.contains('required-field') ||
+        Array.from(el.labels || []).some(label => !!label.querySelector('.required')),
       current_value_present: current,
       options: el.tagName === 'SELECT' ? Array.from(el.options).map(option => text(option)).filter(Boolean) : [],
       ordinal, dom_hint: { id: el.id || '', name: el.name || '', type }
@@ -67,7 +89,8 @@ _DOM_INSPECT_SCRIPT = r"""
         : text(el);
       return {
         label: label || (el.type === 'image' ? 'Image submit control' : 'Submit control'),
-        control_type: inputControl ? 'submit' : el.tagName === 'BUTTON' ? (el.type || 'submit') : 'button-role',
+        control_type: inputControl ? 'submit' : el.tagName === 'BUTTON'
+          ? (el.getAttribute('type') || (el.form ? 'submit' : 'button')) : 'button-role',
         ordinal,
         click_ordinal: inputControl ? null : clickControls.indexOf(el),
         visible: visible(el)
@@ -78,7 +101,7 @@ _DOM_INSPECT_SCRIPT = r"""
   return {
     fields, actions,
     step_text: stepMatch ? stepMatch[0] : '',
-    captcha_detected: !!document.querySelector('[id*="captcha" i], [class*="captcha" i], iframe[src*="captcha" i], iframe[src*="recaptcha" i]'),
+    captcha_detected: Array.from(document.querySelectorAll('[id*="captcha" i], [class*="captcha" i], iframe[src*="captcha" i], iframe[src*="recaptcha" i]')).some(visible),
     captcha_text_detected: /captcha|recaptcha|hcaptcha|human verification|verify that you are human/i.test(body),
     login_detected: /\b(?:sign in|log in|login|sign[ -]?up|register|registration|create (?:an? )?(?:account|profile)|email verification|verify your email|continue with google|sign in with google|google sign in|oauth|two.factor|multi.factor|verification code|one.time code|security code|authenticator)\b/i.test(body)
   };
@@ -184,6 +207,9 @@ class BrowserRunResult:
     advanced_steps: int
     manual_intervention_reason: ManualInterventionReason | None = None
     redirects_observed: tuple[str, ...] = ()
+    would_fill_field_ids: tuple[str, ...] = ()
+    would_skip_field_ids: tuple[str, ...] = ()
+    needs_input_field_ids: tuple[str, ...] = ()
 
     @property
     def final_snapshot(self) -> ApplicationFormSnapshot:
@@ -200,6 +226,7 @@ class PlaywrightAssistedBrowser:
         expected_ats: ATSProvider,
         plan_for_snapshot: Callable[[ApplicationFormSnapshot, str], MappingAndFillPlan],
         fill_safe: bool,
+        dry_run: bool = False,
         max_steps: int = 5,
     ) -> BrowserRunResult:
         provider = validate_application_url(url, expected_ats)
@@ -207,7 +234,8 @@ class PlaywrightAssistedBrowser:
             from playwright.sync_api import sync_playwright
         except ImportError as error:
             raise BrowserSafetyError(
-                "Browser-assisted apply needs the optional Playwright dependency and Chromium installation."
+                'Install browser support with `python -m pip install -e ".[browser]"` '
+                "and install Chromium with `python -m playwright install chromium`."
             ) from error
 
         try:
@@ -217,6 +245,7 @@ class PlaywrightAssistedBrowser:
                 provider=provider,
                 plan_for_snapshot=plan_for_snapshot,
                 fill_safe=fill_safe,
+                dry_run=dry_run,
                 max_steps=max_steps,
             )
         except BrowserSafetyError:
@@ -227,16 +256,30 @@ class PlaywrightAssistedBrowser:
                 f"Browser inspection stopped safely ({type(error).__name__}). No form data was logged."
             ) from None
 
-    def _run(self, sync_playwright, *, url, provider, plan_for_snapshot, fill_safe, max_steps):
+    def _run(self, sync_playwright, *, url, provider, plan_for_snapshot, fill_safe, dry_run=False, max_steps=5):
         snapshots: list[ApplicationFormSnapshot] = []
         mappings: list[FieldMapping] = []
         filled_ids: list[str] = []
         redirects_observed: list[str] = []
         interacted = False
         manual_reason: ManualInterventionReason | None = None
+        would_fill_ids: list[str] = []
+        would_skip_ids: list[str] = []
+        needs_input_ids: list[str] = []
         previous_signature: tuple | None = None
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=False)
+            try:
+                # Dry-runs use real Chromium without requiring an interactive desktop.
+                browser = playwright.chromium.launch(headless=dry_run)
+            except Exception as error:
+                if type(error).__name__ == "Error" and any(
+                    marker in str(error).casefold()
+                    for marker in ("executable doesn't exist", "executable does not exist", "browser was not found")
+                ):
+                    raise BrowserSafetyError(
+                        "Playwright Chromium is not installed. Run `python -m playwright install chromium`."
+                    ) from None
+                raise
             context = browser.new_context(
                 service_workers="block",
                 accept_downloads=False,
@@ -292,7 +335,7 @@ class PlaywrightAssistedBrowser:
                         page.wait_for_load_state("load", timeout=5000)
                     except Exception:
                         pass
-                step_limit = max(1, min(max_steps, 5)) if not navigation_failed else 0
+                step_limit = 1 if dry_run and not navigation_failed else max(1, min(max_steps, 5)) if not navigation_failed else 0
                 for step_number in range(1, step_limit + 1):
                     page, popup_reason = _adopt_safe_popup(
                         context,
@@ -329,15 +372,29 @@ class PlaywrightAssistedBrowser:
                         ),
                     })
                     snapshots.append(snapshot)
+                    plan = plan_for_snapshot(snapshot, page_url)
+                    mappings.extend(plan.mappings)
+                    if dry_run:
+                        mapping_by_id = {item.field_id: item for item in plan.mappings}
+                        for field in snapshot.fields:
+                            mapping = mapping_by_id.get(field.id)
+                            if field.current_value_present:
+                                would_skip_ids.append(field.id)
+                            elif field.required and (
+                                mapping is None or field.id not in plan.values_by_field_id
+                            ):
+                                needs_input_ids.append(field.id)
+                            elif field.id in plan.values_by_field_id:
+                                would_fill_ids.append(field.id)
+                            elif not field.required:
+                                would_skip_ids.append(field.id)
                     if snapshot.manual_intervention_required:
                         manual_reason = snapshot.manual_intervention_reason
                         break
-                    plan = plan_for_snapshot(snapshot, page_url)
-                    mappings.extend(plan.mappings)
                     if fill_safe:
                         filled_in_step: set[str] = set()
                         fields_by_id = {field.id: field for field in snapshot.fields}
-                        for field_id, value in plan.values_by_field_id.items():
+                        for field_id, value in (() if dry_run else plan.values_by_field_id.items()):
                             field = fields_by_id.get(field_id)
                             if field is None or field.current_value_present:
                                 continue
@@ -352,6 +409,14 @@ class PlaywrightAssistedBrowser:
                             interacted = True
                             if field.field_type is FormFieldType.SELECT:
                                 locator.select_option(label=value, timeout=3000)
+                            elif field.field_type is FormFieldType.RADIO:
+                                option_index = next((index for index, item in enumerate(field.options) if item.casefold() == value.casefold()), None)
+                                if option_index is None or option_index >= len(field.option_ordinals):
+                                    continue
+                                option_locator = page.locator("input, select, textarea").nth(field.option_ordinals[option_index])
+                                if not option_locator.is_visible() or not option_locator.is_editable():
+                                    continue
+                                option_locator.check(timeout=3000)
                             elif field.field_type in {
                                 FormFieldType.TEXT,
                                 FormFieldType.EMAIL,
@@ -374,7 +439,7 @@ class PlaywrightAssistedBrowser:
                             })
                             snapshots[-1] = snapshot
 
-                    if step_number >= max_steps:
+                    if dry_run or step_number >= max_steps:
                         break
                     unresolved = tuple(
                         field.id for field in snapshot.fields
@@ -448,4 +513,7 @@ class PlaywrightAssistedBrowser:
             advanced_steps=max(0, len(snapshots) - 1),
             manual_intervention_reason=manual_reason,
             redirects_observed=tuple(redirects_observed),
+            would_fill_field_ids=tuple(dict.fromkeys(would_fill_ids)),
+            would_skip_field_ids=tuple(dict.fromkeys(would_skip_ids)),
+            needs_input_field_ids=tuple(dict.fromkeys(needs_input_ids)),
         )

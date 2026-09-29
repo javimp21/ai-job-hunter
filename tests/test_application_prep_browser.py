@@ -18,7 +18,9 @@ from ai_job_hunter.application_prep.browser.models import (
     ApplicationSessionStatus,
     ATSProvider,
     CanonicalField,
+    FieldMapping,
     ManualInterventionReason,
+    MappingConfidence,
 )
 from ai_job_hunter.application_prep.browser.playwright_driver import MappingAndFillPlan, PlaywrightAssistedBrowser
 from ai_job_hunter.application_prep.browser.safety import (
@@ -216,12 +218,15 @@ def test_salary_sensitive_legal_and_document_fields_are_review_only():
     snapshot = _snapshot()
     mappings = {item.source_label: item for item in _mapping(snapshot)}
     assert mappings["Expected salary"].answer_policy is AnswerPolicy.SALARY_SUGGESTION_REVIEW
-    assert mappings["Expected salary"].suggested_answer == "60000 EUR per year"
+    assert mappings["Expected salary"].suggested_answer == (
+        "SALARY_INPUT_REQUIRED: target annual EUR 60000; monthly equivalent EUR 5000 (annual / 12). "
+        "Payment schedule (12 vs 14 payments) is unknown; enter manually."
+    )
     assert mappings["Work authorization"].answer_policy is AnswerPolicy.LEGAL
     assert mappings["I agree to the terms"].answer_policy is AnswerPolicy.LEGAL
     assert mappings["Voluntary self-identification"].answer_policy is AnswerPolicy.OPTIONAL_SELF_IDENTIFICATION
     assert mappings["Resume / CV"].answer_policy is AnswerPolicy.DOCUMENT_RECOMMENDATION_ONLY
-    assert mappings["Resume / CV"].recommendation == "configured-backend-cv"
+    assert mappings["Resume / CV"].recommendation.startswith("NO_CV_CONFIGURED")
     assert mappings["Tell us about a project"].answer_policy is AnswerPolicy.TEXT_DRAFT_REVIEW
     assert "Backend service" in mappings["Tell us about a project"].suggested_answer
     assert "does not specify a separate duration for Python" in mappings["Years of Python experience"].suggested_answer
@@ -287,6 +292,128 @@ def test_candidate_contact_facts_optional_config_and_document_schema(tmp_path):
     assert legacy.documents[0].id == "backend-resume"
 
 
+def test_full_name_and_location_are_composed_only_from_explicit_facts():
+    snapshot = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "input", "type": "text", "id": "full", "label": "Full name", "label_source": "label"},
+            {"tag": "input", "type": "text", "id": "location", "label": "Current location", "label_source": "label"},
+        ],
+    )
+    mappings = map_form_fields(snapshot, candidate=_candidate(), facts=_facts(), package=_package())
+    plan = safe_fill_plan(snapshot, mappings, candidate=_candidate(), facts=_facts())
+    assert plan == {"full": "Test Candidate", "location": "Madrid, Spain"}
+
+    incomplete = CandidateApplicationFacts(first_name="Test")
+    incomplete_mappings = map_form_fields(snapshot, candidate=_candidate(), facts=incomplete, package=_package())
+    assert next(item for item in incomplete_mappings if item.field_id == "full").answer_policy is AnswerPolicy.NEEDS_USER_INPUT
+    assert safe_fill_plan(snapshot, incomplete_mappings, candidate=_candidate(), facts=incomplete) == {"location": "Madrid, Spain"}
+
+
+def test_spain_region_and_presence_are_safe_only_for_explicit_geographic_questions():
+    snapshot = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "select", "type": "select", "id": "region", "label": "Region", "label_source": "label", "options": ["Europe", "Asia"]},
+            {"tag": "input", "type": "radio", "id": "based-yes", "name": "based", "label": "Are you currently based in Spain?", "group_label": "Are you currently based in Spain?", "option_label": "Yes", "label_source": "label"},
+            {"tag": "input", "type": "radio", "id": "based-no", "name": "based", "label": "Are you currently based in Spain?", "group_label": "Are you currently based in Spain?", "option_label": "No", "label_source": "label"},
+        ],
+    )
+    mappings = map_form_fields(snapshot, candidate=_candidate(), facts=_facts(), package=_package())
+    by_id = {item.field_id: item for item in mappings}
+    assert by_id["region"].answer_policy is AnswerPolicy.SAFE_AUTO_FILL
+    assert by_id["radio:based:1"].answer_policy is AnswerPolicy.SAFE_AUTO_FILL
+    plan = safe_fill_plan(snapshot, mappings, candidate=_candidate(), facts=_facts())
+    assert plan == {"region": "Europe", "radio:based:1": "Yes"}
+
+    auth = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[{"tag": "input", "type": "radio", "id": "auth", "label": "Are you currently authorized to work in Spain?", "required": True}],
+    )
+    auth_mapping = map_form_fields(auth, candidate=_candidate(), facts=_facts(), package=_package())[0]
+    assert auth_mapping.answer_policy is AnswerPolicy.LEGAL
+
+    relocation_question = "Please be informed that this position can be hired in Spain only and OLX does not offer relocation."
+    relocation = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "input", "type": "radio", "id": "there", "name": "availability", "label": relocation_question, "group_label": relocation_question, "option_label": "I am in Spain already."},
+            {"tag": "input", "type": "radio", "id": "will-move", "name": "availability", "label": relocation_question, "group_label": relocation_question, "option_label": "I plan to relocate to Spain on my own."},
+            {"tag": "input", "type": "radio", "id": "no-move", "name": "availability", "label": relocation_question, "group_label": relocation_question, "option_label": "I am not in Spain and I do not plan to relocate there."},
+        ],
+    )
+    relocation_mappings = map_form_fields(relocation, candidate=_candidate(), facts=CandidateApplicationFacts(), package=_package())
+    relocation_plan = safe_fill_plan(relocation, relocation_mappings, candidate=_candidate(), facts=CandidateApplicationFacts())
+    assert len(relocation.fields) == 1
+    assert relocation_plan == {relocation.fields[0].id: "I am in Spain already."}
+    assert "no relocation willingness is inferred" in relocation_mappings[0].evidence[-1]
+
+
+def test_only_explicit_previous_employment_relocation_and_notice_answers_can_fill():
+    snapshot = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "input", "type": "radio", "id": "worked-yes", "name": "worked", "label": "Have you previously worked at OLX?", "group_label": "Have you previously worked at OLX?", "option_label": "Yes"},
+            {"tag": "input", "type": "radio", "id": "worked-no", "name": "worked", "label": "Have you previously worked at OLX?", "group_label": "Have you previously worked at OLX?", "option_label": "No"},
+            {"tag": "input", "type": "radio", "id": "relocation-yes", "name": "relocation", "label": "Are you willing to relocate?", "group_label": "Are you willing to relocate?", "option_label": "Yes"},
+            {"tag": "input", "type": "radio", "id": "relocation-no", "name": "relocation", "label": "Are you willing to relocate?", "group_label": "Are you willing to relocate?", "option_label": "No"},
+            {"tag": "input", "type": "text", "id": "notice", "label": "What is your notice period?", "label_source": "label"},
+            {"tag": "input", "type": "radio", "id": "consent-yes", "name": "consent", "label": "I consent to data processing", "group_label": "I consent to data processing", "option_label": "Yes"},
+            {"tag": "input", "type": "radio", "id": "consent-no", "name": "consent", "label": "I consent to data processing", "group_label": "I consent to data processing", "option_label": "No"},
+        ],
+    )
+    facts = CandidateApplicationFacts(previous_employment="Yes", relocation_response="No", notice_period="One month")
+    mappings = map_form_fields(snapshot, candidate=_candidate(), facts=facts, package=_package())
+    plan = safe_fill_plan(snapshot, mappings, candidate=_candidate(), facts=facts)
+    assert plan == {
+        "radio:worked:1": "Yes",
+        "radio:relocation:2": "No",
+        "notice": "One month",
+    }
+    consent_mapping = next(item for item in mappings if item.source_label == "I consent to data processing")
+    assert consent_mapping.answer_policy is AnswerPolicy.LEGAL
+    assert consent_mapping.field_id not in plan
+
+
+def test_legal_responses_are_review_only_and_java_is_suggested_only_for_review():
+    snapshot = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "input", "type": "text", "id": "auth", "label": "Describe your work authorization", "label_source": "label"},
+            {"tag": "input", "type": "text", "id": "sponsor", "label": "Will you need visa sponsorship?", "label_source": "label"},
+            {"tag": "input", "type": "text", "id": "language", "label": "What is your go-to programming language?", "label_source": "label"},
+        ],
+    )
+    facts = CandidateApplicationFacts(work_authorization_response="User-confirmed response", sponsorship_response="User-confirmed sponsorship response")
+    mappings = map_form_fields(snapshot, candidate=_candidate(), facts=facts, package=_package())
+    by_id = {item.field_id: item for item in mappings}
+    assert by_id["auth"].answer_policy is AnswerPolicy.LEGAL
+    assert by_id["auth"].suggested_answer == "User-confirmed response"
+    assert by_id["sponsor"].suggested_answer == "User-confirmed sponsorship response"
+    assert by_id["language"].suggested_answer == "Java"
+    assert by_id["language"].answer_policy is AnswerPolicy.TEXT_DRAFT_REVIEW
+    assert safe_fill_plan(snapshot, mappings, candidate=_candidate(), facts=facts) == {}
+
+
+def test_structured_choice_groups_keep_prompt_and_option_labels_separate():
+    snapshot = snapshot_from_dom_records(
+        url=OLX_URL,
+        records=[
+            {"tag": "input", "type": "radio", "id": "heard-a", "name": "heard", "label": "How did you hear about us?", "group_label": "How did you hear about us?", "option_label": "LinkedIn", "label_source": "label", "required": True},
+            {"tag": "input", "type": "radio", "id": "heard-b", "name": "heard", "label": "How did you hear about us?", "group_label": "How did you hear about us?", "option_label": "Referral", "label_source": "label"},
+            {"tag": "input", "type": "checkbox", "id": "updates-a", "name": "updates", "label": "Which updates do you want?", "group_label": "Which updates do you want?", "option_label": "Email", "label_source": "label"},
+            {"tag": "input", "type": "checkbox", "id": "updates-b", "name": "updates", "label": "Which updates do you want?", "group_label": "Which updates do you want?", "option_label": "SMS", "label_source": "label"},
+        ],
+    )
+    assert len(snapshot.fields) == 2
+    assert snapshot.fields[0].label == "How did you hear about us?"
+    assert snapshot.fields[0].options == ("LinkedIn", "Referral")
+    assert snapshot.fields[0].field_type.value == "RADIO"
+    assert snapshot.fields[0].option_ordinals == (0, 1)
+    assert snapshot.fields[1].options == ("Email", "SMS")
+    assert snapshot.fields[1].field_type.value == "CHECKBOX"
+
+
 def test_browser_session_persistence_is_private_and_contains_no_dom_values(tmp_path):
     snapshot = _snapshot()
     session = ApplicationSession(
@@ -298,6 +425,13 @@ def test_browser_session_persistence_is_private_and_contains_no_dom_values(tmp_p
         snapshot=snapshot,
         snapshots=(snapshot,),
         status=ApplicationSessionStatus.NEEDS_INPUT,
+        required_field_ids=("email",),
+        legal_field_ids=("consent",),
+        required_document_field_ids=("cv",),
+        readiness_reasons=("manual review required",),
+        dry_run=True,
+        would_fill_field_ids=("city",),
+        needs_input_field_ids=("email",),
     )
     path = tmp_path / "application-sessions.local.json"
     store = ApplicationSessionStore(path)
@@ -308,6 +442,20 @@ def test_browser_session_persistence_is_private_and_contains_no_dom_values(tmp_p
     assert "DRAFT_VALUE_SENTINEL" not in raw
     assert "cookies" not in raw.casefold()
     assert "SUBMITTED" not in {item.value for item in ApplicationSessionStatus}
+
+
+def test_versioned_application_config_examples_match_supported_schema():
+    from ai_job_hunter.application_prep.configuration import CandidateDocumentsConfig
+    import json
+
+    root = Path(__file__).resolve().parents[1]
+    facts_payload = json.loads((root / "config/examples/candidate_application.example.json").read_text(encoding="utf-8"))
+    documents_payload = json.loads((root / "config/examples/candidate_documents.example.json").read_text(encoding="utf-8"))
+    facts = CandidateApplicationFacts.model_validate(facts_payload)
+    documents = CandidateDocumentsConfig.model_validate(documents_payload)
+    assert facts.first_name is None
+    assert facts.previous_employment is None
+    assert len(documents.documents) == 1
 
 
 def test_network_and_submit_guards_block_writes_enter_and_post_fill_traffic():
@@ -325,6 +473,10 @@ def test_network_and_submit_guards_block_writes_enter_and_post_fill_traffic():
     ) is NetworkDecision.BLOCK
     assert network_decision(
         url="https://example.test/collect", method="GET", resource_type="image", is_navigation=False,
+        initial_url=OLX_URL, interacted_with_page=False,
+    ) is NetworkDecision.BLOCK
+    assert network_decision(
+        url="https://evil.lever.co/olx/script.js", method="GET", resource_type="script", is_navigation=False,
         initial_url=OLX_URL, interacted_with_page=False,
     ) is NetworkDecision.BLOCK
     assert network_decision(
@@ -470,6 +622,64 @@ def test_browser_runner_does_not_advance_when_native_submit_control_is_visible()
     assert len(result.snapshots) == 1
     assert result.advanced_steps == 0
     assert page.locator_called is False
+
+
+def test_browser_dry_run_never_fills_or_clicks_and_reports_value_free_plan():
+    raw = {
+        "fields": [{"tag": "input", "type": "email", "id": "email", "name": "email", "label": "Email address", "label_source": "label", "required": True, "visible": True, "ordinal": 0}],
+        "actions": [{"label": "Next", "control_type": "button", "ordinal": 0, "click_ordinal": 0, "visible": True}],
+        "step_text": "Step 1 of 2", "captcha_detected": False, "captcha_text_detected": False, "login_detected": False,
+    }
+
+    class Page:
+        url = "about:blank"
+        def goto(self, target_url, **kwargs): self.url = target_url
+        def wait_for_load_state(self, *args, **kwargs): pass
+        def evaluate(self, script): return raw
+        def locator(self, selector): raise AssertionError("dry-run must never query a fill or click locator")
+
+    page = Page()
+    class Context:
+        def add_init_script(self, script): pass
+        def route(self, *args): pass
+        def route_web_socket(self, *args): pass
+        def new_page(self): return page
+        @property
+        def pages(self): return [page]
+        def close(self): pass
+    class Browser:
+        def new_context(self, **kwargs): return Context()
+        def close(self): pass
+    class Chromium:
+        def launch(self, **kwargs):
+            assert kwargs.get("headless") is True
+            return Browser()
+    class Playwright:
+        chromium = Chromium()
+    class SyncPlaywright:
+        def __enter__(self): return Playwright()
+        def __exit__(self, *args): pass
+
+    def planner(snapshot, page_url):
+        mapping = FieldMapping(
+            field_id=snapshot.fields[0].id,
+            canonical_field=CanonicalField.EMAIL,
+            confidence=MappingConfidence.HIGH,
+            source_label="Email address",
+            answer_policy=AnswerPolicy.SAFE_AUTO_FILL,
+            source_key="facts.email",
+        )
+        return MappingAndFillPlan((mapping,), {snapshot.fields[0].id: "private@example.test"})
+
+    result = PlaywrightAssistedBrowser()._run(
+        SyncPlaywright, url=OLX_URL, provider=ATSProvider.LEVER,
+        plan_for_snapshot=planner, fill_safe=True, dry_run=True,
+    )
+    assert result.filled_safe_field_ids == ()
+    assert result.advanced_steps == 0
+    assert result.would_fill_field_ids == ("step-1:email",)
+    assert result.would_skip_field_ids == ()
+    assert result.needs_input_field_ids == ()
 
 
 def test_browser_runner_waits_for_delayed_dom_navigation_without_fixed_sleep():

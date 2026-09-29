@@ -87,8 +87,10 @@ rule:
   local documents. Keep document files under the ignored `private/` directory.
   The workflow reads metadata only; it does not read, modify, copy, or upload
   document contents.
-- `candidate_application.local.json`: optional, explicit first/last name,
-  email, phone and profile URLs. Copy
+- `candidate_application.local.json`: optional contact and current
+  location/company facts, plus answers personally confirmed for prior
+  employment, relocation, notice period, work authorization, and sponsorship.
+  Copy
   `config/examples/candidate_application.example.json` and add only facts you
   want to use. Missing values remain blank; the profile loader never invents
   them.
@@ -122,21 +124,41 @@ manually completed application.
 
 ## Browser-assisted inspection
 
-Install the optional local browser tools with `pip install -e ".[browser]"`
+Install the optional local browser tools with `python -m pip install -e ".[browser]"`
 and `python -m playwright install chromium`. Importing the project does not
 import Playwright or start a browser. `apply browser` performs visible, local
 inspection. `apply fill-safe` also fills exact, empty factual fields only when
 an explicit configured value is available. It does not overwrite existing
-values. Supported facts are first/last name, email, phone, city, country,
-LinkedIn, GitHub, portfolio, current role, and overall years of experience.
-Skill-specific experience, generic job title, and location fields remain for
-review.
+values. A full name is composed only when both first and last name are
+configured. Current location is composed only from explicit city and country.
+Spain can map to Europe for an explicit region question or “currently in Spain”
+question; this never supplies work authorization or sponsorship. Prior OLX
+employment and relocation are not inferred from other profile fields. A
+go-to programming language suggestion remains for review even when Java is
+listed in the profile.
 
-Salary preferences produce suggestions with currency and period and are never
-inserted. Legal, work-authorization, sponsorship, demographic, health and
+`apply fill-safe JOB_ID --dry-run` loads the hosted form in headless Chromium
+and saves a local session while performing no field fills and no button clicks. It reports
+`WOULD_FILL`, `WOULD_SKIP`, and `NEEDS_INPUT` without printing candidate values.
+The saved session records required, legal, sensitive, and required-document
+field IDs and readiness reasons. It stores no DOM values, HTML, cookies, or
+browser storage.
+
+Salary preferences produce `SALARY_INPUT_REQUIRED` review suggestions and are
+never inserted. Annual targets include a /12 monthly equivalent and state that
+the 12 vs 14 payment schedule is unknown. Consent is never auto-checked. Legal,
+work-authorization, sponsorship, demographic, health and
 other sensitive questions remain pending. Free-text drafts use the existing
-local drafting rules and require human review. A configured CV can be
-recommended by metadata, but browser file fields are never populated.
+local drafting rules and require human review. A CV without local document
+metadata reports `NO_CV_CONFIGURED` and points to
+`candidate_documents.local.json`; add only metadata and a local path there.
+The workflow does not open or upload the document. Browser file fields are
+never populated.
+
+When adding explicit choice answers to `candidate_application.local.json`, use
+the exact visible option for previous employment, relocation, notice period,
+work authorization, or sponsorship. Those answers are not guessed from job,
+location, or search-preference data; legal answers remain review-only.
 
 The browser runs in a new, non-persistent context with downloads and service
 workers disabled. Only HTTPS Greenhouse, Lever and Ashby hosts on the default

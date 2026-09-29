@@ -1,3 +1,14 @@
 {
-  "documents": []
+  "documents": [
+    {
+      "id": "example-cv",
+      "type": "CV",
+      "local_path": "private/replace-with-your-cv.pdf",
+      "name": "Backend CV",
+      "tags": ["backend"],
+      "technologies": ["Python"],
+      "role_families": ["backend engineer"],
+      "language": "en"
+    }
+  ]
 }

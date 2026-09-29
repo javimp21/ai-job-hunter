@@ -32,11 +32,24 @@ class CandidateApplicationFacts(BaseModel):
     last_name: str | None = Field(default=None, max_length=160)
     email: str | None = Field(default=None, max_length=320)
     phone: str | None = Field(default=None, max_length=80)
+    current_city: str | None = Field(default=None, max_length=100)
+    current_country: str | None = Field(default=None, max_length=100)
+    current_company: str | None = Field(default=None, max_length=200)
     linkedin_url: str | None = Field(default=None, max_length=2048)
     github_url: str | None = Field(default=None, max_length=2048)
     portfolio_url: str | None = Field(default=None, max_length=2048)
+    previous_employment: str | None = Field(default=None, max_length=500)
+    relocation_response: str | None = Field(default=None, max_length=500)
+    notice_period: str | None = Field(default=None, max_length=300)
+    work_authorization_response: str | None = Field(default=None, max_length=500)
+    sponsorship_response: str | None = Field(default=None, max_length=500)
 
-    @field_validator("first_name", "last_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url", mode="before")
+    @field_validator(
+        "first_name", "last_name", "email", "phone", "current_city", "current_country",
+        "current_company", "linkedin_url", "github_url", "portfolio_url", "previous_employment",
+        "relocation_response", "notice_period", "work_authorization_response", "sponsorship_response",
+        mode="before",
+    )
     @classmethod
     def blank_values_are_missing(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value

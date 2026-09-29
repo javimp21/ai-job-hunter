@@ -1,1 +1,17 @@
-{}
+{
+  "first_name": null,
+  "last_name": null,
+  "email": null,
+  "phone": null,
+  "current_city": null,
+  "current_country": null,
+  "current_company": null,
+  "linkedin_url": null,
+  "github_url": null,
+  "portfolio_url": null,
+  "previous_employment": null,
+  "relocation_response": null,
+  "notice_period": null,
+  "work_authorization_response": null,
+  "sponsorship_response": null
+}

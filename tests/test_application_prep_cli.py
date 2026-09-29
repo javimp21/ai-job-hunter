@@ -112,6 +112,13 @@ def test_legacy_apply_uuid_remains_application_tracking_record():
     assert parsed.note == "manually applied"
 
 
+def test_fill_safe_accepts_an_explicit_dry_run_flag():
+    parsed = _parse_apply_command(["fill-safe", str(uuid4()), "--dry-run"])
+
+    assert parsed.action == "fill-safe"
+    assert parsed.dry_run is True
+
+
 def test_apply_without_subcommand_prints_help_without_opening_store(capsys):
     assert main(["apply"]) == 0
     output = capsys.readouterr().out

@@ -77,6 +77,7 @@ def _normalise_record(record: Mapping[str, Any], index: int) -> FormField | None
         field_type=_field_type(tag, input_type),
         required=bool(record.get("required")),
         options=options,
+        option_ordinals=tuple(int(item) for item in (record.get("option_ordinals") or ())),
         current_value_present=bool(record.get("current_value_present")),
         dom_hint={
             key: value
@@ -358,28 +359,34 @@ def extract_snapshot_from_html(
 
 
 def _group_radio_records(records: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    """Represent a same-name radio group once and retain only option labels."""
+    """Represent explicitly labelled same-name choice groups once."""
 
     result: list[Mapping[str, Any]] = []
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     for index, record in enumerate(records):
-        if str(record.get("type", "")).casefold() != "radio":
+        control_type = str(record.get("type", "")).casefold()
+        if control_type not in {"radio", "checkbox"}:
             result.append(record)
             continue
         dom_hint = record.get("dom_hint") or {}
         name = str(record.get("name") or dom_hint.get("name") or record.get("id") or index)
-        group_label = str(record.get("group_label") or record.get("label") or "").strip()
+        group_label = str(record.get("group_label") or "").strip()
+        # An option's own label is not evidence that it is the question prompt.
+        if not group_label:
+            result.append(record)
+            continue
         key = (name, group_label)
         if key not in groups:
             groups[key] = {
                 "tag": "input",
-                "type": "radio",
-                "id": f"radio:{name}:{len(groups) + 1}",
+                "type": control_type,
+                "id": f"{control_type}:{name}:{len(groups) + 1}",
                 "name": name,
                 "label": group_label,
                 "label_source": record.get("label_source", "label"),
                 "required": bool(record.get("required")),
                 "options": [],
+                "option_ordinals": [],
                 "current_value_present": bool(record.get("current_value_present")),
                 "visible": record.get("visible", True),
                 "ordinal": int(record.get("ordinal", index)),
@@ -390,6 +397,7 @@ def _group_radio_records(records: Sequence[Mapping[str, Any]]) -> list[Mapping[s
         option_label = str(record.get("option_label") or "").strip()
         if option_label and option_label not in group["options"]:
             group["options"].append(option_label)
+            group["option_ordinals"].append(int(record.get("ordinal", index)))
         group["required"] = group["required"] or bool(record.get("required"))
         group["current_value_present"] = group["current_value_present"] or bool(record.get("current_value_present"))
     return result
