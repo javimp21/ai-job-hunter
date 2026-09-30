@@ -17,6 +17,10 @@ from ai_job_hunter.models.outreach import (
     OutreachPurpose,
     OutreachStatus,
 )
+from ai_job_hunter.models.opportunity_notification import (
+    OpportunityNotification,
+    OpportunityNotificationStatus,
+)
 
 __all__ = [
     "Application",
@@ -40,4 +44,6 @@ __all__ = [
     "OutreachEventType",
     "OutreachPurpose",
     "OutreachStatus",
+    "OpportunityNotification",
+    "OpportunityNotificationStatus",
 ]

@@ -1,6 +1,6 @@
 """Application configuration loaded from environment variables or ``.env``."""
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://localhost:5432/ai_job_hunter"
     typesafe_api_key: SecretStr | None = None
+    telegram_bot_token: SecretStr | None = None
+    telegram_chat_id: str | None = None
+    notify_review_min_priority: int = Field(default=70, ge=0, le=100)
 
 
 def get_settings() -> Settings:

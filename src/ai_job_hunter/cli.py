@@ -73,6 +73,16 @@ from ai_job_hunter.services.opportunities import (
     set_review_state,
     transition_application,
 )
+from ai_job_hunter.services.notifications import (
+    NotificationBatchResult,
+    NotificationPreview,
+    TelegramProvider,
+    list_notification_history,
+    list_pending_notifications,
+    preview_notifications,
+    retry_failed_notifications,
+    send_notifications,
+)
 from ai_job_hunter.services.outreach_persistence import (
     OutreachPersistenceError,
     get_outreach_history,
@@ -87,6 +97,64 @@ from ai_job_hunter.services.outreach_workflow import (
 
 DEFAULT_CANDIDATE_CONFIG = Path("candidate.local.json")
 DEFAULT_CANDIDATE_PROJECTS_CONFIG = Path("candidate_projects.local.json")
+
+
+def _add_notification_and_run_parsers(subparsers) -> None:
+    """Declare the bounded notification and scheduled-run CLI surface."""
+
+    notify = subparsers.add_parser(
+        "notify",
+        help="inspect or deliver policy-eligible opportunity notifications",
+        description="Telegram delivery is explicit; `send --dry-run` never contacts Telegram.",
+    )
+    notification_commands = notify.add_subparsers(dest="notification_command", required=True)
+    pending = notification_commands.add_parser("pending", help="list queued notifications")
+    pending.add_argument("--limit", type=int, default=20)
+
+    send = notification_commands.add_parser("send", help="queue eligible opportunities and deliver notifications")
+    send.add_argument("--limit", type=int, default=20)
+    send.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show policy-eligible opportunities without saving notifications or contacting Telegram",
+    )
+
+    history = notification_commands.add_parser("history", help="show recent notification delivery history")
+    history.add_argument("--limit", type=int, default=20)
+
+    retry = notification_commands.add_parser(
+        "retry-failed", help="retry notifications whose delivery is safe to retry"
+    )
+    retry.add_argument("--limit", type=int, default=20)
+    for command_parser in notification_commands.choices.values():
+        command_parser.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+        command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
+
+    run = subparsers.add_parser(
+        "run",
+        help="run the existing monitored-source refresh, then optionally notify",
+        description=(
+            "Refresh already monitored supported ATS sources using the normal opportunity pipeline, "
+            "then optionally deliver eligible notifications. It does not resolve Company Leads."
+        ),
+    )
+    run.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+    run.add_argument("--limit-companies", type=int, default=10)
+    run.add_argument("--max-jobs-per-company", type=int, default=100)
+    run.add_argument("--max-jev-jobs", type=int, default=20)
+    run.add_argument("--max-notifications", type=int, default=20)
+    run.add_argument("--no-notifications", action="store_true", help="refresh opportunities without Telegram delivery")
+    run.add_argument("--no-jev", action="store_true", help="use cached evaluations and leave misses pending")
+    run.add_argument("--retry-pending", action="store_true", help="retry work deferred by an earlier Jev budget")
+    run.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="fetch and prefilter only; do not persist refresh/evaluation/notification changes or send messages",
+    )
+    run.add_argument("--public-salary", action="store_true")
+    run.add_argument("--compensation-evidence", action="store_true")
+    run.add_argument("--multiple-evidence-sources", action="store_true")
+    run.add_argument("--remote-from-spain", action="store_true")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -112,6 +180,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     refresh.add_argument("--compensation-evidence", action="store_true")
     refresh.add_argument("--multiple-evidence-sources", action="store_true")
     refresh.add_argument("--remote-from-spain", action="store_true")
+
+    _add_notification_and_run_parsers(subparsers)
 
     opportunities = subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
     opportunities.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
@@ -211,7 +281,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--max-jobs-per-company must be positive")
         if args.max_jev_jobs < 0:
             parser.error("--max-jev-jobs cannot be negative")
+    if args.command == "run":
+        if args.limit_companies < 1:
+            parser.error("--limit-companies must be positive")
+        if args.max_jobs_per_company < 1:
+            parser.error("--max-jobs-per-company must be positive")
+        if args.max_jev_jobs < 0:
+            parser.error("--max-jev-jobs cannot be negative")
+        if args.max_notifications < 1:
+            parser.error("--max-notifications must be positive")
     if args.command == "opportunities" and args.limit < 1:
+        parser.error("--limit must be positive")
+    if args.command == "notify" and args.limit < 1:
         parser.error("--limit must be positive")
     if (
         args.command == "outreach"
@@ -233,7 +314,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_local_apply_command(apply_args)
 
     candidate = None
-    if args.command in {"refresh", "opportunities", "show"} or (
+    if args.command in {"refresh", "opportunities", "show", "run"} or (
+        args.command == "notify"
+        and args.notification_command in {"send", "retry-failed"}
+    ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
     ) or (args.command == "apply" and args.apply_command.action == "prepare"):
@@ -269,6 +353,50 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _print_refresh_summary(summary)
                 return 1 if summary.failures else 0
+            if args.command == "notify":
+                return _run_notification_command(args, session, candidate, settings)
+            if args.command == "run":
+                summary = refresh_opportunities(
+                    session,
+                    candidate,
+                    max_companies=args.limit_companies,
+                    max_jobs_per_company=args.max_jobs_per_company,
+                    max_jev_jobs=args.max_jev_jobs,
+                    no_jev=args.no_jev,
+                    retry_pending=args.retry_pending,
+                    dry_run=args.dry_run,
+                    candidate_filters=_monitor_filters(args),
+                )
+                _print_refresh_summary(summary)
+                if args.no_notifications:
+                    print("Notifications: disabled")
+                    return 1 if summary.failures else 0
+                if args.dry_run:
+                    print("Notification preview uses the currently stored feed; dry-run refresh did not persist fetched offers.")
+                    previews = preview_notifications(
+                        session,
+                        candidate,
+                        review_threshold=settings.notify_review_min_priority,
+                        limit=args.max_notifications,
+                    )
+                    _print_notification_previews(previews)
+                    return 1 if summary.failures else 0
+                provider = _configured_telegram_provider(settings)
+                if provider is None:
+                    print(
+                        "Notifications skipped: configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in the local environment.",
+                        file=sys.stderr,
+                    )
+                    return 1
+                result = send_notifications(
+                    session,
+                    candidate,
+                    provider,
+                    review_threshold=settings.notify_review_min_priority,
+                    limit=args.max_notifications,
+                )
+                _print_notification_batch(result)
+                return 1 if summary.failures or result.failed else 0
             if args.command == "opportunities":
                 decision = FinalDecision(args.decision.upper()) if args.decision else None
                 state = HumanReviewStatus(args.status.upper()) if args.status else None
@@ -762,6 +890,116 @@ def _monitor_filters(args) -> CompanyMonitorFilters:
         multiple_evidence_sources=args.multiple_evidence_sources,
         remote_from_spain=args.remote_from_spain,
     )
+
+
+def _configured_telegram_provider(settings):
+    """Build the Telegram adapter only when both local settings are present."""
+
+    if settings.telegram_bot_token is None or not settings.telegram_chat_id:
+        return None
+    try:
+        return TelegramProvider(settings.telegram_bot_token, settings.telegram_chat_id)
+    except ValueError:
+        # Configuration failures must never echo the secret or provider URL.
+        return None
+
+
+def _run_notification_command(args, session, candidate, settings) -> int:
+    command = args.notification_command
+    if command == "pending":
+        rows = list_pending_notifications(session, limit=args.limit)
+        print(f"PENDING NOTIFICATIONS: {len(rows)}")
+        _print_notification_rows(rows)
+        return 0
+    if command == "history":
+        rows = list_notification_history(session, limit=args.limit)
+        print(f"NOTIFICATION HISTORY: {len(rows)}")
+        _print_notification_rows(rows)
+        return 0
+    if command == "send" and args.dry_run:
+        previews = preview_notifications(
+            session,
+            candidate,
+            review_threshold=settings.notify_review_min_priority,
+            limit=args.limit,
+        )
+        print(
+            "NOTIFICATION DRY RUN: "
+            f"{len(previews)} eligible alert(s); REVIEW threshold={settings.notify_review_min_priority}. "
+            "Priority is a ranking score, not a probability."
+        )
+        _print_notification_previews(previews)
+        return 0
+
+    provider = _configured_telegram_provider(settings)
+    if provider is None:
+        missing = []
+        if settings.telegram_bot_token is None or not settings.telegram_bot_token.get_secret_value().strip():
+            missing.append("TELEGRAM_BOT_TOKEN")
+        if not settings.telegram_chat_id or not settings.telegram_chat_id.strip():
+            missing.append("TELEGRAM_CHAT_ID")
+        print(
+            "Telegram delivery not started; missing local setting(s): " + ", ".join(missing),
+            file=sys.stderr,
+        )
+        return 1
+
+    if command == "send":
+        result = send_notifications(
+            session,
+            candidate,
+            provider,
+            review_threshold=settings.notify_review_min_priority,
+            limit=args.limit,
+        )
+    elif command == "retry-failed":
+        result = retry_failed_notifications(
+            session,
+            candidate,
+            provider,
+            review_threshold=settings.notify_review_min_priority,
+            limit=args.limit,
+        )
+    else:
+        print(f"Unsupported notification command: {command}", file=sys.stderr)
+        return 2
+    _print_notification_batch(result)
+    return 1 if result.failed else 0
+
+
+def _print_notification_previews(previews: list[NotificationPreview]) -> None:
+    for item in previews:
+        priority = f"{item.priority}/100" if item.priority is not None else "UNKNOWN"
+        location = item.location or "UNKNOWN"
+        print(
+            f"{item.decision} | priority={priority} | {item.company} — {item.title} | location={location}"
+        )
+
+
+def _print_notification_batch(result: NotificationBatchResult) -> None:
+    print(
+        "NOTIFICATION RESULTS: "
+        f"created={result.created} sent={result.sent} failed={result.failed} "
+        f"suppressed={result.suppressed} reused={result.reused}"
+    )
+    for item in result.items:
+        suffix = f" | reason={item.failure_reason}" if item.failure_reason else ""
+        print(f"{item.status} | {item.company} — {item.title}{suffix}")
+
+
+def _print_notification_rows(rows) -> None:
+    for row in rows:
+        job = row.job
+        company = job.company.name if job.company is not None else "Unknown company"
+        priority = f"{row.priority}/100" if row.priority is not None else "UNKNOWN"
+        sent = f" | sent_at={row.sent_at.isoformat()}" if row.sent_at else ""
+        reason = row.failure_reason or row.suppression_reason
+        failure = f" | reason={reason}" if reason else ""
+        retryable = " | retryable=yes" if row.retryable else ""
+        print(
+            f"{row.status} | {row.decision} | priority={priority} | "
+            f"{company} — {job.title}{sent}{failure}{retryable}"
+        )
 
 
 def _run_outreach_command(args, session, candidate) -> int:

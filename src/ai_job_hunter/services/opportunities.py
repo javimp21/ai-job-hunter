@@ -166,6 +166,7 @@ class Opportunity:
     jev_reasons: dict[str, Any] | list[Any] | None
     company_facts: CompanyFacts | None = None
     outreach_recommendation: OutreachRecommendation = OutreachRecommendation.NO_OUTREACH
+    evaluation_fingerprint: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -451,6 +452,7 @@ def list_opportunities(
     engine: JobDecisionEngine | None = None,
     include_applied: bool = False,
     include_skip: bool = False,
+    include_dismissed: bool = False,
 ) -> list[Opportunity]:
     """Build a stable feed without invoking Jev or changing persistent state."""
 
@@ -544,7 +546,11 @@ def list_opportunities(
             continue
         if status is not None and effective_status is not status:
             continue
-        if status is None and effective_status is HumanReviewStatus.DISMISSED:
+        if (
+            status is None
+            and effective_status is HumanReviewStatus.DISMISSED
+            and not include_dismissed
+        ):
             continue
         if company_filter is not None and normalize_company_name(job.company.name if job.company else "") != company_filter:
             continue
@@ -579,6 +585,11 @@ def list_opportunities(
         published = snapshot.context.offer.published_at
         item = Opportunity(
             job_id=job.id,
+            evaluation_fingerprint=(
+                evaluation.evaluation_fingerprint
+                if evaluation is not None and not stale and evaluation.status == EvaluationStatus.EVALUATED.value
+                else None
+            ),
             title=facts.title,
             company=company_name,
             location=facts.location,

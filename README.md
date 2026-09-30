@@ -8,6 +8,7 @@ AI Job Hunter is an intelligent job discovery, evaluation, and assisted-applicat
 - Normalization and deduplication across sources.
 - Deterministic candidate prefiltering followed by structured Jev evaluation.
 - Company Intelligence and an Opportunity Feed for finding and reviewing roles.
+- Policy-filtered Telegram opportunity notifications with persistent deduplication.
 - Application Tracking for managing opportunities through the search process.
 - Outreach and referral preparation with local drafts.
 - Assisted Application Preparation for reviewing questions and selecting candidate documents.
@@ -41,7 +42,7 @@ The pipeline keeps deterministic filtering separate from model-based evaluation,
 
 ## Safety and privacy
 
-- No mass automatic applications or automatic message sending.
+- No mass automatic applications or automatic outreach messages. Telegram opportunity alerts contain public job metadata and are sent only through an explicitly invoked notification or scheduled `run` command when local Telegram settings are configured.
 - No LinkedIn scraping.
 - Candidate facts are never invented; application decisions stay human-in-the-loop, and uncertain or sensitive answers stay for review.
 - A submit guard blocks application submission during browser-assisted preparation.
@@ -118,6 +119,8 @@ Create an outreach draft for human review:
 ```powershell
 ai-job-hunter outreach draft <JOB_ID> --channel linkedin
 ```
+
+Configure optional Telegram opportunity notifications in the ignored `.env` file and use `ai-job-hunter notify send --dry-run` to preview what the policy would queue. See [Telegram notifications](docs/notifications.md) for configuration, delivery commands, and a Windows Task Scheduler setup. The periodic `run` command uses already monitored ATS sources and does not resolve Company Leads.
 
 The CLI intentionally separates discovery, evaluation, review, outreach, and application preparation. Browser-assisted commands do not submit applications or upload documents.
 

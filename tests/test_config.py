@@ -17,6 +17,20 @@ def test_settings_read_database_url_from_environment(monkeypatch) -> None:
     assert settings.database_url == "postgresql+psycopg://env/test_db"
 
 
+def test_settings_load_and_redact_telegram_bot_token(monkeypatch) -> None:
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "fake-telegram-token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "fake-chat-id")
+    monkeypatch.setenv("NOTIFY_REVIEW_MIN_PRIORITY", "73")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.telegram_bot_token is not None
+    assert settings.telegram_bot_token.get_secret_value() == "fake-telegram-token"
+    assert settings.telegram_chat_id == "fake-chat-id"
+    assert settings.notify_review_min_priority == 73
+    assert "fake-telegram-token" not in repr(settings)
+
+
 def test_settings_load_and_redact_typesafe_key_from_env_file(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     env_file = tmp_path / ".env"
