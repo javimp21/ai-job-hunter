@@ -91,6 +91,77 @@ class CompanyIdentityAmbiguous(ValueError):
     """A normalized company name maps to multiple incompatible identities."""
 
 
+@dataclass(frozen=True, slots=True)
+class CompanyEvidenceUpsert:
+    company: Company
+    created: bool
+    updated: bool
+    possible_matches: tuple[str, ...] = ()
+
+
+def upsert_company_evidence_record(
+    session: Session,
+    record: CompanyEvidenceRecord,
+    *,
+    raw_metadata: dict | None = None,
+) -> CompanyEvidenceUpsert:
+    """Persist one evidence record through Company Intelligence identity matching."""
+
+    companies = list(session.scalars(select(Company).order_by(Company.id)).all())
+    companies_by_name: dict[str, list[Company]] = {}
+    companies_by_domain: dict[str, list[Company]] = {}
+    for company in companies:
+        name_key = normalize_company_name(company.name)
+        domain = extract_company_domain(company.website_url)
+        if name_key:
+            companies_by_name.setdefault(name_key, []).append(company)
+        if domain:
+            companies_by_domain.setdefault(domain, []).append(company)
+
+    company, _new_company, possible = _find_or_create_company(
+        session,
+        record,
+        companies_by_name=companies_by_name,
+        companies_by_domain=companies_by_domain,
+    )
+    existing = session.scalar(
+        select(CompanyEvidence).where(
+            CompanyEvidence.provider == record.provider,
+            CompanyEvidence.evidence_type == record.evidence_type.value,
+            CompanyEvidence.source_key == record.source_key,
+        )
+    )
+    if existing is None:
+        session.add(
+            CompanyEvidence(
+                company=company,
+                provider=record.provider,
+                evidence_type=record.evidence_type.value,
+                source_key=record.source_key,
+                source_url=record.source_url,
+                external_identifier=record.external_identifier,
+                structured_data=dict(record.structured_data),
+                raw_metadata=dict(raw_metadata or {}) or None,
+            )
+        )
+        created, updated = True, False
+    else:
+        existing.company = company
+        existing.source_url = record.source_url
+        existing.external_identifier = record.external_identifier
+        existing.structured_data = dict(record.structured_data)
+        existing.raw_metadata = dict(raw_metadata or {}) or None
+        existing.updated_at = datetime.now(UTC)
+        created, updated = False, True
+    session.flush()
+    return CompanyEvidenceUpsert(
+        company=company,
+        created=created,
+        updated=updated,
+        possible_matches=tuple(possible),
+    )
+
+
 def refresh_company_evidence(
     session: Session,
     batches: tuple[CompanySourceBatch, ...],

@@ -70,6 +70,16 @@ ai-job-hunter refresh --limit-companies 3 --max-jobs-per-company 30 --max-jev-jo
 
 The Compose service provides a persistent local PostgreSQL 16 database on port `5432` with fictional development credentials. The copied `.env.example` already points to it. `python -m ai_job_hunter.jobs_cli --sources ... --ingest` fetches and stores actual postings; `company_cli monitor` synchronizes ATS evidence from those persisted postings so `refresh` has monitored targets. The `job_sources` table stores individual job postings, not board configuration. Set optional TypeSafe credentials in `.env`; never commit `.env` or candidate-specific `*.local.*` files. The checked-in templates in `config/examples/` use fictional values. Stop PostgreSQL with `docker compose stop` when you are done; its named volume keeps local database data between runs.
 
+Company leads are an explicit discovery input, separate from ATS job boards. Copy `config/examples/company_leads.example.json` to the ignored `company_leads.local.json`, replace its example with companies and public URLs you have verified, then run:
+
+```powershell
+python -m ai_job_hunter.company_leads_cli import --file company_leads.local.json
+python -m ai_job_hunter.company_leads_cli resolve --limit 10
+python -m ai_job_hunter.company_cli monitor --supported-ats --limit-companies 10 --max-jobs-per-company 30
+```
+
+Import is idempotent and never runs as part of `refresh`. Resolution inspects supplied public websites/careers pages with bounded requests and recognizes only the existing Greenhouse, Lever, and Ashby URL patterns. Company/location/hiring hints remain discovery hints and do not establish remote eligibility or other Company Intelligence facts.
+
 ## CLI examples
 
 Refresh monitored job sources and update the opportunity feed:

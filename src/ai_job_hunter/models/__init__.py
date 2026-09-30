@@ -2,6 +2,7 @@
 
 from ai_job_hunter.models.company import Company
 from ai_job_hunter.models.company_evidence import CompanyEvidence
+from ai_job_hunter.models.company_lead import CompanyLead, CompanyLeadStatus
 from ai_job_hunter.models.application import Application, ApplicationEvent, ApplicationStatus
 from ai_job_hunter.models.job import Job
 from ai_job_hunter.models.job_evaluation import EvaluationStatus, JobEvaluation
@@ -23,6 +24,8 @@ __all__ = [
     "ApplicationStatus",
     "Company",
     "CompanyEvidence",
+    "CompanyLead",
+    "CompanyLeadStatus",
     "Contact",
     "ContactType",
     "EvaluationStatus",

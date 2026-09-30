@@ -7,6 +7,7 @@ from ai_job_hunter.models import (
     ApplicationEvent,
     Company,
     CompanyEvidence,
+    CompanyLead,
     Contact,
     Job,
     JobEvaluation,
@@ -25,6 +26,7 @@ def test_models_import_and_relationships_are_configured() -> None:
         "application_events",
         "companies",
         "company_evidence",
+        "company_leads",
         "contacts",
         "job_evaluations",
         "job_reviews",
@@ -39,6 +41,7 @@ def test_models_import_and_relationships_are_configured() -> None:
     assert Job.sources.property.mapper.class_ is JobSource
     assert JobSource.job.property.mapper.class_ is Job
     assert CompanyEvidence.company.property.mapper.class_ is Company
+    assert CompanyLead.company.property.mapper.class_ is Company
     assert JobEvaluation.job.property.mapper.class_ is Job
     assert JobReview.job.property.mapper.class_ is Job
     assert Application.job.property.mapper.class_ is Job

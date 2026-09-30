@@ -1,0 +1,12 @@
+{
+  "leads": [
+    {
+      "company_name": "Example Robotics",
+      "website_url": "https://example-robotics.example",
+      "source_type": "curated_list",
+      "source_label": "fictional public example",
+      "location_hint": "Europe remote",
+      "hiring_hint": "Example engineering roles"
+    }
+  ]
+}
