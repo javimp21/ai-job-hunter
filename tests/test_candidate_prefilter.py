@@ -106,6 +106,24 @@ def test_title_seniority_wins_over_description_and_reuses_dedup_normalization() 
     assert facts.normalized_title == "backend engineer"
 
 
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("(Senior/Staff) Backend Engineer", "STAFF"),
+        ("Principal Backend Engineer", "PRINCIPAL"),
+        ("Lead Backend Engineer", "LEAD"),
+        ("Engineering Manager", "MANAGER"),
+        ("Director of Engineering", "DIRECTOR"),
+        ("Head of Engineering", "HEAD"),
+    ],
+)
+def test_explicit_elevated_seniority_is_inferred_from_composite_and_title_markers(
+    title: str,
+    expected: str,
+) -> None:
+    assert facts_for(title=title).inferred_seniority.value == expected
+
+
 def test_seniority_is_inferred_from_a_labeled_description_only_when_title_is_unknown() -> None:
     labeled = facts_for(title="Backend Engineer", description="Seniority: Senior\nUses Python.")
     weak = facts_for(title="Backend Engineer", description="A senior engineer will mentor peers.")
@@ -289,6 +307,60 @@ def test_unknown_seniority_with_a_boundary_is_review_not_reject() -> None:
     result = evaluate_job(facts_for(title="Backend Engineer", description="Uses Python."), make_config())
 
     assert result.signals.seniority.status is SignalStatus.UNKNOWN
+    assert result.decision is PreFilterDecision.REVIEW
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Product Designer",
+        "Brand Designer",
+        "Head of Commercial Legal",
+        "Creative Producer",
+        "Solutions Marketer",
+        "Product Manager",
+        "Talent Recruiter",
+        "Finance Operations Manager",
+        "Community Manager",
+        "Growth Manager",
+    ],
+)
+def test_explicit_non_technical_role_families_are_hard_rejected(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.decision is PreFilterDecision.REJECT
+    assert any("non-target" in reason for reason in result.reasons)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Backend Engineer",
+        "Platform Engineer",
+        "Infrastructure Engineer",
+        "Developer Tools Engineer",
+        "AI Platform Engineer",
+        "Full Stack Software Engineer",
+    ],
+)
+def test_target_technical_role_families_are_not_rejected(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.decision is not PreFilterDecision.REJECT
+
+
+def test_unknown_us_city_geography_is_reviewable_not_compatible() -> None:
+    result = evaluate_job(
+        facts_for(
+            title="Software Engineer, Early Career",
+            location="San Francisco",
+            remote_policy=None,
+            remote_eligibility="UNKNOWN",
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.UNKNOWN
     assert result.decision is PreFilterDecision.REVIEW
 
 

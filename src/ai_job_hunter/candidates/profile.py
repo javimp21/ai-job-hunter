@@ -25,6 +25,8 @@ class SeniorityLevel(StrEnum):
     PRINCIPAL = "PRINCIPAL"
     LEAD = "LEAD"
     MANAGER = "MANAGER"
+    DIRECTOR = "DIRECTOR"
+    HEAD = "HEAD"
     UNKNOWN = "UNKNOWN"
 
 
@@ -176,6 +178,8 @@ SENIORITY_ORDER: dict[SeniorityLevel, int] = {
     SeniorityLevel.PRINCIPAL: 6,
     SeniorityLevel.LEAD: 7,
     SeniorityLevel.MANAGER: 8,
+    SeniorityLevel.DIRECTOR: 9,
+    SeniorityLevel.HEAD: 10,
 }
 
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from ai_job_hunter.candidates.profile import SeniorityLevel
+from ai_job_hunter.candidates.profile import SENIORITY_ORDER, SeniorityLevel
 from ai_job_hunter.candidates.technologies import extract_job_technologies
 from ai_job_hunter.deduplication.normalization import normalize_job_title
 from ai_job_hunter.domain.normalized_job import (
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 _LEVEL_LABEL = re.compile(
     r"\b(?:seniority|level)\s*[:=\-]\s*"
     r"(?P<level>intern(?:ship)?|graduate|junior|jr|mid(?:dle)?|intermediate|"
-    r"senior|sr|staff|principal|lead|manager)\b",
+    r"senior|sr|staff|principal|lead|manager|director|head)\b",
     re.IGNORECASE,
 )
 _SENIORITY_ALIASES = {
@@ -114,11 +114,10 @@ class JobFacts:
         normalized = normalize_job_title(title)
         title_levels = {_seniority(token) for token in normalized.seniority}
         title_levels.discard(SeniorityLevel.UNKNOWN)
-        if len(title_levels) == 1:
-            level = next(iter(title_levels))
-        elif title_levels:
-            # Conflicting title markers are ambiguous; never fall back to prose.
-            level = SeniorityLevel.UNKNOWN
+        if title_levels:
+            # Composite labels such as "Senior/Staff" indicate at least the
+            # highest stated level; choosing the higher level is conservative.
+            level = max(title_levels, key=SENIORITY_ORDER.__getitem__)
         else:
             label = _LEVEL_LABEL.search(description or "")
             level = _seniority(label.group("level")) if label else SeniorityLevel.UNKNOWN

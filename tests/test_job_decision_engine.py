@@ -523,6 +523,48 @@ def test_v2_does_not_override_hard_geography_reject() -> None:
     assert engine.calls == []
 
 
+def test_v2_unknown_san_francisco_geography_cannot_apply_on_strong_signals() -> None:
+    context = context_for(
+        sample_offer(
+            location="San Francisco",
+            remote_policy=None,
+            remote_eligibility="UNKNOWN",
+            description="Detailed backend role scope. " * 80,
+        )
+    )
+    evidence = DecisionEvidence(
+        answers=good_answers(),
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert ReviewReasonCode.LOCATION_UNCERTAIN in {reason.code for reason in result.review_reasons}
+
+
+def test_v2_explicit_eu_remote_geography_can_apply() -> None:
+    context = context_for(
+        sample_offer(
+            location="European Union",
+            remote_policy="REMOTE",
+            remote_eligibility="EU_REMOTE",
+            description="Detailed backend role scope. " * 80,
+        )
+    )
+    evidence = DecisionEvidence(
+        answers=good_answers(),
+        model_version="offline-model",
+        engine_configuration="offline-cache-identity",
+    )
+
+    result = apply_decision_policy_v2(context, evidence)
+
+    assert context.deterministic.signals.geography.status.value == "COMPATIBLE"
+    assert result.final_decision is FinalDecision.APPLY
+
+
 def test_v2_low_observable_quality_alone_does_not_block_strong_fit() -> None:
     context = context_for(sample_offer(description="Detailed verifiable role scope. " * 70))
     answers = good_answers(

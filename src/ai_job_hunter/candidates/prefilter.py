@@ -204,7 +204,38 @@ _BACKEND_SKILL = re.compile(
     r"api\s+development|distributed\s+systems)\b",
     re.IGNORECASE,
 )
-_CLEARLY_UNRELATED_ROLE = re.compile(
+_NON_TECHNICAL_ROLE_MARKERS = {
+    "designer": "design",
+    "legal": "legal",
+    "counsel": "legal",
+    "attorney": "legal",
+    "lawyer": "legal",
+    "marketing": "marketing",
+    "marketer": "marketing",
+    "sales": "sales",
+    "recruiter": "recruiting / HR",
+    "recruiting": "recruiting / HR",
+    "recruitment": "recruiting / HR",
+    "hr": "recruiting / HR",
+    "finance": "finance",
+    "accountant": "finance",
+    "accounting": "finance",
+    "operations": "operations",
+    "community": "community",
+    "producer": "production",
+    "copywriter": "content",
+    "writer": "content",
+    "growth": "growth",
+    "support": "customer support",
+    "success": "customer success",
+}
+_TECHNICAL_ROLE_MARKERS = {
+    "engineer", "engineering", "developer", "software", "backend", "back",
+    "end", "platform", "infrastructure", "devops", "devtools", "data",
+    "database", "security", "systems", "programmer", "programming", "sre",
+    "ai", "ml", "machine", "learning", "cloud", "api", "full", "stack",
+}
+_LEGACY_UNRELATED_ROLE = re.compile(
     r"^[\W_]*(?:(?:senior|junior|mid|lead|staff|principal|freelance|contract|temporary|"
     r"inbound|outbound|inside|field|technical|virtual|remote)\s+)*(?:sales|ventas|account executive|"
     r"business development|customer (?:support|service|success)|copywriter|writer|"
@@ -248,10 +279,10 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     hard_mismatches: list[str] = []
     review_reasons: list[str] = []
 
-    unrelated_role = _CLEARLY_UNRELATED_ROLE.search(facts.title)
+    unrelated_role = _clearly_non_technical_role(facts.title)
     if unrelated_role:
         hard_mismatches.append(
-            f"Title clearly identifies the unrelated role category '{unrelated_role.group(0)}'."
+            f"Title belongs to the non-target {unrelated_role} role family."
         )
 
     for label, assessment in (
@@ -327,6 +358,50 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
         decision = PreFilterDecision.PASS
         reasons = ("No configured hard mismatch or material unknown signal was found.",)
     return JobPreFilterResult(decision=decision, reasons=reasons, signals=signals)
+
+
+def _clearly_non_technical_role(title: str) -> str | None:
+    """Classify explicit non-technical title families using normalized title tokens."""
+
+    normalized = normalize_job_title(title)
+    tokens = normalized.tokens | normalized.seniority
+    # Sales and support titles remain out of scope even when their names contain
+    # the word "engineer" (for example, Sales Engineer).
+    for marker in (
+        "sales", "support", "success", "designer", "legal", "counsel", "attorney",
+        "lawyer", "marketing", "marketer", "recruiter", "recruiting", "recruitment",
+        "hr", "finance", "accountant", "accounting", "community", "producer",
+        "copywriter", "writer",
+    ):
+        if marker in tokens:
+            if marker == "sales" and tokens & _TECHNICAL_ROLE_MARKERS:
+                if not _LEGACY_UNRELATED_ROLE.search(title):
+                    continue
+            return _NON_TECHNICAL_ROLE_MARKERS[marker]
+
+    # Product management is its own family; "product engineer" remains technical.
+    if {"product", "manager"} <= tokens:
+        return "product management"
+    if "business" in tokens and ({"development", "developer"} & tokens):
+        return "business development"
+    if "account" in tokens and ({"executive", "manager"} & tokens):
+        return "sales"
+
+    # Operations and growth can occur in technical titles; only reject when no
+    # engineering/software family marker disambiguates them.
+    technical = bool(tokens & _TECHNICAL_ROLE_MARKERS)
+    if not technical:
+        if "operations" in tokens:
+            return "operations"
+        if "growth" in tokens:
+            return "growth"
+        if "commercial" in tokens and ({"head", "director", "manager"} & tokens):
+            return "commercial"
+        if {"office", "assistant"} <= tokens or {"administrative", "assistant"} <= tokens:
+            return "administrative support"
+    if _LEGACY_UNRELATED_ROLE.search(title):
+        return "sales / customer service / administrative support"
+    return None
 
 
 def _evaluate_geography(facts: JobFacts, candidate: CandidateConfig) -> SignalAssessment:

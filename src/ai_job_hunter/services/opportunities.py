@@ -90,7 +90,7 @@ from ai_job_hunter.rubric import RUBRIC_SPEC
 
 _ENGINE_NAME = "typesafe-jev"
 _DETERMINISTIC_ENGINE_NAME = "deterministic-prefilter"
-_PREFILTER_VERSION = "candidate-prefilter-v1"
+_PREFILTER_VERSION = "candidate-prefilter-v2"
 _REASON_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
 _APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
     ApplicationStatus.DRAFT: frozenset({ApplicationStatus.APPLIED, ApplicationStatus.WITHDRAWN}),

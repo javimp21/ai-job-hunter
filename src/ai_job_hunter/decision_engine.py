@@ -458,13 +458,17 @@ def apply_decision_policy_v2(
 
     description_length = len((context.offer.description or "").strip())
     insufficient_description = description_length < 1_000
-    if _has_material_location_uncertainty(context):
+    geography = context.deterministic.signals.geography
+    if geography.status.value != "COMPATIBLE" or _has_material_location_uncertainty(context):
         return _v2_review(
             context,
             evidence,
             (StructuredReviewReason(
                 code=ReviewReasonCode.LOCATION_UNCERTAIN,
-                message="The offer names a hybrid or onsite location outside the candidate's configured locations, and its normalized work mode does not resolve the location constraint.",
+                message=(
+                    "The offer's geography is not confirmed compatible with the candidate's configured locations: "
+                    f"{geography.reason}"
+                ),
             ),),
             rubric_version,
         )
@@ -607,14 +611,9 @@ def _has_material_location_uncertainty(context: JobDecisionContext) -> bool:
 
     preferences = context.candidate.preferences
     profile = context.candidate.profile
-    remote_preference = getattr(
-        preferences.remote_preference,
-        "value",
-        preferences.remote_preference,
-    )
+    remote_preference = getattr(preferences.remote_preference, "value", preferences.remote_preference)
     if remote_preference == "ANY" and not preferences.acceptable_locations:
         return False
-
     mode = explicit_mode.group(0).casefold().replace(" ", "-")
     mode_conflicts = (
         (mode == "hybrid" and remote_preference in {"REMOTE_ONLY", "ONSITE_ONLY"})
@@ -622,7 +621,6 @@ def _has_material_location_uncertainty(context: JobDecisionContext) -> bool:
     )
     if mode_conflicts:
         return True
-
     configured_locations = (
         profile.current_city,
         profile.current_country,

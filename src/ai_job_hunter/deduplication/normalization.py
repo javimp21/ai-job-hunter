@@ -33,7 +33,10 @@ _CONTEXT_TOKENS = {
     "emea",
     "worldwide",
 }
-_TITLE_SENIORITY = {"intern", "graduate", "junior", "mid", "senior", "staff", "principal", "lead", "manager"}
+_TITLE_SENIORITY = {
+    "intern", "graduate", "junior", "mid", "senior", "staff", "principal",
+    "lead", "manager", "director", "head",
+}
 _TITLE_ALIASES = {"jr": "junior", "sr": "senior", "middle": "mid", "developer": "engineer"}
 _GENERIC_PATH_SEGMENTS = {"", "job", "jobs", "career", "careers", "apply", "application", "applications"}
 _JOB_PATH_MARKERS = {"job", "jobs", "role", "roles", "position", "positions", "opening", "openings"}
