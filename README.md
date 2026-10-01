@@ -124,6 +124,21 @@ Configure optional Telegram opportunity notifications in the ignored `.env` file
 
 The CLI intentionally separates discovery, evaluation, review, outreach, and application preparation. Browser-assisted commands do not submit applications or upload documents.
 
+## Project documentation
+
+- [Architecture principles](docs/ARCHITECTURE.md) and [decisions](docs/DECISIONS.md).
+- [Job domain](docs/DOMAIN.md) and [Jev boundaries](docs/JEV.md).
+- [Company Intelligence evidence rules](docs/COMPANY_INTELLIGENCE.md) and
+  [implementation and CLI](docs/company-intelligence.md).
+- [Data and persistence](docs/DATA.md) and [external-action safety](docs/EXTERNAL_ACTIONS.md).
+- [Assisted application preparation](docs/assisted-application.md) and
+  [Telegram notifications](docs/notifications.md).
+- [Development and local repository tools](docs/DEVELOPMENT.md),
+  [testing](docs/TESTING.md), and [current project state](docs/PROJECT_STATE.md).
+
+Graphify artifacts and personal Pi configuration remain local; they are not
+required to install or run the project. See the development guide for exclusions.
+
 ## Tests
 
 ```powershell

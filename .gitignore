@@ -65,6 +65,10 @@ candidate_projects.local.json
 /postgres-data/
 /pgdata/
 
+# Generated local repository graph and indexing configuration
+/graphify-out/
+/.graphifyignore
+
 # Editors and operating systems
 .vscode/
 .idea/
