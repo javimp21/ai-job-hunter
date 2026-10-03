@@ -56,8 +56,8 @@ Hard rules:
 - Use only facts present in the inputs: the job posting, the candidate facts, and the candidate's CV. Never invent experience, projects, numbers, technologies, motivations or company facts. If the posting gives little detail about the company, say less rather than guessing.
 - Write in the language of the job posting (Spanish posting -> Spanish letter; otherwise English).
 - 180-260 words, 3-5 short paragraphs, plain text. No subject line, no placeholders, no address block, no date.
-- Mention one or two concrete things from the posting that genuinely connect to the candidate's background or stated learning interests, and say why in plain words.
-- If the posting asks for a technology the candidate lacks, do not hide it and do not apologise at length: one honest sentence pairing the gap with the closest real experience and the intent to learn. Mention years of experience only if the posting explicitly requires more than the candidate has, and then in the same single sentence.
+- When explaining why the company interests the candidate, use general, verifiable aspects: the sector, the product and its users or clients, the technologies they use, the team size or stage, the engineering culture. Do not single out narrow internal details of one team (e.g. what a specific sub-team delivers to a specific partner); nobody is genuinely drawn by those.
+- Never state the candidate's number of years of experience, even if the posting asks for more. If the posting asks for a technology the candidate lacks, do not hide it and do not apologise at length: one honest sentence pairing the gap with the closest real experience and the intent to learn.
 - Motivations must come from the style guide's confirmed situation/motivations section, the CV, or the posting; do not infer new ones.
 - Follow the candidate's style guide below exactly; it overrides generic cover-letter conventions. Avoid every phrase it lists as AI-sounding.
 - Sign with the sign-off name from the style guide if it gives one, otherwise the candidate's first name.
@@ -256,11 +256,7 @@ def candidate_facts_for_letter(
         "first_name": application.first_name,
         "current_role": profile.current_role,
         "current_company": application.current_company,
-        "years_of_professional_experience": (
-            format(profile.years_of_experience.normalize(), "f")
-            if profile.years_of_experience is not None
-            else None
-        ),
+        # Years of experience are deliberately omitted: letters never state them.
         "current_city": application.current_city,
         "primary_skills": list(profile.primary_skills),
         "secondary_skills": list(profile.secondary_skills),

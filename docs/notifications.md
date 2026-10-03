@@ -25,7 +25,7 @@ Each job alerts at most once per channel: a later evaluation of an already-notif
 
 ## Cover letters from alerts
 
-Every alert carries two inline buttons: "✍️ Cover letter" (the letter follows the language of the posting) and "🇪🇸 En español" (always Spanish, whatever the posting language). Tapping one asks the local bot to draft a cover letter for that job with Claude and to reply in the same chat with the text, followed by the same letter as a Word (.docx) and a PDF attachment (name, contact line, date and body; A4). The same files are saved next to the Markdown draft; `ai-job-hunter cover-letter <job_id> --language {auto,es,en}` does the same from the CLI. If the files cannot be rendered, the text is still sent with a one-line notice. The bot is a separate long-polling process; it does nothing unless it is running:
+Every alert carries two inline buttons: "✍️ Cover letter" (the letter follows the language of the posting) and "🇪🇸 En español" (always Spanish, whatever the posting language). Tapping one asks the local bot to draft a cover letter for that job with Claude; the bot replies to that alert (quoting it) with the letter as one grouped Word (.docx) + PDF message (name, contact line, date and body; A4) and a one-line caption, so the alert feed is not interleaved with long letter texts. The same files are saved next to the Markdown draft; `ai-job-hunter cover-letter <job_id> --language {auto,es,en}` does the same from the CLI. If the files cannot be rendered or uploaded, the letter text is sent instead, still as a reply to the alert. The bot is a separate long-polling process; it does nothing unless it is running:
 
 ```powershell
 ai-job-hunter bot

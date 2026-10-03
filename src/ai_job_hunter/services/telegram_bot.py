@@ -76,10 +76,15 @@ class TelegramBotClient:
     def answer_callback_query(self, callback_id: str, text: str) -> None:
         self._call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
 
-    def send_text(self, text: str, reply_markup: dict[str, Any] | None = None) -> None:
+    def send_text(
+        self, text: str, reply_markup: dict[str, Any] | None = None, reply_to: int | None = None
+    ) -> None:
         chunks = split_text(text)
         for index, chunk in enumerate(chunks):
             data: dict[str, Any] = {"chat_id": self._chat_id, "text": chunk}
+            if reply_to is not None and index == 0:
+                data["reply_to_message_id"] = reply_to
+                data["allow_sending_without_reply"] = "true"
             if reply_markup is not None and index == len(chunks) - 1:
                 data["reply_markup"] = json.dumps(reply_markup, separators=(",", ":"))
             self._call("sendMessage", data)
@@ -97,6 +102,35 @@ class TelegramBotClient:
         if caption:
             data["caption"] = caption
         self._call("sendDocument", data, files={"document": (path.name, content)})
+        return True
+
+    def send_document_group(
+        self, paths: list[Path], caption: str | None = None, reply_to: int | None = None
+    ) -> bool:
+        """Send files as one grouped message (optionally replying to a message).
+
+        Returns False without sending when any file is missing or too large.
+        """
+
+        files: dict[str, Any] = {}
+        media: list[dict[str, Any]] = []
+        for index, path in enumerate(paths):
+            try:
+                if not path.is_file() or path.stat().st_size > MAX_DOCUMENT_BYTES:
+                    return False
+                files[f"file{index}"] = (path.name, path.read_bytes())
+            except OSError:
+                return False
+            media.append({"type": "document", "media": f"attach://file{index}"})
+        if not media:
+            return False
+        if caption:
+            media[-1]["caption"] = caption[:1024]
+        data: dict[str, Any] = {"chat_id": self._chat_id, "media": json.dumps(media)}
+        if reply_to is not None:
+            data["reply_to_message_id"] = reply_to
+            data["allow_sending_without_reply"] = "true"
+        self._call("sendMediaGroup", data, files=files)
         return True
 
     def _call(self, method: str, data: dict[str, Any], files: dict[str, Any] | None = None) -> Any:
@@ -195,6 +229,8 @@ def handle_update(
     if origin is None or str(origin) != str(chat_id).strip():
         return "ignored"
     callback_id = str(callback.get("id", ""))
+    raw_message_id = message.get("message_id") if isinstance(message, dict) else None
+    alert_message_id = raw_message_id if isinstance(raw_message_id, int) and not isinstance(raw_message_id, bool) else None
     feedback = _parse_feedback(callback.get("data"))
     if feedback is not None:
         return _handle_feedback(bot, callback_id, feedback, record_feedback)
@@ -206,7 +242,7 @@ def handle_update(
     key = (job_id, language)
     if key in generated:
         _answer(bot, callback_id, "Ya la generé; te la reenvío")
-        _send_draft(bot, generated[key])
+        _send_draft(bot, generated[key], reply_to=alert_message_id)
         return "duplicate"
     _answer(bot, callback_id, "Generando cover letter…")
     try:
@@ -220,7 +256,7 @@ def handle_update(
         )
         return "failed"
     generated[key] = draft
-    _send_draft(bot, draft)
+    _send_draft(bot, draft, reply_to=alert_message_id)
     return "generated"
 
 
@@ -282,21 +318,27 @@ def _answer(bot: TelegramBotClient, callback_id: str, text: str) -> None:
         pass
 
 
-def _send_draft(bot: TelegramBotClient, draft: CoverLetterDraft) -> None:
+def _send_draft(bot: TelegramBotClient, draft: CoverLetterDraft, reply_to: int | None = None) -> None:
+    """Reply to the alert with the Word + PDF files only; fall back to text if they can't be sent.
+
+    Keeping the letter attached to its alert (instead of a long text message
+    in the chat) leaves the alert feed readable.
+    """
+
+    files = [path for path in (draft.docx_path, draft.pdf_path) if path is not None]
+    caption = f"✍️ Cover letter — {draft.company} · {draft.title}\nBorrador para revisar; no se ha enviado a nadie."
+    if files and not draft.render_error:
+        try:
+            if bot.send_document_group(files, caption=caption, reply_to=reply_to):
+                return
+        except TelegramBotError:
+            pass  # fall back to text so the paid draft is still delivered
     bot.send_text(
         f"✍️ Cover letter — {draft.company} — {draft.title}\n"
         "(Borrador: revísalo antes de usarlo. No se ha enviado a nadie.)\n\n"
-        f"{draft.text}"
+        f"{draft.text}",
+        reply_to=reply_to,
     )
-    for document in (draft.docx_path, draft.pdf_path):
-        if document is None:
-            continue
-        try:
-            bot.send_document(document)
-        except TelegramBotError:
-            pass  # The text is already delivered; a failed upload must not repeat the paid generation.
-    if draft.render_error:
-        bot.send_text("No se pudieron crear los archivos Word/PDF; el texto del borrador está arriba.")
 
 
 def load_offset(path: Path) -> int | None:

@@ -40,11 +40,18 @@ class FakeBot:
     def answer_callback_query(self, callback_id, text):
         self.events.append(("answer", text))
 
-    def send_text(self, text):
+    def send_text(self, text, reply_markup=None, reply_to=None):
         self.events.append(("send", text))
+        self.reply_to = reply_to
 
     def send_document(self, path, caption=None):
         self.events.append(("doc", Path(path).name))
+        return True
+
+    def send_document_group(self, paths, caption=None, reply_to=None):
+        self.events.append(("group", ",".join(Path(path).name for path in paths)))
+        self.reply_to = reply_to
+        self.caption = caption
         return True
 
 
@@ -225,38 +232,41 @@ def test_spanish_callback_generates_in_spanish_and_cache_is_keyed_by_language():
     assert set(generated) == {(job_id, "auto"), (job_id, "es")}
 
 
-def test_draft_files_are_sent_after_text_and_again_on_resend(tmp_path):
+def test_draft_files_reply_to_the_alert_as_one_group_and_again_on_resend(tmp_path):
     job_id = uuid4()
     docx, pdf = tmp_path / "l.docx", tmp_path / "l.pdf"
     draft = replace(draft_for(job_id), docx_path=docx, pdf_path=pdf)
     bot, generated = FakeBot(), {}
+    update = callback(f"cles:{job_id}")
+    update["callback_query"]["message"]["message_id"] = 777
 
     def tap():
         return handle_update(
-            callback(f"cles:{job_id}"), chat_id=CHAT, bot=bot,
-            generate=lambda value, language: draft, generated=generated,
+            update, chat_id=CHAT, bot=bot, generate=lambda value, language: draft, generated=generated,
         )
 
     assert tap() == "generated" and tap() == "duplicate"
-    kinds = [kind for kind, _ in bot.events]
-    assert kinds == ["answer", "send", "doc", "doc", "answer", "send", "doc", "doc"]
-    assert [name for kind, name in bot.events if kind == "doc"] == ["l.docx", "l.pdf"] * 2
+    assert [kind for kind, _ in bot.events] == ["answer", "group", "answer", "group"]
+    assert bot.events[1][1] == "l.docx,l.pdf"
+    assert bot.reply_to == 777
+    assert "Borrador" in bot.caption and draft.text not in bot.caption
 
 
-def test_render_error_sends_one_plain_notice_instead_of_files():
+def test_render_error_falls_back_to_the_letter_text_as_a_reply():
     job_id = uuid4()
     draft = replace(draft_for(job_id), render_error="Could not render docx (RuntimeError)")
     bot = FakeBot()
-    handle_update(
-        callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=lambda v, l: draft, generated={}
-    )
-    kinds = [kind for kind, _ in bot.events]
-    assert kinds == ["answer", "send", "send"] and "Word/PDF" in bot.events[-1][1]
+    update = callback(f"cl:{job_id}")
+    update["callback_query"]["message"]["message_id"] = 42
+    handle_update(update, chat_id=CHAT, bot=bot, generate=lambda v, l: draft, generated={})
+
+    assert [kind for kind, _ in bot.events] == ["answer", "send"]
+    assert draft.text in bot.events[-1][1] and bot.reply_to == 42
 
 
 def test_upload_failure_does_not_lose_or_repeat_the_letter(tmp_path):
     class FailingUploads(FakeBot):
-        def send_document(self, path, caption=None):
+        def send_document_group(self, paths, caption=None, reply_to=None):
             raise TelegramBotError(status_code=500)
 
     job_id = uuid4()
@@ -412,7 +422,7 @@ def test_feedback_buttons_record_state_then_ask_and_store_reason():
     sent = []
 
     class FeedbackBot(FakeBot):
-        def send_text(self, text, reply_markup=None):
+        def send_text(self, text, reply_markup=None, reply_to=None):
             sent.append((text, reply_markup))
 
     bot = FeedbackBot()
@@ -453,3 +463,24 @@ def test_bad_feedback_codes_and_failures_are_safe():
     assert handle_update(
         callback(f"up:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={}, record_feedback=boom,
     ) == "failed"
+
+
+def test_send_document_group_posts_one_media_group_replying_to_the_alert(tmp_path):
+    docx, pdf = tmp_path / "a.docx", tmp_path / "a.pdf"
+    docx.write_bytes(b"docx")
+    pdf.write_bytes(b"%PDF")
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"ok": True, "result": []})
+
+    client = TelegramBotClient(TOKEN, CHAT, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert client.send_document_group([docx, pdf], caption="Borrador", reply_to=9)
+
+    request = requests[0]
+    assert request.url.path.endswith("/sendMediaGroup")
+    body = request.content.decode("latin-1")
+    assert '"attach://file0"' in body and '"attach://file1"' in body
+    assert 'name="reply_to_message_id"' in body and "Borrador" in body
+    assert not client.send_document_group([tmp_path / "missing.pdf"])
