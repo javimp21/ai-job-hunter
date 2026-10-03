@@ -289,3 +289,50 @@ def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def mark_closed_postings(
+    session: Session,
+    targets: Sequence[CompanyMonitorTarget],
+    offers: Iterable[tuple["NormalizedJob", CompanyMonitorTarget | None]],
+    failures: Iterable["SourceFailure"],
+    *,
+    seen_source_ids: set[UUID],
+    max_jobs_per_company: int,
+    now: datetime | None = None,
+) -> int:
+    """Mark postings that a complete, successful board fetch no longer lists as closed.
+
+    Conservative: boards that failed, returned nothing (possible glitch) or hit
+    the per-company job limit (truncated listing) never close anything.
+    Re-listed postings are reopened by ingestion.
+    """
+
+    from ai_job_hunter.models import Job, JobSource
+
+    moment = now or datetime.now(UTC)
+    counts = Counter(target.source_id for _offer, target in offers if target is not None and target.source_id)
+    failed = {(failure.company, failure.provider.casefold()) for failure in failures}
+    closed = 0
+    for target in targets:
+        count = counts.get(target.source_id, 0)
+        if target.source_id is None or (target.company_name, target.provider.value.casefold()) in failed:
+            continue
+        if count == 0 or count >= max_jobs_per_company:
+            continue
+        stale = session.scalars(
+            select(JobSource)
+            .join(Job, Job.id == JobSource.job_id)
+            .where(
+                Job.company_id == target.company_id,
+                JobSource.provider == target.provider.value.casefold(),
+                JobSource.closed_at.is_(None),
+            )
+        ).all()
+        for source in stale:
+            if source.id in seen_source_ids:
+                continue
+            source.closed_at = moment
+            closed += 1
+    session.commit()
+    return closed

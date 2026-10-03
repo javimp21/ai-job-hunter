@@ -70,3 +70,7 @@ Supported ATS providers (public, keyless connectors): Greenhouse, Lever, Ashby, 
 Besides ACTIVE company boards, `refresh`/`run` query the job portals listed in `JOB_PORTALS` (default `himalayas`; set it empty in `.env` to disable). Portals are searched with filters (country Spain, backend/software/platform/Java keywords), not crawled, and each one is queried at most once per polling interval (Himalayas: 20 h, state in `data/local/portal-state.json`; `--dry-run` never advances it).
 
 Himalayas gives each remote job's allowed countries: an empty list is worldwide, `Spain` alone is Spain-only, and any other list is country-restricted, so a list without Spain is a deterministic geography SKIP. Salary ranges are kept when published. Its terms require a visible credit, so alerts from it show "Fuente: Himalayas". Portal jobs go through the normal ingestion, deduplication, prefilter, Jev and notification pipeline.
+
+## Closed postings
+
+Every ingest updates a job source's `last_seen_at` and clears `closed_at`. After a refresh, a posting of an ACTIVE company board is marked closed (`closed_at`) when that board was fetched successfully and completely but no longer lists it. Boards that failed, returned nothing, or hit `--max-jobs-per-company` (a truncated listing) never close anything, and portal results (search-based) never do either. A job whose sources are all closed leaves the feed and cannot alert; if it is listed again it reopens automatically.

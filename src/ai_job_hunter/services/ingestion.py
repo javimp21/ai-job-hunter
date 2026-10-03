@@ -308,6 +308,8 @@ def _refresh_source(source: JobSource, offer: NormalizedJob, *, is_new: bool) ->
     source.published_at = offer.published_at
     if is_new:
         source.discovered_at = offer.discovered_at
+    source.last_seen_at = offer.discovered_at
+    source.closed_at = None  # listed again, so not (or no longer) closed
 
 
 def _offer_material_inputs(offer: NormalizedJob) -> tuple[object, ...]:

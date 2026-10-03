@@ -49,5 +49,8 @@ class JobSource(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     raw_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Updated on every ingest; closed_at is set when a full board fetch no longer lists it.
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     job: Mapped[Job] = relationship("Job", back_populates="sources")

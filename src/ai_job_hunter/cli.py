@@ -1419,6 +1419,7 @@ def _print_refresh_summary(summary: RefreshSummary) -> None:
     for label, value in (
         ("Companies checked", summary.companies_checked),
         ("Portals checked", summary.portals_checked),
+        ("Closed postings", summary.closed_postings),
         ("Jobs fetched", summary.jobs_fetched),
         ("New jobs", summary.new_jobs),
         ("Known jobs", summary.known_jobs),

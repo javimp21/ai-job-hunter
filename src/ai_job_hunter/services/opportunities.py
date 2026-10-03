@@ -95,6 +95,7 @@ from ai_job_hunter.services.job_portals import (
 )
 from ai_job_hunter.services.monitored_sources import (
     active_monitor_targets,
+    mark_closed_postings,
     record_fetch_results,
     sync_monitored_sources,
 )
@@ -135,6 +136,7 @@ class SourceFailure:
 class RefreshSummary:
     companies_checked: int = 0
     portals_checked: int = 0
+    closed_postings: int = 0
     jobs_fetched: int = 0
     new_jobs: int = 0
     known_jobs: int = 0
@@ -330,6 +332,7 @@ def refresh_opportunities(
     session.rollback()
     created_ids: set[UUID] = set()
     touched_ids: set[UUID] = set()
+    seen_source_ids: set[UUID] = set()
 
     for offer, _target in offers:
         old_match_id, _old_fingerprints = _find_existing_match_fingerprints(
@@ -355,6 +358,8 @@ def refresh_opportunities(
 
         job_id = ingested.job_id
         touched_ids.add(job_id)
+        if ingested.job_source_id is not None:
+            seen_source_ids.add(ingested.job_source_id)
         if ingested.status in {IngestionStatus.CREATED, IngestionStatus.POSSIBLE_MATCH}:
             created_ids.add(job_id)
         if old_match_id is not None and old_match_id != job_id:
@@ -384,6 +389,15 @@ def refresh_opportunities(
             prepared_by_job.setdefault(job_id, {})[prepared.fingerprint] = prepared
         session.rollback()
 
+    if not dry_run:
+        summary.closed_postings = mark_closed_postings(
+            session,
+            targets,
+            offers,
+            failures,
+            seen_source_ids=seen_source_ids,
+            max_jobs_per_company=max_jobs_per_company,
+        )
     summary.new_jobs = len(created_ids)
     summary.known_jobs = len(touched_ids - created_ids)
     summary.changed_jobs = sum(
@@ -674,6 +688,7 @@ def list_opportunities(
     include_applied: bool = False,
     include_skip: bool = False,
     include_dismissed: bool = False,
+    include_closed: bool = False,
 ) -> list[Opportunity]:
     """Build a stable feed without invoking Jev or changing persistent state."""
 
@@ -731,6 +746,8 @@ def list_opportunities(
         source_snapshots = [item for item in source_snapshots if item is not None]
         if not source_snapshots:
             continue
+        if job.sources and all(source.closed_at is not None for source in job.sources) and not include_closed:
+            continue  # no longer listed anywhere we fully fetch
         fingerprints = {item.fingerprint for item in source_snapshots}
         evaluations = evaluations_by_job.get(job.id, [])
         evaluation = next(

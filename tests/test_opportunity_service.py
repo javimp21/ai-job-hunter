@@ -1092,3 +1092,48 @@ def test_published_salary_at_or_above_target_moves_job_up(salary_min, salary_max
     adjustments = opportunities._salary_adjustment(prepared.context)
 
     assert sum(value for value, _label in adjustments) == points
+
+
+def _source_closed(session, external_id):
+    return session.scalar(select(JobSource.closed_at).where(JobSource.external_id == external_id))
+
+
+def test_postings_missing_from_a_complete_board_fetch_are_closed_and_reopened(db_session, monkeypatch, tmp_path):
+    _monitor_company(db_session)
+    candidate = _candidate()
+    cache = DecisionCache(tmp_path / "closed.json")
+    kwargs = dict(no_jev=True, cache=cache, engine=FakeEngine())
+    _install_fetch(monkeypatch, [_offer("role-a"), _offer("role-b", title="Platform Engineer")])
+    refresh_opportunities(db_session, candidate, **kwargs)
+
+    _install_fetch(monkeypatch, [_offer("role-a")])
+    summary = refresh_opportunities(db_session, candidate, **kwargs)
+
+    assert summary.closed_postings == 1
+    assert _source_closed(db_session, "role-b") is not None and _source_closed(db_session, "role-a") is None
+    titles = [item.title for item in list_opportunities(db_session, candidate, engine=FakeEngine(), include_skip=True)]
+    assert "Platform Engineer" not in titles
+
+    _install_fetch(monkeypatch, [_offer("role-a"), _offer("role-b", title="Platform Engineer")])
+    refresh_opportunities(db_session, candidate, **kwargs)
+    assert _source_closed(db_session, "role-b") is None
+
+
+def test_truncated_or_failed_board_fetches_never_close_postings(db_session, monkeypatch, tmp_path):
+    _monitor_company(db_session)
+    candidate = _candidate()
+    kwargs = dict(no_jev=True, cache=DecisionCache(tmp_path / "trunc.json"), engine=FakeEngine())
+    _install_fetch(monkeypatch, [_offer("role-a"), _offer("role-b", title="Platform Engineer")])
+    refresh_opportunities(db_session, candidate, **kwargs)
+
+    _install_fetch(monkeypatch, [_offer("role-a")])
+    truncated = refresh_opportunities(db_session, candidate, max_jobs_per_company=1, **kwargs)
+    assert truncated.closed_postings == 0
+
+    def failing_fetch(targets, *, max_jobs_per_company, client):
+        return [], [opportunities.SourceFailure("Acme", "GREENHOUSE", "GreenhouseConnectorError")]
+
+    monkeypatch.setattr(opportunities, "_fetch_targets", failing_fetch)
+    failed = refresh_opportunities(db_session, candidate, **kwargs)
+    assert failed.closed_postings == 0
+    assert _source_closed(db_session, "role-b") is None
