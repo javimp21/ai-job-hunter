@@ -26,7 +26,7 @@ class FakeTelegramProvider:
     def __init__(self) -> None:
         self.messages: list[str] = []
 
-    def send_message(self, message: str) -> TelegramSendResult:
+    def send_message(self, message: str, **kwargs) -> TelegramSendResult:
         self.messages.append(message)
         return TelegramSendResult(message_id="fake-message-id")
 

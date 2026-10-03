@@ -64,6 +64,7 @@ from ai_job_hunter.outreach import (
 from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
 from ai_job_hunter.outreach.projects import load_candidate_projects
 from ai_job_hunter.services.cover_letters import CoverLetterError, generate_cover_letter
+from ai_job_hunter.services.telegram_bot import TelegramBotClient, run_bot
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
@@ -209,6 +210,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     cover_letter.add_argument("job_id", type=UUID)
     cover_letter.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
+    bot = subparsers.add_parser(
+        "bot",
+        help="listen for Telegram cover-letter buttons and reply with drafts (never sent anywhere)",
+    )
+    bot.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     _add_notification_and_run_parsers(subparsers)
 
     opportunities = subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
@@ -344,7 +351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_local_apply_command(apply_args)
 
     candidate = None
-    if args.command in {"refresh", "reevaluate", "cover-letter", "opportunities", "show", "run"} or (
+    if args.command in {"refresh", "reevaluate", "cover-letter", "bot", "opportunities", "show", "run"} or (
         args.command == "notify"
         and args.notification_command in {"send", "retry-failed"}
     ) or (
@@ -364,6 +371,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     settings = get_settings()
     if args.database_url:
         settings = settings.model_copy(update={"database_url": args.database_url})
+    if args.command == "bot":
+        return _run_bot_command(candidate, settings)
     engine = create_database_engine(settings)
     try:
         with create_session_factory(engine)() as session:
@@ -960,6 +969,50 @@ def _configured_telegram_provider(settings):
     except ValueError:
         # Configuration failures must never echo the secret or provider URL.
         return None
+
+
+BOT_OFFSET_PATH = Path("data/local/telegram-bot-offset.json")
+
+
+def _run_bot_command(candidate, settings) -> int:
+    token = settings.telegram_bot_token
+    chat_id = settings.telegram_chat_id
+    missing = []
+    if token is None or not token.get_secret_value().strip():
+        missing.append("TELEGRAM_BOT_TOKEN")
+    if not chat_id or not chat_id.strip():
+        missing.append("TELEGRAM_CHAT_ID")
+    if missing:
+        print(
+            "Telegram bot not started; missing local setting(s): " + ", ".join(missing),
+            file=sys.stderr,
+        )
+        return 1
+    application_facts = load_candidate_application_facts(DEFAULT_APPLICATION_FACTS_PATH)
+    documents = tuple(load_candidate_documents(Path("candidate_documents.local.json")).documents)
+    engine = create_database_engine(settings)
+    session_factory = create_session_factory(engine)
+
+    def generate(job_id: UUID):
+        # A new session per request keeps long polling independent of stale state.
+        with session_factory() as session:
+            return generate_cover_letter(
+                session,
+                candidate,
+                job_id,
+                application_facts=application_facts,
+                documents=documents,
+            )
+
+    bot = TelegramBotClient(token, chat_id)
+    print("Bot listening for cover-letter requests (Ctrl+C to stop)")
+    try:
+        run_bot(bot, chat_id=chat_id.strip(), generate=generate, offset_path=BOT_OFFSET_PATH)
+    except KeyboardInterrupt:
+        print("Bot stopped.")
+    finally:
+        engine.dispose()
+    return 0
 
 
 def _run_notification_command(args, session, candidate, settings) -> int:

@@ -50,8 +50,28 @@ _WHITESPACE = re.compile(r"\s+")
 class NotificationProvider(Protocol):
     """Minimal provider contract so notification delivery can be faked offline."""
 
-    def send_message(self, message: str) -> "TelegramSendResult":
+    def send_message(
+        self, message: str, *, reply_markup: dict[str, Any] | None = None
+    ) -> "TelegramSendResult":
         """Send one message or raise a safe provider exception."""
+
+
+COVER_LETTER_CALLBACK_PREFIX = "cl:"
+
+
+def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
+    """Inline button that asks the bot for a cover-letter draft (callback <= 64 bytes)."""
+
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "✍️ Generar cover letter",
+                    "callback_data": f"{COVER_LETTER_CALLBACK_PREFIX}{job_id}",
+                }
+            ]
+        ]
+    }
 
 
 class TelegramRejectedError(RuntimeError):
@@ -95,21 +115,22 @@ class TelegramProvider:
         self._client = client
         self._timeout = timeout
 
-    def send_message(self, message: str) -> TelegramSendResult:
+    def send_message(
+        self, message: str, *, reply_markup: dict[str, Any] | None = None
+    ) -> TelegramSendResult:
         client = self._client or httpx.Client()
         should_close = self._client is None
         endpoint = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
+        data = {
+            "chat_id": self._chat_id,
+            "text": message,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": "true",
+        }
+        if reply_markup is not None:
+            data["reply_markup"] = json.dumps(reply_markup, separators=(",", ":"))
         try:
-            response = client.post(
-                endpoint,
-                data={
-                    "chat_id": self._chat_id,
-                    "text": message,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": "true",
-                },
-                timeout=self._timeout,
-            )
+            response = client.post(endpoint, data=data, timeout=self._timeout)
         except httpx.HTTPError:
             # Never chain/format the httpx exception: it may contain the token URL.
             raise TelegramAmbiguousError() from None
@@ -721,7 +742,9 @@ def _dispatch_pending(
         if row is None:
             continue
         try:
-            delivery = provider.send_message(row.message)
+            delivery = provider.send_message(
+                row.message, reply_markup=cover_letter_keyboard(row.job_id)
+            )
             row.provider_message_id = (
                 delivery.message_id
                 if isinstance(delivery, TelegramSendResult)

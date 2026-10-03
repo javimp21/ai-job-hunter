@@ -17,7 +17,7 @@ from ai_job_hunter.cli import _print_opportunity
 
 
 class NeverProvider:
-    def send_message(self, message):
+    def send_message(self, message, **kwargs):
         pytest.fail("This policy-ineligible offer must not send a notification")
 
 

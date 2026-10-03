@@ -23,6 +23,17 @@ Public experience-years requirements are checked against the current candidate p
 
 Each job alerts at most once per channel: a later evaluation of an already-notified job (new description, new prefilter version, new config) is suppressed as `already_notified`, unless the decision upgrades from REVIEW to APPLY, which alerts once more. Jobs you dismissed or have an application for are suppressed (`dismissed`, `already_applied`). Suppressed rows stay in the ledger for audit. `retry-failed` resumes safe retries left pending by an interrupted retry. A retry only applies where the stored delivery failure is safe; an uncertain network outcome must not be blindly resent because Telegram does not provide an idempotency key for `sendMessage`.
 
+## Cover letters from alerts
+
+Every alert carries an inline button, "✍️ Generar cover letter". Tapping it asks the local bot to draft a cover letter for that job with Claude and to reply in the same chat with the text. The bot is a separate long-polling process; it does nothing unless it is running:
+
+```powershell
+ai-job-hunter bot
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-bot.ps1
+```
+
+`scripts\run-bot.ps1` keeps the bot running, appends its output to `data\local\logs\bot-YYYY-MM.log` and restarts it 30 seconds after any exit. Drafts are saved under `data/local/cover-letters` and are never sent to anyone; review them before use. The bot only answers the chat configured in `TELEGRAM_CHAT_ID` (callbacks from any other chat are ignored), ignores unknown buttons, and resends the letter it already generated (in the same bot session) instead of paying for a new one when a button is tapped again. Taps made while the bot was off are processed when it starts. Each letter costs roughly $0.05 with Claude Opus 5.5. Its update offset is kept in `data/local/telegram-bot-offset.json`, so restarts do not replay old taps. Alerts sent before this feature have no button.
+
 ## Periodic local run on Windows
 
 The `run` command refreshes already monitored supported ATS sources through the existing opportunity pipeline, then handles notifications. It does not resolve Company Leads on each run. Configure the notification credentials in `.env` before enabling delivery.

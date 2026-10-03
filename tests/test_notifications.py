@@ -1,5 +1,7 @@
 import dataclasses
+import json
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 import httpx
@@ -25,6 +27,7 @@ from ai_job_hunter.services.notifications import (
     TelegramProvider,
     TelegramRejectedError,
     TelegramSendResult,
+    cover_letter_keyboard,
     format_notification_message,
     list_notification_history,
     list_pending_notifications,
@@ -128,9 +131,11 @@ def _install_opportunities(monkeypatch, items):
 class FakeProvider:
     def __init__(self):
         self.messages = []
+        self.markups = []
 
-    def send_message(self, message: str) -> TelegramSendResult:
+    def send_message(self, message: str, **kwargs) -> TelegramSendResult:
         self.messages.append(message)
+        self.markups.append(kwargs.get("reply_markup"))
         return TelegramSendResult(message_id="msg-123")
 
 
@@ -138,7 +143,7 @@ class RejectedProvider:
     def __init__(self):
         self.calls = 0
 
-    def send_message(self, message: str) -> TelegramSendResult:
+    def send_message(self, message: str, **kwargs) -> TelegramSendResult:
         self.calls += 1
         raise TelegramRejectedError(429)
 
@@ -147,7 +152,7 @@ class AmbiguousProvider:
     def __init__(self):
         self.calls = 0
 
-    def send_message(self, message: str) -> TelegramSendResult:
+    def send_message(self, message: str, **kwargs) -> TelegramSendResult:
         self.calls += 1
         raise RuntimeError("timeout: bot-token-secret-value")
 
@@ -484,6 +489,35 @@ def test_telegram_provider_returns_message_id_and_redacts_provider_errors():
     with pytest.raises(TelegramAmbiguousError) as error:
         ambiguous.send_message("safe test")
     assert token not in str(error.value)
+
+
+def test_each_alert_is_sent_with_a_cover_letter_button(db_session, monkeypatch):
+    job, _ = _seed_evaluation(db_session)
+    _install_opportunities(monkeypatch, [_opportunity(job.id, FinalDecision.APPLY, 81)])
+    provider = FakeProvider()
+
+    send_notifications(db_session, _candidate(), provider)
+
+    assert provider.markups == [cover_letter_keyboard(job.id)]
+    button = provider.markups[0]["inline_keyboard"][0][0]
+    assert button["callback_data"] == f"cl:{job.id}"
+    assert len(button["callback_data"].encode()) <= 64
+
+
+def test_telegram_provider_posts_reply_markup_as_json():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(parse_qs(request.read().decode()))
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 1}})
+
+    provider = TelegramProvider("token", "chat", client=httpx.Client(transport=httpx.MockTransport(handler)))
+    keyboard = cover_letter_keyboard(uuid4())
+    provider.send_message("hi", reply_markup=keyboard)
+    provider.send_message("plain")
+
+    assert json.loads(seen[0]["reply_markup"][0]) == keyboard
+    assert "reply_markup" not in seen[1]
 
 
 @pytest.mark.parametrize("decision", [FinalDecision.APPLY, FinalDecision.REVIEW])
