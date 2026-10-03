@@ -697,3 +697,51 @@ def test_remotive_fixture_flows_through_job_facts_and_prefilter_without_network(
     assert results[0].decision is PreFilterDecision.REJECT
     assert results[1].signals.geography.status is SignalStatus.COMPATIBLE
     assert results[1].decision is PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["Woodinville, WA", "Bastrop, TX", "New York office", "Washington, DC", "London", "Tel Aviv", "Pune, India"],
+)
+def test_foreign_city_without_country_is_not_treated_as_unknown(location: str) -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location=location, remote_policy="ONSITE", remote_eligibility="UNKNOWN"),
+        make_config(preferences={"remote_preference": "ANY"}),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+    assert result.decision is PreFilterDecision.REJECT
+
+
+def test_spanish_location_codes_are_not_mistaken_for_us_states() -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location="Madrid, ES", remote_policy="HYBRID", remote_eligibility="UNKNOWN"),
+        make_config(preferences={"remote_preference": "ANY", "acceptable_locations": ["Madrid"]}),
+    )
+
+    assert result.signals.geography.status is not SignalStatus.INCOMPATIBLE
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Virtual Nurse Practitioner - Bilingual Spanish", "Virtual Physician", "Founder's Associate - Go-to-Market (GTM)"],
+)
+def test_healthcare_and_go_to_market_titles_are_non_target(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
+    assert result.decision is PreFilterDecision.REJECT
+
+
+def test_internship_words_in_german_and_spanish_titles_are_intern_seniority() -> None:
+    for title in ("Forward Deployed Engineer - Praktikum", "Backend Developer (Werkstudent)", "Becario Backend"):
+        assert JobFacts.from_normalized_job(make_offer(title=title)).inferred_seniority.value == "INTERN"
+
+
+def test_remote_dash_us_state_is_united_states() -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location="Remote - WA", remote_policy="REMOTE", remote_eligibility="UNKNOWN"),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE

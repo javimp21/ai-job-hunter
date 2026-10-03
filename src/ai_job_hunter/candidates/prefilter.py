@@ -296,6 +296,15 @@ _NON_TECHNICAL_ROLE_MARKERS = {
     "contable": "finance",
     "disenador": "design",
     "disenadora": "design",
+    # Healthcare roles occasionally appear on tech companies' boards.
+    "nurse": "healthcare",
+    "physician": "healthcare",
+    "doctor": "healthcare",
+    "clinician": "healthcare",
+    "pharmacist": "healthcare",
+    "therapist": "healthcare",
+    "dentist": "healthcare",
+    "gtm": "go-to-market",
 }
 # Tokens naming an engineering job (not a technical domain such as "security"
 # or "data"). Titles without one cannot be rescued by a domain word alone.
@@ -560,7 +569,8 @@ def _clearly_non_technical_role(title: str) -> str | None:
         "lawyer", "marketing", "marketer", "recruiter", "recruiting", "recruitment",
         "hr", "hrbp", "finance", "accountant", "accounting", "community", "producer",
         "copywriter", "writer", "rrhh", "reclutador", "reclutadora", "abogado",
-        "abogada", "contable", "disenador", "disenadora",
+        "abogada", "contable", "disenador", "disenadora", "nurse", "physician",
+        "doctor", "clinician", "pharmacist", "therapist", "dentist",
     ):
         if marker in tokens:
             if marker in {"sales", "ventas"} and tokens & _TECHNICAL_ROLE_MARKERS:
@@ -579,6 +589,8 @@ def _clearly_non_technical_role(title: str) -> str | None:
             return "science / research"
         if "comercial" in tokens:
             return "sales"
+        if "gtm" in tokens or {"go", "market"} <= tokens:
+            return "go-to-market"
     if "research" in tokens and tokens & (_AI_TOKENS | _ML_SPECIALTY_TOKENS):
         return "ML research"
 
@@ -979,9 +991,48 @@ def _countries_in(values: Iterable[str | None]) -> set[str]:
         for alias, pattern in _COUNTRY_PATTERNS:
             if pattern.search(folded):
                 result.add(_ALIAS_TO_COUNTRY[alias])
-        if re.search(r"\bsan francisco\b|\bsf\s+office\b", folded):
+        if _US_CITY.search(folded) or _US_STATE_SUFFIX.search(value):
             result.add("United States")
+        for pattern, country in _FOREIGN_CITIES:
+            if pattern.search(folded):
+                result.add(country)
     return result
+
+
+# "Woodinville, WA" / "Remote - TX": a comma or dash, then an upper-case US state code.
+_US_STATE_SUFFIX = re.compile(
+    r"(?:,|\s[-–])\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|"
+    r"NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b"
+)
+_US_CITY = re.compile(
+    r"\b(?:san francisco|sf\s+office|new york|nyc|los angeles|seattle|austin|boston|chicago|denver|"
+    r"palo alto|mountain view|menlo park|san jose|san diego|washington,?\s+d\.?c\.?|atlanta|miami|"
+    r"brooklyn|redmond|cambridge,\s*ma)\b"
+)
+
+
+# Frequent tech-hub cities named without their country in job locations.
+_FOREIGN_CITIES = tuple(
+    (re.compile(rf"\b(?:{cities})\b"), country)
+    for cities, country in (
+        ("london|manchester|edinburgh", "United Kingdom"),
+        ("paris", "France"),
+        ("berlin|munich|münchen|hamburg", "Germany"),
+        ("amsterdam|rotterdam", "Netherlands"),
+        ("dublin", "Ireland"),
+        ("tel aviv|tel-aviv", "Israel"),
+        ("toronto|vancouver|montreal|montréal", "Canada"),
+        ("bangalore|bengaluru|pune|hyderabad|gurgaon|gurugram", "India"),
+        ("singapore", "Singapore"),
+        ("tokyo", "Japan"),
+        ("seoul", "South Korea"),
+        ("sydney|melbourne", "Australia"),
+        ("zurich|zürich", "Switzerland"),
+        ("stockholm", "Sweden"),
+        ("warsaw|kraków|krakow", "Poland"),
+        ("lisbon|lisboa|porto", "Portugal"),
+    )
+)
 
 
 def _remote_region_countries(location: str | None) -> set[str]:

@@ -33,6 +33,9 @@ from ai_job_hunter.services.company_intelligence import (
 )
 
 if TYPE_CHECKING:
+    import httpx
+
+    from ai_job_hunter.candidates import CandidateConfig
     from ai_job_hunter.domain.normalized_job import NormalizedJob
     from ai_job_hunter.services.opportunities import SourceFailure
 
@@ -225,6 +228,61 @@ def record_fetch_results(
             row.last_fetch_error = error[:100]
             row.consecutive_failures += 1
     session.commit()
+
+
+def preview_source(
+    session: Session,
+    source_id: UUID,
+    candidate: "CandidateConfig",
+    *,
+    client: "httpx.Client | None" = None,
+    max_jobs: int = 500,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Fetch one board once and summarize how its jobs fare against the prefilter.
+
+    Nothing is ingested and Jev is not called; only the summary is stored on
+    the source row so the activation decision is explainable.
+    """
+
+    from ai_job_hunter.candidates import JobFacts, PreFilterDecision, evaluate_job
+    from ai_job_hunter.candidates.prefilter import RoleFamilyFit, SignalStatus
+    from ai_job_hunter.connectors.factory import build_job_connectors
+    from ai_job_hunter.job_sources import JobSourceSpec, JobSourcesConfig
+
+    row = session.get(MonitoredSource, source_id)
+    if row is None:
+        raise MonitoredSourceError(f"Unknown monitored source id: {source_id}.")
+    spec = JobSourceSpec(
+        provider=row.provider.casefold(),
+        identifier=row.identifier,
+        company_name=row.company.name,
+        region=row.region,
+        max_jobs=max_jobs,
+    )
+    (connector,) = build_job_connectors(JobSourcesConfig(sources=[spec]), client=client)
+    try:
+        jobs = connector.fetch_jobs()
+    except Exception as error:  # Connector errors never include credentials; report the type.
+        stats: dict[str, object] = {"error": type(error).__name__}
+    else:
+        results = [(job, evaluate_job(JobFacts.from_normalized_job(job), candidate)) for job in jobs]
+        passing = [(job, result) for job, result in results if result.decision is not PreFilterDecision.REJECT]
+        stats = {
+            "jobs": len(jobs),
+            "geography_compatible": sum(
+                result.signals.geography.status is SignalStatus.COMPATIBLE for _job, result in results
+            ),
+            "target_role_family": sum(
+                result.signals.role_family.fit is RoleFamilyFit.TARGET for _job, result in results
+            ),
+            "prefilter_pass_or_review": len(passing),
+            "examples": [f"{job.title} — {job.location or 'location n/a'}" for job, _result in passing[:5]],
+        }
+    stats["previewed_at"] = (now or datetime.now(UTC)).isoformat(timespec="minutes")
+    row.preview_stats = stats
+    session.commit()
+    return stats
 
 
 def _as_utc(value: datetime | None) -> datetime | None:

@@ -15,6 +15,7 @@ from ai_job_hunter.models import Company, CompanyEvidence, MonitoredSource, Moni
 from ai_job_hunter.services import opportunities
 from ai_job_hunter.services.company_intelligence import CompanyMonitorFilters
 from ai_job_hunter.services.monitored_sources import (
+    preview_source,
     MonitoredSourceError,
     active_monitor_targets,
     list_sources,
@@ -219,3 +220,35 @@ def test_lead_derived_active_board_becomes_a_target(db_session) -> None:
     assert target.provider.value == "ASHBY"
     assert target.evidence_source == "career_url"
     assert target.confidence.value == "DIRECT_URL_PATTERN"
+
+
+def test_preview_summarizes_board_without_ingesting(db_session, monkeypatch) -> None:
+    from ai_job_hunter.connectors import factory
+    from ai_job_hunter.domain.normalized_job import NormalizedJob
+    from ai_job_hunter.models import Job
+
+    _company(db_session, "Acme", "acme")
+    sync_monitored_sources(db_session)
+    row = _source(db_session, "acme")
+
+    def offer(title: str, location: str) -> NormalizedJob:
+        return NormalizedJob(
+            provider="greenhouse", external_id=title, source_url=f"https://example.test/{len(title)}",
+            title=title, company_name="Acme", location=location, remote_policy="REMOTE",
+            remote_eligibility="SPAIN_ONLY" if "Spain" in location else "COUNTRY_RESTRICTED",
+        )
+
+    class FakeConnector:
+        def fetch_jobs(self):
+            return [offer("Backend Engineer", "Remote Spain"), offer("Account Executive", "Remote Spain"),
+                    offer("Backend Engineer II", "Remote US")]
+
+    monkeypatch.setattr(factory, "build_job_connectors", lambda config, client=None: [FakeConnector()])
+    stats = preview_source(db_session, row.id, load_candidate_config(Path(__file__).parents[1] / "config" / "examples" / "candidate.example.json"))
+
+    assert stats["jobs"] == 3
+    assert stats["prefilter_pass_or_review"] == 1
+    assert stats["examples"] == ["Backend Engineer — Remote Spain"]
+    assert row.preview_stats["jobs"] == 3
+    assert row.state == MonitoredSourceState.REVIEW_SOURCE.value
+    assert db_session.query(Job).count() == 0

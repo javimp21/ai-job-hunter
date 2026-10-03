@@ -37,7 +37,18 @@ _TITLE_SENIORITY = {
     "intern", "graduate", "junior", "mid", "senior", "staff", "principal",
     "lead", "manager", "director", "head",
 }
-_TITLE_ALIASES = {"jr": "junior", "sr": "senior", "middle": "mid", "developer": "engineer"}
+_TITLE_ALIASES = {
+    "jr": "junior",
+    "sr": "senior",
+    "middle": "mid",
+    "developer": "engineer",
+    # Internship words in German/Spanish titles map to the intern seniority.
+    "praktikum": "intern",
+    "praktikant": "intern",
+    "werkstudent": "intern",
+    "becario": "intern",
+    "becaria": "intern",
+}
 _GENERIC_PATH_SEGMENTS = {"", "job", "jobs", "career", "careers", "apply", "application", "applications"}
 _JOB_PATH_MARKERS = {"job", "jobs", "role", "roles", "position", "positions", "opening", "openings"}
 _STABLE_QUERY_KEYS = {

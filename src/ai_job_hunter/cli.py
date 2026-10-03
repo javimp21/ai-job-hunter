@@ -68,10 +68,11 @@ from ai_job_hunter.services.job_portals import parse_portal_names
 from ai_job_hunter.services.monitored_sources import (
     MonitoredSourceError,
     list_sources,
+    preview_source,
     set_source_state,
     sync_monitored_sources,
 )
-from ai_job_hunter.models import MonitoredSourceState
+from ai_job_hunter.models import MonitoredSource, MonitoredSourceState
 from ai_job_hunter.services.telegram_bot import TelegramBotClient, run_bot
 from ai_job_hunter.services.opportunities import (
     Opportunity,
@@ -226,6 +227,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="one-time adoption: make newly recorded boards ACTIVE (for boards already monitored before review existed)",
     )
+    sources_preview = source_commands.add_parser(
+        "preview", help="fetch boards once and summarize them against the prefilter (no ingestion, no Jev)"
+    )
+    sources_preview.add_argument("source_ids", type=UUID, nargs="*")
+    sources_preview.add_argument("--all-review", action="store_true", help="preview every board in REVIEW_SOURCE")
+    sources_preview.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
     for name, help_text in (
         ("activate", "start fetching a board"),
         ("pause", "stop fetching a board for now"),
@@ -390,6 +397,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     candidate = None
     if args.command in {"refresh", "reevaluate", "cover-letter", "bot", "opportunities", "show", "run"} or (
+        args.command == "sources" and args.sources_command == "preview"
+    ) or (
         args.command == "notify"
         and args.notification_command in {"send", "retry-failed"}
     ) or (
@@ -469,7 +478,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.command == "notify":
                 return _run_notification_command(args, session, candidate, settings)
             if args.command == "sources":
-                return _run_sources_command(args, session)
+                return _run_sources_command(args, session, candidate)
             if args.command == "run":
                 summary = refresh_opportunities(
                     session,
@@ -1065,8 +1074,33 @@ def _run_bot_command(candidate, settings) -> int:
     return 0
 
 
-def _run_sources_command(args, session) -> int:
+def _run_sources_command(args, session, candidate) -> int:
     command = args.sources_command
+    if command == "preview":
+        ids = list(args.source_ids)
+        if args.all_review:
+            ids.extend(row.id for row in list_sources(session, state=MonitoredSourceState.REVIEW_SOURCE))
+        if not ids:
+            print("ERROR: give source ids or --all-review", file=sys.stderr)
+            return 1
+        for source_id in dict.fromkeys(ids):
+            try:
+                stats = preview_source(session, source_id, candidate)
+            except MonitoredSourceError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            row = session.get(MonitoredSource, source_id)
+            if "error" in stats:
+                print(f"{source_id} | {row.company.name} | fetch failed ({stats['error']})")
+                continue
+            print(
+                f"{source_id} | {row.company.name} | {row.provider}:{row.identifier} | jobs={stats['jobs']} "
+                f"geo_ok={stats['geography_compatible']} target_roles={stats['target_role_family']} "
+                f"pass_or_review={stats['prefilter_pass_or_review']}"
+            )
+            for example in stats["examples"]:
+                print(f"    - {example}")
+        return 0
     if command == "sync":
         summary = sync_monitored_sources(
             session,
