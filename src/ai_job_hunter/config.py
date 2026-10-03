@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://localhost:5432/ai_job_hunter"
     typesafe_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
     notify_review_min_priority: int = Field(default=70, ge=0, le=100)

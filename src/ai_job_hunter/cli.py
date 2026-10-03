@@ -63,6 +63,7 @@ from ai_job_hunter.outreach import (
 )
 from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
 from ai_job_hunter.outreach.projects import load_candidate_projects
+from ai_job_hunter.services.cover_letters import CoverLetterError, generate_cover_letter
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
@@ -201,9 +202,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     reevaluate.add_argument("--dry-run", action="store_true", help="show the plan without database, cache or Jev writes")
     reevaluate.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
+    cover_letter = subparsers.add_parser(
+        "cover-letter",
+        help="draft a cover letter for one stored job with Claude (saved locally; never sent)",
+    )
+    cover_letter.add_argument("job_id", type=UUID)
+    cover_letter.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     _add_notification_and_run_parsers(subparsers)
 
-    opportunities =subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
+    opportunities = subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
     opportunities.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
     opportunities.add_argument("--decision", choices=("apply", "review", "skip"))
     opportunities.add_argument("--status", choices=tuple(item.value.casefold() for item in HumanReviewStatus))
@@ -336,7 +344,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_local_apply_command(apply_args)
 
     candidate = None
-    if args.command in {"refresh", "reevaluate", "opportunities", "show", "run"} or (
+    if args.command in {"refresh", "reevaluate", "cover-letter", "opportunities", "show", "run"} or (
         args.command == "notify"
         and args.notification_command in {"send", "retry-failed"}
     ) or (
@@ -375,6 +383,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _print_refresh_summary(summary)
                 return 1 if summary.failures else 0
+            if args.command == "cover-letter":
+                try:
+                    draft = generate_cover_letter(
+                        session,
+                        candidate,
+                        args.job_id,
+                        application_facts=load_candidate_application_facts(DEFAULT_APPLICATION_FACTS_PATH),
+                        documents=tuple(load_candidate_documents(Path("candidate_documents.local.json")).documents),
+                    )
+                except CoverLetterError as error:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                    return 1
+                print(f"COVER LETTER DRAFT — {draft.company} — {draft.title}")
+                print(f"Saved: {draft.path}")
+                print(f"Model: {draft.model} | tokens in/out: {draft.input_tokens}/{draft.output_tokens}")
+                print()
+                print(draft.text)
+                return 0
             if args.command == "reevaluate":
                 summary = reevaluate_jobs(
                     session,

@@ -27,6 +27,9 @@ dev = [
 jev = [
     "typesafe-sdk==0.7.1",
 ]
+llm = [
+    "anthropic>=1,<2",
+]
 browser = [
     "playwright>=1.48,<2",
 ]
