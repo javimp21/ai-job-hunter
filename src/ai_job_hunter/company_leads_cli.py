@@ -25,6 +25,7 @@ from ai_job_hunter.company_sources import (
     refresh_company_source_snapshots,
 )
 from ai_job_hunter.config import get_settings
+from ai_job_hunter.hn_hiring import HNHiringError, fetch_latest_thread, leads_from_thread
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.models import CompanyLeadStatus
 
@@ -49,6 +50,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="all",
         help="import one directory at a time (Spanish Top Tech has no usable careers URLs yet)",
     )
+    hn_parser = subparsers.add_parser(
+        "import-hn", help="import companies from the latest Hacker News 'Who is hiring?' thread"
+    )
+    hn_parser.add_argument(
+        "--all", action="store_true", help="keep every posting, not only remote roles open to Europe/global/Spain"
+    )
     list_parser = subparsers.add_parser("list", help="list imported company leads")
     list_parser.add_argument("--status", choices=tuple(item.value for item in CompanyLeadStatus))
     list_parser.add_argument("--limit", type=int, default=20)
@@ -63,7 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     show_parser = subparsers.add_parser("show", help="show one lead and its discovery provenance")
     show_parser.add_argument("lead_id", type=UUID)
 
-    for command_parser in (import_parser, directories_parser, list_parser, resolve_parser, show_parser):
+    for command_parser in (import_parser, directories_parser, hn_parser, list_parser, resolve_parser, show_parser):
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
@@ -71,6 +78,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             config = load_company_leads(args.file)
         except CompanyLeadsConfigError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 2
+    elif args.command == "import-hn":
+        try:
+            config = leads_from_thread(fetch_latest_thread(), reachable_only=not args.all)
+        except (HNHiringError, CompanyLeadsConfigError) as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 2
     elif args.command == "import-directories":
@@ -98,7 +111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     engine = create_database_engine(settings)
     try:
         with create_session_factory(engine)() as session:
-            if args.command in {"import", "import-directories"}:
+            if args.command in {"import", "import-directories", "import-hn"}:
                 summary = import_company_leads(session, config)
                 session.commit()
                 print(
