@@ -208,6 +208,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="draft a cover letter for one stored job with Claude (saved locally; never sent)",
     )
     cover_letter.add_argument("job_id", type=UUID)
+    cover_letter.add_argument(
+        "--language",
+        choices=("auto", "es", "en"),
+        default="auto",
+        help="letter language: auto follows the posting (default), es forces Spanish, en forces English",
+    )
     cover_letter.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
     bot = subparsers.add_parser(
@@ -400,12 +406,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.job_id,
                         application_facts=load_candidate_application_facts(DEFAULT_APPLICATION_FACTS_PATH),
                         documents=tuple(load_candidate_documents(Path("candidate_documents.local.json")).documents),
+                        language=args.language,
                     )
                 except CoverLetterError as error:
                     print(f"ERROR: {error}", file=sys.stderr)
                     return 1
                 print(f"COVER LETTER DRAFT — {draft.company} — {draft.title}")
                 print(f"Saved: {draft.path}")
+                if draft.docx_path is not None:
+                    print(f"Word: {draft.docx_path}")
+                if draft.pdf_path is not None:
+                    print(f"PDF: {draft.pdf_path}")
+                if draft.render_error:
+                    print(f"WARNING: {draft.render_error}", file=sys.stderr)
                 print(f"Model: {draft.model} | tokens in/out: {draft.input_tokens}/{draft.output_tokens}")
                 print()
                 print(draft.text)
@@ -993,7 +1006,7 @@ def _run_bot_command(candidate, settings) -> int:
     engine = create_database_engine(settings)
     session_factory = create_session_factory(engine)
 
-    def generate(job_id: UUID):
+    def generate(job_id: UUID, language: str = "auto"):
         # A new session per request keeps long polling independent of stale state.
         with session_factory() as session:
             return generate_cover_letter(
@@ -1002,6 +1015,7 @@ def _run_bot_command(candidate, settings) -> int:
                 job_id,
                 application_facts=application_facts,
                 documents=documents,
+                language=language,
             )
 
     bot = TelegramBotClient(token, chat_id)

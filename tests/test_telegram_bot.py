@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 from urllib.parse import parse_qs
 from uuid import UUID, uuid4
@@ -42,6 +43,10 @@ class FakeBot:
     def send_text(self, text):
         self.events.append(("send", text))
 
+    def send_document(self, path, caption=None):
+        self.events.append(("doc", Path(path).name))
+        return True
+
 
 def callback(data, *, chat=CHAT, update_id=1):
     return {
@@ -69,7 +74,7 @@ def test_other_chat_is_ignored_and_generate_not_called():
         callback(f"cl:{uuid4()}", chat="999"),
         chat_id=CHAT,
         bot=bot,
-        generate=lambda job_id: calls.append(job_id),
+        generate=lambda job_id, language: calls.append((job_id, language)),
         generated={},
     )
     assert outcome == "ignored"
@@ -87,7 +92,7 @@ def test_non_callback_update_is_ignored():
 def test_bad_callback_data_is_ignored_with_answer(data):
     bot, calls = FakeBot(), []
     outcome = handle_update(
-        callback(data), chat_id=CHAT, bot=bot, generate=lambda job_id: calls.append(job_id), generated={}
+        callback(data), chat_id=CHAT, bot=bot, generate=lambda job_id, language: calls.append((job_id, language)), generated={}
     )
     assert outcome == "ignored"
     assert calls == []
@@ -99,16 +104,16 @@ def test_valid_callback_answers_generates_then_sends_letter():
     bot, generated = FakeBot(), {}
     seen = []
 
-    def generate(value):
-        seen.append(value)
+    def generate(value, language):
+        seen.append((value, language))
         assert bot.events == [("answer", "Generando cover letter…")]
         return draft_for(value)
 
     outcome = handle_update(callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=generate, generated=generated)
 
     assert outcome == "generated"
-    assert seen == [job_id]
-    assert set(generated) == {job_id}
+    assert seen == [(job_id, "auto")]
+    assert set(generated) == {(job_id, "auto")}
     kind, text = bot.events[1]
     assert kind == "send"
     assert text.startswith("✍️ Cover letter — Acme — Backend Engineer\n(Borrador:")
@@ -122,8 +127,8 @@ def test_second_tap_resends_existing_letter_without_paying_again():
         callback(f"cl:{job_id}"),
         chat_id=CHAT,
         bot=bot,
-        generate=lambda value: calls.append(value),
-        generated={job_id: draft_for(job_id)},
+        generate=lambda value, language: calls.append((value, language)),
+        generated={(job_id, "auto"): draft_for(job_id)},
     )
     assert outcome == "duplicate"
     assert calls == []
@@ -136,13 +141,13 @@ def test_repeated_taps_in_one_batch_generate_once(tmp_path):
     bot = FakeBot([[callback(f"cl:{job_id}", update_id=1), callback(f"cl:{job_id}", update_id=2)]])
     calls = []
 
-    def generate(value):
-        calls.append(value)
+    def generate(value, language):
+        calls.append((value, language))
         return draft_for(value)
 
     run_bot(bot, chat_id=CHAT, generate=generate, offset_path=tmp_path / "o.json", max_cycles=1)
 
-    assert calls == [job_id]
+    assert calls == [(job_id, "auto")]
     assert [kind for kind, _ in bot.events].count("send") == 2
 
 
@@ -154,7 +159,7 @@ def test_stale_tap_still_generates_when_answer_is_rejected():
     job_id = uuid4()
     bot = StaleBot()
     outcome = handle_update(
-        callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={}
+        callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=lambda job, language: draft_for(job), generated={}
     )
     assert outcome == "generated"
     assert bot.events[0][0] == "send"
@@ -164,7 +169,7 @@ def test_cover_letter_error_and_unexpected_error_are_reported_and_not_cached():
     job_id = uuid4()
     generated: dict = {}
 
-    def known(_):
+    def known(*_):
         raise CoverLetterError("Job not found.")
 
     bot = FakeBot()
@@ -172,7 +177,7 @@ def test_cover_letter_error_and_unexpected_error_are_reported_and_not_cached():
     assert bot.events[-1] == ("send", "No se pudo generar la cover letter: Job not found.")
     assert generated == {}
 
-    def unexpected(_):
+    def unexpected(*_):
         raise ValueError(f"boom {TOKEN}")
 
     bot = FakeBot()
@@ -188,7 +193,7 @@ def test_loop_continues_after_failure(tmp_path):
         [[callback(f"cl:{bad}", update_id=5), callback(f"cl:{ok}", update_id=6)]]
     )
 
-    def generate(job_id):
+    def generate(job_id, language):
         if job_id == bad:
             raise RuntimeError("x")
         return draft_for(job_id)
@@ -197,6 +202,111 @@ def test_loop_continues_after_failure(tmp_path):
 
     sends = [text for kind, text in bot.events if kind == "send"]
     assert len(sends) == 2 and "RuntimeError" in sends[0] and sends[1].startswith("✍️")
+
+
+def test_spanish_callback_generates_in_spanish_and_cache_is_keyed_by_language():
+    job_id = uuid4()
+    bot, generated, calls = FakeBot(), {}, []
+
+    def generate(value, language):
+        calls.append((value, language))
+        return draft_for(value)
+
+    def tap(prefix):
+        return handle_update(
+            callback(f"{prefix}{job_id}"), chat_id=CHAT, bot=bot, generate=generate, generated=generated
+        )
+
+    assert tap("cl:") == "generated"
+    assert tap("cles:") == "generated"
+    assert tap("cles:") == "duplicate"
+    assert tap("cl:") == "duplicate"
+    assert calls == [(job_id, "auto"), (job_id, "es")]
+    assert set(generated) == {(job_id, "auto"), (job_id, "es")}
+
+
+def test_draft_files_are_sent_after_text_and_again_on_resend(tmp_path):
+    job_id = uuid4()
+    docx, pdf = tmp_path / "l.docx", tmp_path / "l.pdf"
+    draft = replace(draft_for(job_id), docx_path=docx, pdf_path=pdf)
+    bot, generated = FakeBot(), {}
+
+    def tap():
+        return handle_update(
+            callback(f"cles:{job_id}"), chat_id=CHAT, bot=bot,
+            generate=lambda value, language: draft, generated=generated,
+        )
+
+    assert tap() == "generated" and tap() == "duplicate"
+    kinds = [kind for kind, _ in bot.events]
+    assert kinds == ["answer", "send", "doc", "doc", "answer", "send", "doc", "doc"]
+    assert [name for kind, name in bot.events if kind == "doc"] == ["l.docx", "l.pdf"] * 2
+
+
+def test_render_error_sends_one_plain_notice_instead_of_files():
+    job_id = uuid4()
+    draft = replace(draft_for(job_id), render_error="Could not render docx (RuntimeError)")
+    bot = FakeBot()
+    handle_update(
+        callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=lambda v, l: draft, generated={}
+    )
+    kinds = [kind for kind, _ in bot.events]
+    assert kinds == ["answer", "send", "send"] and "Word/PDF" in bot.events[-1][1]
+
+
+def test_upload_failure_does_not_lose_or_repeat_the_letter(tmp_path):
+    class FailingUploads(FakeBot):
+        def send_document(self, path, caption=None):
+            raise TelegramBotError(status_code=500)
+
+    job_id = uuid4()
+    draft = replace(draft_for(job_id), docx_path=tmp_path / "a.docx")
+    bot, generated = FailingUploads(), {}
+    outcome = handle_update(
+        callback(f"cl:{job_id}"), chat_id=CHAT, bot=bot, generate=lambda v, l: draft, generated=generated
+    )
+    assert outcome == "generated" and (job_id, "auto") in generated
+
+
+def test_send_document_posts_multipart_with_chat_id_and_skips_large_or_missing_files(tmp_path, monkeypatch):
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path.rsplit("/", 1)[-1], request.headers["content-type"], request.read()))
+        return httpx.Response(200, json={"ok": True, "result": {}})
+
+    client = TelegramBotClient(TOKEN, CHAT, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    document = tmp_path / "letter.pdf"
+    document.write_bytes(b"%PDF-1.4 hello")
+
+    assert client.send_document(document, caption="cap") is True
+    method, content_type, body = seen[0]
+    assert method == "sendDocument" and content_type.startswith("multipart/form-data")
+    assert b'name="chat_id"' in body and CHAT.encode() in body and b"cap" in body
+    assert b'filename="letter.pdf"' in body and b"%PDF-1.4 hello" in body
+
+    assert client.send_document(tmp_path / "missing.pdf") is False
+    monkeypatch.setattr("ai_job_hunter.services.telegram_bot.MAX_DOCUMENT_BYTES", 3)
+    assert client.send_document(document) is False
+    assert len(seen) == 1
+
+
+def test_send_document_errors_never_contain_the_token(tmp_path):
+    document = tmp_path / "letter.pdf"
+    document.write_bytes(b"x")
+
+    def timeout(_request):
+        raise httpx.ReadTimeout(f"https://api.telegram.org/bot{TOKEN}/sendDocument")
+
+    def rejected(_request):
+        return httpx.Response(413, json={"ok": False, "description": TOKEN})
+
+    for handler in (timeout, rejected):
+        client = TelegramBotClient(TOKEN, CHAT, client=httpx.Client(transport=httpx.MockTransport(handler)))
+        with pytest.raises(TelegramBotError) as error:
+            client.send_document(document)
+        assert TOKEN not in str(error.value) and TOKEN not in repr(error.value)
+        assert error.value.__cause__ is None
 
 
 def test_long_letter_is_chunked_within_limit():

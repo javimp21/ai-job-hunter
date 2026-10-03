@@ -25,14 +25,14 @@ Each job alerts at most once per channel: a later evaluation of an already-notif
 
 ## Cover letters from alerts
 
-Every alert carries an inline button, "✍️ Generar cover letter". Tapping it asks the local bot to draft a cover letter for that job with Claude and to reply in the same chat with the text. The bot is a separate long-polling process; it does nothing unless it is running:
+Every alert carries two inline buttons: "✍️ Cover letter" (the letter follows the language of the posting) and "🇪🇸 En español" (always Spanish, whatever the posting language). Tapping one asks the local bot to draft a cover letter for that job with Claude and to reply in the same chat with the text, followed by the same letter as a Word (.docx) and a PDF attachment (name, contact line, date and body; A4). The same files are saved next to the Markdown draft; `ai-job-hunter cover-letter <job_id> --language {auto,es,en}` does the same from the CLI. If the files cannot be rendered, the text is still sent with a one-line notice. The bot is a separate long-polling process; it does nothing unless it is running:
 
 ```powershell
 ai-job-hunter bot
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-bot.ps1
 ```
 
-`scripts\run-bot.ps1` keeps the bot running, appends its output to `data\local\logs\bot-YYYY-MM.log` and restarts it 30 seconds after any exit. Drafts are saved under `data/local/cover-letters` and are never sent to anyone; review them before use. The bot only answers the chat configured in `TELEGRAM_CHAT_ID` (callbacks from any other chat are ignored), ignores unknown buttons, and resends the letter it already generated (in the same bot session) instead of paying for a new one when a button is tapped again. Taps made while the bot was off are processed when it starts. Each letter costs roughly $0.05 with Claude Opus 5.5. Its update offset is kept in `data/local/telegram-bot-offset.json`, so restarts do not replay old taps. Alerts sent before this feature have no button.
+`scripts\run-bot.ps1` keeps the bot running, appends its output to `data\local\logs\bot-YYYY-MM.log` and restarts it 30 seconds after any exit. Drafts (`.md`, `.docx` and `.pdf`, named with the language) are saved under `data/local/cover-letters` and are never sent to anyone; review them before use. The bot only answers the chat configured in `TELEGRAM_CHAT_ID` (callbacks from any other chat are ignored), ignores unknown buttons, and resends the letter and files it already generated for that language (in the same bot session) instead of paying for a new one when a button is tapped again. Taps made while the bot was off are processed when it starts. Each letter costs roughly $0.05 with Claude Opus 5.5. Its update offset is kept in `data/local/telegram-bot-offset.json`, so restarts do not replay old taps. Alerts sent before this feature have no buttons, and alerts sent with the earlier single button keep working (it maps to the auto language).
 
 ## Periodic local run on Windows
 

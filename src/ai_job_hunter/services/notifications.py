@@ -57,18 +57,23 @@ class NotificationProvider(Protocol):
 
 
 COVER_LETTER_CALLBACK_PREFIX = "cl:"
+COVER_LETTER_SPANISH_CALLBACK_PREFIX = "cles:"
 
 
 def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
-    """Inline button that asks the bot for a cover-letter draft (callback <= 64 bytes)."""
+    """Inline buttons that ask the bot for a cover-letter draft (callbacks <= 64 bytes)."""
 
     return {
         "inline_keyboard": [
             [
                 {
-                    "text": "✍️ Generar cover letter",
+                    "text": "✍️ Cover letter",
                     "callback_data": f"{COVER_LETTER_CALLBACK_PREFIX}{job_id}",
-                }
+                },
+                {
+                    "text": "🇪🇸 En español",
+                    "callback_data": f"{COVER_LETTER_SPANISH_CALLBACK_PREFIX}{job_id}",
+                },
             ]
         ]
     }

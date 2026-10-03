@@ -18,9 +18,13 @@ import httpx
 from pydantic import SecretStr
 
 from ai_job_hunter.services.cover_letters import CoverLetterDraft, CoverLetterError
-from ai_job_hunter.services.notifications import COVER_LETTER_CALLBACK_PREFIX
+from ai_job_hunter.services.notifications import (
+    COVER_LETTER_CALLBACK_PREFIX,
+    COVER_LETTER_SPANISH_CALLBACK_PREFIX,
+)
 
 MAX_MESSAGE_CHARS = 4000
+MAX_DOCUMENT_BYTES = 45 * 1024 * 1024
 _BACKOFF_START = 5.0
 _BACKOFF_MAX = 60.0
 
@@ -73,13 +77,31 @@ class TelegramBotClient:
         for chunk in split_text(text):
             self._call("sendMessage", {"chat_id": self._chat_id, "text": chunk})
 
-    def _call(self, method: str, data: dict[str, Any]) -> Any:
+    def send_document(self, path: Path, caption: str | None = None) -> bool:
+        """Upload one local file; returns False (nothing sent) when it is missing or too large."""
+
+        try:
+            if not path.is_file() or path.stat().st_size > MAX_DOCUMENT_BYTES:
+                return False
+            content = path.read_bytes()
+        except OSError:
+            return False
+        data: dict[str, Any] = {"chat_id": self._chat_id}
+        if caption:
+            data["caption"] = caption
+        self._call("sendDocument", data, files={"document": (path.name, content)})
+        return True
+
+    def _call(self, method: str, data: dict[str, Any], files: dict[str, Any] | None = None) -> Any:
         client = self._client or httpx.Client()
         should_close = self._client is None
         endpoint = f"https://api.telegram.org/bot{self._bot_token}/{method}"
         try:
             # Long polling keeps the request open past the Telegram-side timeout.
-            response = client.post(endpoint, data=data, timeout=self._timeout)
+            if files is None:
+                response = client.post(endpoint, data=data, timeout=self._timeout)
+            else:
+                response = client.post(endpoint, data=data, files=files, timeout=self._timeout)
         except httpx.HTTPError as error:
             # Never chain/format the httpx exception: it may contain the token URL.
             raise TelegramBotError(kind=type(error).__name__) from None
@@ -124,13 +146,21 @@ def split_text(text: str, limit: int = MAX_MESSAGE_CHARS) -> list[str]:
     return chunks or [""]
 
 
-def _parse_job_id(data: Any) -> UUID | None:
-    if not isinstance(data, str) or not data.startswith(COVER_LETTER_CALLBACK_PREFIX):
+def _parse_request(data: Any) -> tuple[UUID, str] | None:
+    """Return (job_id, language) for a cover-letter callback, else None."""
+
+    if not isinstance(data, str):
         return None
-    try:
-        return UUID(data[len(COVER_LETTER_CALLBACK_PREFIX):])
-    except ValueError:
-        return None
+    for prefix, language in (
+        (COVER_LETTER_CALLBACK_PREFIX, "auto"),
+        (COVER_LETTER_SPANISH_CALLBACK_PREFIX, "es"),
+    ):
+        if data.startswith(prefix):
+            try:
+                return UUID(data[len(prefix):]), language
+            except ValueError:
+                return None
+    return None
 
 
 def handle_update(
@@ -138,8 +168,8 @@ def handle_update(
     *,
     chat_id: str,
     bot: TelegramBotClient,
-    generate: Callable[[UUID], CoverLetterDraft],
-    generated: dict[UUID, CoverLetterDraft],
+    generate: Callable[[UUID, str], CoverLetterDraft],
+    generated: dict[tuple[UUID, str], CoverLetterDraft],
 ) -> str:
     """Handle one update and return "ignored", "generated", "failed" or "duplicate".
 
@@ -157,17 +187,19 @@ def handle_update(
     if origin is None or str(origin) != str(chat_id).strip():
         return "ignored"
     callback_id = str(callback.get("id", ""))
-    job_id = _parse_job_id(callback.get("data"))
-    if job_id is None:
+    request = _parse_request(callback.get("data"))
+    if request is None:
         _answer(bot, callback_id, "Acción no reconocida")
         return "ignored"
-    if job_id in generated:
+    job_id, language = request
+    key = (job_id, language)
+    if key in generated:
         _answer(bot, callback_id, "Ya la generé; te la reenvío")
-        _send_draft(bot, generated[job_id])
+        _send_draft(bot, generated[key])
         return "duplicate"
     _answer(bot, callback_id, "Generando cover letter…")
     try:
-        draft = generate(job_id)
+        draft = generate(job_id, language)
     except CoverLetterError as error:
         bot.send_text(f"No se pudo generar la cover letter: {error}")
         return "failed"
@@ -176,7 +208,7 @@ def handle_update(
             f"No se pudo generar la cover letter (error inesperado: {type(error).__name__})."
         )
         return "failed"
-    generated[job_id] = draft
+    generated[key] = draft
     _send_draft(bot, draft)
     return "generated"
 
@@ -196,6 +228,15 @@ def _send_draft(bot: TelegramBotClient, draft: CoverLetterDraft) -> None:
         "(Borrador: revísalo antes de usarlo. No se ha enviado a nadie.)\n\n"
         f"{draft.text}"
     )
+    for document in (draft.docx_path, draft.pdf_path):
+        if document is None:
+            continue
+        try:
+            bot.send_document(document)
+        except TelegramBotError:
+            pass  # The text is already delivered; a failed upload must not repeat the paid generation.
+    if draft.render_error:
+        bot.send_text("No se pudieron crear los archivos Word/PDF; el texto del borrador está arriba.")
 
 
 def load_offset(path: Path) -> int | None:
@@ -217,7 +258,7 @@ def run_bot(
     bot: TelegramBotClient,
     *,
     chat_id: str,
-    generate: Callable[[UUID], CoverLetterDraft],
+    generate: Callable[[UUID, str], CoverLetterDraft],
     offset_path: Path,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
@@ -225,7 +266,7 @@ def run_bot(
     """Long-poll until interrupted (or ``max_cycles`` polls, used by tests)."""
 
     offset = load_offset(offset_path)
-    generated: dict[UUID, CoverLetterDraft] = {}
+    generated: dict[tuple[UUID, str], CoverLetterDraft] = {}
     backoff = _BACKOFF_START
     cycles = 0
     while max_cycles is None or cycles < max_cycles:

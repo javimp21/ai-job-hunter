@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import base64
 import re
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import UUID
@@ -25,8 +25,23 @@ from ai_job_hunter.application_prep.models import CandidateDocument, CandidateDo
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.models import Job
+from ai_job_hunter.services.cover_letter_documents import render_docx, render_pdf
 
 COVER_LETTER_MODEL = "claude-opus-5-5"
+LANGUAGES = ("auto", "es", "en")
+_LANGUAGE_INSTRUCTIONS = {
+    "es": (
+        "Language override: write the letter in Spanish (natural peninsular Spanish, informal "
+        "tuteo unless the posting is very formal), regardless of the language of the posting."
+    ),
+    "en": "Language override: write the letter in English, regardless of the language of the posting.",
+}
+_SPANISH_HINTS = frozenset(
+    "el la los las de del que y en un una con por para es me su sus al lo se mi como más nuestro equipo trabajo experiencia".split()
+)
+_ENGLISH_HINTS = frozenset(
+    "the and of to in a is for with that this my your our team work experience i at on as".split()
+)
 DEFAULT_STYLE_GUIDE_PATH = Path("private/WRITING.md")
 DEFAULT_OUTPUT_DIR = Path("data/local/cover-letters")
 _MAX_DESCRIPTION_CHARS = 30_000
@@ -72,6 +87,10 @@ class CoverLetterDraft:
     model: str
     input_tokens: int | None
     output_tokens: int | None
+    language: str = "en"
+    docx_path: Path | None = None
+    pdf_path: Path | None = None
+    render_error: str | None = None
 
 
 def generate_cover_letter(
@@ -85,7 +104,10 @@ def generate_cover_letter(
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     client: MessagesClient | None = None,
     now: datetime | None = None,
+    language: str = "auto",
+    render_documents: bool = True,
 ) -> CoverLetterDraft:
+    _validate_language(language)
     job = session.scalar(
         select(Job)
         .options(joinedload(Job.company), selectinload(Job.sources))
@@ -105,6 +127,7 @@ def generate_cover_letter(
         candidate_facts=candidate_facts_for_letter(candidate, application_facts),
         style_guide=style_guide,
         cv_pdf=cv_pdf,
+        language=language,
     )
     active_client = client or _anthropic_client()
     try:
@@ -120,9 +143,12 @@ def generate_cover_letter(
         raise CoverLetterError("Claude returned an empty letter.")
 
     created = now or datetime.now(UTC)
-    path = _save_draft(output_dir, posting, text, getattr(response, "model", COVER_LETTER_MODEL), created)
+    resolved_language = language if language != "auto" else _detect_language(text)
+    path = _save_draft(
+        output_dir, posting, text, getattr(response, "model", COVER_LETTER_MODEL), created, resolved_language
+    )
     usage = getattr(response, "usage", None)
-    return CoverLetterDraft(
+    draft = CoverLetterDraft(
         job_id=job_id,
         company=posting["company"],
         title=posting["title"],
@@ -131,7 +157,45 @@ def generate_cover_letter(
         model=getattr(response, "model", COVER_LETTER_MODEL),
         input_tokens=getattr(usage, "input_tokens", None),
         output_tokens=getattr(usage, "output_tokens", None),
+        language=resolved_language,
     )
+    if not render_documents:
+        return draft
+    return _with_documents(draft, application_facts, created.date())
+
+
+def _with_documents(draft: CoverLetterDraft, applicant: CandidateApplicationFacts, today: date) -> CoverLetterDraft:
+    """Render Word and PDF copies; a failure never loses the saved text draft."""
+
+    docx_path: Path | None = None
+    pdf_path: Path | None = None
+    errors: list[str] = []
+    try:
+        docx_path = render_docx(draft, applicant, draft.path.with_suffix(".docx"), today=today)
+    except Exception as error:  # noqa: BLE001 - report the type only
+        errors.append(f"docx ({type(error).__name__})")
+    try:
+        pdf_path = render_pdf(draft, applicant, draft.path.with_suffix(".pdf"), today=today)
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"pdf ({type(error).__name__})")
+    return replace(
+        draft,
+        docx_path=docx_path,
+        pdf_path=pdf_path,
+        render_error=("Could not render " + ", ".join(errors)) if errors else None,
+    )
+
+
+def _validate_language(language: str) -> None:
+    if language not in LANGUAGES:
+        raise ValueError(f"language must be one of {', '.join(LANGUAGES)}; got {language!r}.")
+
+
+def _detect_language(text: str) -> str:
+    words = re.findall(r"[a-záéíóúñ]+", text.casefold())
+    spanish = sum(word in _SPANISH_HINTS for word in words)
+    english = sum(word in _ENGLISH_HINTS for word in words)
+    return "es" if spanish > english else "en"
 
 
 def build_cover_letter_request(
@@ -140,9 +204,12 @@ def build_cover_letter_request(
     candidate_facts: dict[str, Any],
     style_guide: str,
     cv_pdf: bytes | None,
+    language: str = "auto",
 ) -> dict[str, Any]:
     """Build the Messages API request; pure so prompts can be tested offline."""
 
+    _validate_language(language)
+    instruction = _LANGUAGE_INSTRUCTIONS.get(language)
     content: list[dict[str, Any]] = []
     if cv_pdf is not None:
         content.append({
@@ -159,7 +226,8 @@ def build_cover_letter_request(
         "text": (
             "<candidate_facts>\n" + _as_lines(candidate_facts) + "\n</candidate_facts>\n\n"
             "<job_posting>\n" + _as_lines(posting) + "\n</job_posting>\n\n"
-            "Write the cover letter for this job."
+            + (f"{instruction}\n\n" if instruction else "")
+            + "Write the cover letter for this job."
         ),
     })
     return {
@@ -239,14 +307,17 @@ def _as_lines(values: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _save_draft(output_dir: Path, posting: dict[str, Any], text: str, model: str, created: datetime) -> Path:
+def _save_draft(
+    output_dir: Path, posting: dict[str, Any], text: str, model: str, created: datetime, language: str
+) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     slug = _slug(f"{posting['company']}-{posting['title']}")[:80]
-    path = output_dir / f"{created:%Y%m%d-%H%M%S}-{slug}.md"
+    path = output_dir / f"{created:%Y%m%d-%H%M%S}-{slug}-{language}.md"
     header = [
         f"# {posting['company']} — {posting['title']}",
         "",
         f"- Generated: {created.isoformat(timespec='seconds')} with {model}",
+        f"- Language: {language}",
     ]
     if posting.get("url"):
         header.append(f"- Posting: {posting['url']}")

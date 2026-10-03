@@ -499,9 +499,10 @@ def test_each_alert_is_sent_with_a_cover_letter_button(db_session, monkeypatch):
     send_notifications(db_session, _candidate(), provider)
 
     assert provider.markups == [cover_letter_keyboard(job.id)]
-    button = provider.markups[0]["inline_keyboard"][0][0]
-    assert button["callback_data"] == f"cl:{job.id}"
-    assert len(button["callback_data"].encode()) <= 64
+    row = provider.markups[0]["inline_keyboard"]
+    assert len(row) == 1 and [button["text"] for button in row[0]] == ["✍️ Cover letter", "🇪🇸 En español"]
+    assert [button["callback_data"] for button in row[0]] == [f"cl:{job.id}", f"cles:{job.id}"]
+    assert all(len(button["callback_data"].encode()) <= 64 for button in row[0])
 
 
 def test_telegram_provider_posts_reply_markup_as_json():

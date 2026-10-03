@@ -29,6 +29,8 @@ jev = [
 ]
 llm = [
     "anthropic>=1,<2",
+    "python-docx>=1.1,<2",
+    "reportlab>=4,<5",
 ]
 browser = [
     "playwright>=1.48,<2",
