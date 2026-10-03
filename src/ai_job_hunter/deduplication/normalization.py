@@ -46,6 +46,9 @@ _TITLE_ALIASES = {
     "praktikum": "intern",
     "praktikant": "intern",
     "werkstudent": "intern",
+    # Executive titles sit at the top of the seniority scale.
+    "chief": "head",
+    "vp": "head",
     "becario": "intern",
     "becaria": "intern",
 }

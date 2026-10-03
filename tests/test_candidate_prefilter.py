@@ -785,3 +785,19 @@ def test_americas_only_remote_region_excludes_spain() -> None:
     )
 
     assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+
+
+def test_us_time_zone_restriction_is_united_states() -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location="Eastern Time zone", remote_policy="REMOTE", remote_eligibility="UNKNOWN"),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+
+
+@pytest.mark.parametrize("title", ["Chief Technology Officer", "VP of Engineering"])
+def test_executive_titles_are_above_mid_seniority(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config(preferences={"maximum_seniority": "MID"}))
+
+    assert result.signals.seniority.status is SignalStatus.INCOMPATIBLE

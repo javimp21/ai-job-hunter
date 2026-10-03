@@ -1029,7 +1029,8 @@ _US_STATE_SUFFIX = re.compile(
 _US_CITY = re.compile(
     r"\b(?:san francisco|sf\s+office|new york|nyc|los angeles|seattle|austin|boston|chicago|denver|"
     r"palo alto|mountain view|menlo park|san jose|san diego|washington,?\s+d\.?c\.?|atlanta|miami|"
-    r"brooklyn|redmond|cambridge,\s*ma)\b"
+    r"brooklyn|redmond|cambridge,\s*ma|eastern time|pacific time|central time|mountain time|"
+    r"us time ?zones?|(?:est|pst|cst)\s*(?:time ?zone|hours))\b"
 )
 
 
