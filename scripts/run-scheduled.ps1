@@ -42,6 +42,17 @@ if (-not (Test-Path $exe)) { $exe = Join-Path $root ".venv\Scripts\ai-job-hunter
     Out-File -FilePath $log -Append -Encoding utf8
 $code = $LASTEXITCODE
 "exit=$code" | Out-File -FilePath $log -Append -Encoding utf8
+if (-not $DryRun -and (Get-Date).Hour -ge 22) {
+    # Last run of the day: keep a database backup (newest 14 kept).
+    try {
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "scripts\backup-db.ps1") 2>&1 |
+            ForEach-Object { "$_" } | Out-File -FilePath $log -Append -Encoding utf8
+        if ($LASTEXITCODE -ne 0) { $code = 1 }
+    } catch {
+        "backup failed: $($_.Exception.Message)" | Out-File -FilePath $log -Append -Encoding utf8
+        $code = 1
+    }
+}
 if ($code -ne 0 -and -not $DryRun) {
     # A failed run must not go unnoticed: send a short Telegram notice.
     $notice = "La busqueda programada de las $(Get-Date -Format 'HH:mm') fallo (codigo $code). Detalles en data\local\logs\run-$(Get-Date -Format 'yyyy-MM').log"
