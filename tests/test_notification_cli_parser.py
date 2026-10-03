@@ -60,3 +60,14 @@ def test_run_exposes_bounded_refresh_notification_and_safety_controls():
     assert args.no_notifications is True
     assert args.dry_run is True
     assert args.candidate_config == DEFAULT_CANDIDATE_CONFIG
+
+
+def test_notify_system_requires_text(capsys):
+    import pytest
+
+    from ai_job_hunter.cli import main
+
+    with pytest.raises(SystemExit) as error:
+        main(["notify", "system"])
+    assert error.value.code == 2
+    capsys.readouterr()

@@ -42,4 +42,9 @@ if (-not (Test-Path $exe)) { $exe = Join-Path $root ".venv\Scripts\ai-job-hunter
     Out-File -FilePath $log -Append -Encoding utf8
 $code = $LASTEXITCODE
 "exit=$code" | Out-File -FilePath $log -Append -Encoding utf8
+if ($code -ne 0 -and -not $DryRun) {
+    # A failed run must not go unnoticed: send a short Telegram notice.
+    $notice = "La busqueda programada de las $(Get-Date -Format 'HH:mm') fallo (codigo $code). Detalles en data\local\logs\run-$(Get-Date -Format 'yyyy-MM').log"
+    & $exe notify system --text $notice 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath $log -Append -Encoding utf8
+}
 exit $code

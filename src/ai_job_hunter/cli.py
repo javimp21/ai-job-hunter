@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -139,6 +140,10 @@ def _add_notification_and_run_parsers(subparsers) -> None:
         "retry-failed", help="retry notifications whose delivery is safe to retry"
     )
     retry.add_argument("--limit", type=int, default=20)
+    system = notification_commands.add_parser(
+        "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
+    )
+    system.add_argument("--text", required=True)
     for command_parser in notification_commands.choices.values():
         command_parser.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
@@ -1155,6 +1160,19 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         rows = list_notification_history(session, limit=args.limit)
         print(f"NOTIFICATION HISTORY: {len(rows)}")
         _print_notification_rows(rows)
+        return 0
+    if command == "system":
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; system message not sent.", file=sys.stderr)
+            return 1
+        text = " ".join(args.text.split())[:500]
+        try:
+            provider.send_message("⚙️ " + html.escape(text, quote=False))
+        except Exception as error:  # never echo provider details
+            print(f"System message failed ({type(error).__name__}).", file=sys.stderr)
+            return 1
+        print("System message sent.")
         return 0
     if command == "send" and args.dry_run:
         previews = preview_notifications(
