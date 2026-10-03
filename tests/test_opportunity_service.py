@@ -91,7 +91,7 @@ def _offer(
         title=title,
         company_name="Acme",
         company_website="https://acme.example.test",
-        description=description or ("Build and operate Python backend services. " * 50),
+        description="Minimum 0 years of professional experience required.\n" + (description or ("Build and operate Python backend services. " * 50)),
         location=location,
         remote_policy=remote_policy,
         remote_eligibility=remote_eligibility,
@@ -365,7 +365,8 @@ def test_repeated_refresh_reuses_persisted_evaluation_and_changed_snapshot_is_st
     )
     assert len(stale) == 1
     assert stale[0].evaluation_is_stale is True
-    assert stale[0].deterministic_result is None
+    assert stale[0].deterministic_result is not None  # current deterministic evidence, not stale Jev
+    assert stale[0].experience is not None
     assert stale[0].review_state is HumanReviewStatus.SAVED
 
 

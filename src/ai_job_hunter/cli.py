@@ -1180,7 +1180,7 @@ def _print_refresh_summary(summary: RefreshSummary) -> None:
 
 
 def _print_opportunity(item: Opportunity, *, show_company_facts: bool = False) -> None:
-    if item.evaluation_is_stale:
+    if item.evaluation_is_stale and item.decision is not FinalDecision.SKIP:
         decision = "STALE"
     elif item.decision is not None:
         decision = item.decision.value
@@ -1207,7 +1207,13 @@ def _print_opportunity(item: Opportunity, *, show_company_facts: bool = False) -
     if item.salary_min is not None or item.salary_max is not None:
         salary = f"{item.salary_min or '?'}–{item.salary_max or '?'} {item.currency or ''} / {item.salary_period or 'period unknown'}".strip()
     print(f"Salary: {salary}")
-    if item.deterministic_result and not item.evaluation_is_stale:
+    if item.experience is not None:
+        print(f"Experience: {item.experience.requirement_display} | {item.experience.outcome.value}")
+        if item.experience.shortfall_years is not None:
+            print(f"Experience shortfall: {item.experience.shortfall_years} years (local profile comparison)")
+        for evidence in item.experience.evidence:
+            print(f"  - Experience evidence: {evidence}")
+    if item.deterministic_result:
         print(f"Prefilter: {item.deterministic_result.get('decision', 'UNKNOWN')}")
         _print_prefilter_signals(item.deterministic_result)
         for reason in item.deterministic_result.get("reasons", []):

@@ -107,6 +107,12 @@ class CandidatePreferences(BaseModel):
     minimum_seniority: SeniorityLevel | None = None
     maximum_seniority: SeniorityLevel | None = None
     international_remote_openness: bool = True
+    experience_floor_shortfall_tolerance: Decimal = Field(
+        default=Decimal("2"), ge=0, max_digits=5, decimal_places=2
+    )
+    experience_range_shortfall_tolerance: Decimal = Field(
+        default=Decimal("1"), ge=0, max_digits=5, decimal_places=2
+    )
 
     @field_validator("salary_currency", mode="before")
     @classmethod

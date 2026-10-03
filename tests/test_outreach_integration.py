@@ -39,7 +39,7 @@ def _persist_evaluated_job(session, *, decision: FinalDecision, role: float = 0.
     job = Job(
         company=company,
         title="Backend Engineer",
-        description="Build backend APIs using Python and PostgreSQL.",
+        description="Minimum 0 years of professional experience required. Build backend APIs using Python and PostgreSQL.",
         location="Madrid, Spain",
         remote_policy="REMOTE",
     )

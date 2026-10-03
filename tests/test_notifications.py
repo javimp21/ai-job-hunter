@@ -369,11 +369,14 @@ def test_telegram_provider_returns_message_id_and_redacts_provider_errors():
     assert token not in str(error.value)
 
 
-def test_pending_history_and_stale_evaluations(db_session, monkeypatch):
+@pytest.mark.parametrize("decision", [FinalDecision.APPLY, FinalDecision.REVIEW])
+def test_pending_history_and_stale_apply_or_high_priority_review_are_excluded(
+    db_session, monkeypatch, decision
+):
     job, _ = _seed_evaluation(db_session)
     _install_opportunities(
         monkeypatch,
-        [_opportunity(job.id, FinalDecision.APPLY, 81, stale=True)],
+        [_opportunity(job.id, decision, 100, stale=True)],
     )
     assert preview_notifications(db_session, _candidate()) == []
     assert list_pending_notifications(db_session) == []

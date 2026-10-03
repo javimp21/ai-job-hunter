@@ -23,6 +23,7 @@ from ai_job_hunter.candidates import (
     PreFilterDecision,
     evaluate_job,
 )
+from ai_job_hunter.candidates.experience import EXPERIENCE_POLICY_VERSION, ExperienceOutcome
 from ai_job_hunter.deduplication.normalization import is_job_specific_url, normalize_job_url
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 from ai_job_hunter.rubric import RUBRIC_SPEC, RUBRIC_VERSION
@@ -45,6 +46,7 @@ class ReviewReasonCode(StrEnum):
     LOCATION_UNCERTAIN = "LOCATION_UNCERTAIN"
     COMPENSATION_UNKNOWN = "COMPENSATION_UNKNOWN"
     EXPERIENCE_BORDERLINE = "EXPERIENCE_BORDERLINE"
+    EXPERIENCE_UNKNOWN = "EXPERIENCE_UNKNOWN"
     ROLE_FAMILY_UNCERTAIN = "ROLE_FAMILY_UNCERTAIN"
     INSUFFICIENT_DESCRIPTION = "INSUFFICIENT_DESCRIPTION"
     STACK_UNCERTAIN = "STACK_UNCERTAIN"
@@ -656,6 +658,20 @@ def _decision_result(
     policy_version: str = POLICY_VERSION_V1,
     review_reasons: tuple[StructuredReviewReason, ...] = (),
 ) -> JobDecisionResult:
+    experience = context.deterministic.signals.experience
+    if context.deterministic.decision is PreFilterDecision.REJECT:
+        decision = FinalDecision.SKIP
+        reasons = context.deterministic.reasons
+    elif decision is FinalDecision.APPLY and experience.outcome is not ExperienceOutcome.MEETS:
+        decision = FinalDecision.REVIEW
+        reason = StructuredReviewReason(
+            code=(ReviewReasonCode.EXPERIENCE_BORDERLINE
+                  if experience.outcome is ExperienceOutcome.STRETCH
+                  else ReviewReasonCode.EXPERIENCE_UNKNOWN),
+            message=experience.reason + " " + experience.requirement_display,
+        )
+        reasons = (reason.message, *reasons)
+        review_reasons = (reason, *review_reasons)
     return JobDecisionResult(
         final_decision=decision,
         reasons=reasons,
@@ -706,8 +722,15 @@ def evaluate_job_decision(
         cached_result = cache.get(key)
         if cached_result is not None:
             if cached_result.jev_answers is None:
+                # A cached final recommendation without reusable evidence is
+                # never authority to bypass today's explicit experience gate.
+                experience = context.deterministic.signals.experience
+                decision = cached_result.final_decision
+                if decision is FinalDecision.APPLY and experience.outcome is not ExperienceOutcome.MEETS:
+                    decision = FinalDecision.REVIEW
                 return cached_result.model_copy(
-                    update={"cache_hit": True, "policy_version": policy_version}
+                    update={"cache_hit": True, "policy_version": policy_version,
+                            "final_decision": decision}
                 )
             cached_evidence = DecisionEvidence(
                 answers=cached_result.jev_answers,
@@ -900,6 +923,7 @@ def _job_state_for_cache(context: JobDecisionContext) -> dict[str, object]:
         "currency": offer.currency,
         "salary_period": offer.salary_period.value if offer.salary_period else None,
         "facts": {
+            "experience_policy_version": EXPERIENCE_POLICY_VERSION,
             "inferred_seniority": context.facts.inferred_seniority.value,
             "technologies": context.facts.technologies,
             "required_technologies": context.facts.required_technologies,

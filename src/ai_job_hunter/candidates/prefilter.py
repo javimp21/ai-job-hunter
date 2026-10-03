@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Iterable
 
+from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome, assess_experience
 from ai_job_hunter.candidates.facts import JobFacts
 from ai_job_hunter.candidates.profile import (
     CandidateConfig,
@@ -81,6 +82,7 @@ class JobPreFilterSignals:
     preferred_role: SignalAssessment
     preferred_location: SignalAssessment
     technology: TechnologyMatch
+    experience: ExperienceAssessment
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,6 +267,12 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     role = _evaluate_role(facts.title, preferences)
     location = _evaluate_preferred_location(facts.location, preferences)
     technology = _evaluate_technology(facts, profile, preferences)
+    experience = assess_experience(
+        facts.experience_requirements,
+        profile.years_of_experience,
+        floor_shortfall_tolerance=preferences.experience_floor_shortfall_tolerance,
+        range_shortfall_tolerance=preferences.experience_range_shortfall_tolerance,
+    )
 
     signals = JobPreFilterSignals(
         geography=geography,
@@ -275,9 +283,14 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
         preferred_role=role,
         preferred_location=location,
         technology=technology,
+        experience=experience,
     )
     hard_mismatches: list[str] = []
     review_reasons: list[str] = []
+    if experience.outcome is ExperienceOutcome.INCOMPATIBLE:
+        hard_mismatches.append(experience.reason + " " + experience.requirement_display)
+    elif experience.outcome is not ExperienceOutcome.MEETS:
+        review_reasons.append(experience.reason + " " + experience.requirement_display)
 
     unrelated_role = _clearly_non_technical_role(facts.title)
     if unrelated_role:

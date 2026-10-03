@@ -53,7 +53,7 @@ def _context() -> JobDecisionContext:
             "source_url": "https://remotive.com/remote-jobs/software/comparison-1",
             "title": "Backend Engineer",
             "company_name": "Example Systems",
-            "description": "A detailed backend role with responsibilities and requirements. " * 50,
+            "description": "Minimum 0 years of professional experience required.\n" + "A detailed backend role with responsibilities and requirements. " * 50,
             "location": "Worldwide",
             "remote_policy": "REMOTE",
             "remote_eligibility": "WORLDWIDE",

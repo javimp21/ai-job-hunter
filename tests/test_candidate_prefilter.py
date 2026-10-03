@@ -391,8 +391,8 @@ def test_role_match_does_not_match_only_on_generic_engineer_token() -> None:
 
 
 def test_pass_review_and_reject_decisions_are_explainable() -> None:
-    candidate = make_config(preferences={"preferred_roles": ["Backend Engineer"]})
-    passed = evaluate_job(facts_for(), candidate)
+    candidate = make_config(profile={"years_of_experience": 1}, preferences={"preferred_roles": ["Backend Engineer"]})
+    passed = evaluate_job(facts_for(description="1 year of professional experience required. Build APIs with Python."), candidate)
     reviewed = evaluate_job(
         facts_for(remote_eligibility="UNKNOWN", location=None, salary_min=None, salary_max=None),
         candidate,

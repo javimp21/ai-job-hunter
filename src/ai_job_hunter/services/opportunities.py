@@ -29,6 +29,7 @@ from ai_job_hunter.candidates import (
     PreFilterDecision,
     evaluate_job,
 )
+from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.factory import build_job_connectors
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
@@ -90,7 +91,7 @@ from ai_job_hunter.rubric import RUBRIC_SPEC
 
 _ENGINE_NAME = "typesafe-jev"
 _DETERMINISTIC_ENGINE_NAME = "deterministic-prefilter"
-_PREFILTER_VERSION = "candidate-prefilter-v2"
+_PREFILTER_VERSION = "candidate-prefilter-v3-experience"
 _REASON_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
 _APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
     ApplicationStatus.DRAFT: frozenset({ApplicationStatus.APPLIED, ApplicationStatus.WITHDRAWN}),
@@ -167,6 +168,7 @@ class Opportunity:
     company_facts: CompanyFacts | None = None
     outreach_recommendation: OutreachRecommendation = OutreachRecommendation.NO_OUTREACH
     evaluation_fingerprint: str | None = None
+    experience: ExperienceAssessment | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,8 +341,14 @@ def refresh_opportunities(
     jev_calls = 0
     for item in prepared:
         existing = _evaluation_for_fingerprint(session, item)
-        if existing is not None and existing[0] == EvaluationStatus.EVALUATED.value:
+        if (
+            existing is not None
+            and existing[0] == EvaluationStatus.EVALUATED.value
+            and item.context.deterministic.decision is not PreFilterDecision.REJECT
+        ):
             saved_decision = existing[1]
+            if saved_decision == FinalDecision.APPLY.value and item.context.deterministic.signals.experience.outcome is not ExperienceOutcome.MEETS:
+                saved_decision = FinalDecision.REVIEW.value
             session.rollback()
             _count_decision(summary, saved_decision)
             continue
@@ -566,6 +574,13 @@ def list_opportunities(
             if evaluation is not None and evaluation.decision is not None and not stale
             else None
         )
+        # Project current deterministic gates even when historical semantic
+        # evidence is stale. Do not mutate/reuse historical final decisions.
+        experience = snapshot.context.deterministic.signals.experience
+        if snapshot.context.deterministic.decision is PreFilterDecision.REJECT:
+            final_decision = FinalDecision.SKIP
+        elif final_decision is FinalDecision.APPLY and experience.outcome is not ExperienceOutcome.MEETS:
+            final_decision = FinalDecision.REVIEW
         if (
             decision is None
             and status is None
@@ -609,7 +624,8 @@ def list_opportunities(
             review_state=effective_status,
             application_status=app_status,
             priority=score,
-            deterministic_result=evaluation.deterministic_result if evaluation and not stale else None,
+            deterministic_result=_prefilter_payload(snapshot.context.deterministic),
+            experience=experience,
             jev_signals=answers if isinstance(answers, dict) else None,
             jev_reasons=evaluation.jev_reasons if evaluation and not stale else None,
             company_facts=company_facts(job.company) if job.company is not None else None,
@@ -1278,6 +1294,13 @@ def _prefilter_payload(result: JobPreFilterResult) -> dict[str, Any]:
             "geography": {"status": signals.geography.status.value, "reason": signals.geography.reason},
             "salary": {"evaluation": signals.salary.evaluation.value, "reason": signals.salary.reason},
             "seniority": {"status": signals.seniority.status.value, "reason": signals.seniority.reason},
+            "experience": {
+                "outcome": signals.experience.outcome.value,
+                "requirements": signals.experience.requirement_display,
+                "reason": signals.experience.reason,
+                "shortfall_years": _canonical_decimal(signals.experience.shortfall_years),
+                "evidence": list(signals.experience.evidence),
+            },
             "employment_type": {"status": signals.employment_type.status.value, "reason": signals.employment_type.reason},
             "remote_preference": {"status": signals.remote_preference.status.value, "reason": signals.remote_preference.reason},
             "preferred_role": {"status": signals.preferred_role.status.value, "reason": signals.preferred_role.reason},

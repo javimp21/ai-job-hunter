@@ -9,6 +9,10 @@ from ai_job_hunter.application_prep.models import (
     CandidateFit,
     CandidateFitStatus,
     JobApplicationRequirement,
+    RequirementCategory,
+)
+from ai_job_hunter.candidates.experience import (
+    ExperienceExpressionKind, ExperienceStrength, extract_experience_requirements,
 )
 from ai_job_hunter.candidates.profile import CandidateConfig
 from ai_job_hunter.candidates.technologies import normalize_technology
@@ -29,7 +33,6 @@ _KNOWN_SKILLS = (
 _ROLE_TERMS = frozenset(
     {"backend", "frontend", "fullstack", "software", "engineer", "developer", "platform", "data", "devops", "api"}
 )
-_YEAR_RE = re.compile(r"\b(?:at least\s+)?(\d+(?:\.\d+)?)\s*\+?\s+years?\b", re.I)
 
 
 def _normal(value: str) -> str:
@@ -127,9 +130,22 @@ def _project_skill_evidence(
     return None, ()
 
 
-def _min_years(requirement: str) -> float | None:
-    match = _YEAR_RE.search(requirement)
-    return float(match.group(1)) if match else None
+def _min_years(requirement: str) -> tuple[float, bool] | None:
+    requirements = extract_experience_requirements(requirement)
+    # Share range/bound parsing with discovery. An upper bound is not a
+    # minimum, and optional/ambiguous clauses cannot establish a hard gap.
+    minima = [
+        item for item in requirements
+        if item.strength is ExperienceStrength.MANDATORY
+        and item.kind in {ExperienceExpressionKind.FLOOR, ExperienceExpressionKind.RANGE}
+        and item.minimum_years is not None
+        and not item.minimum_exclusive
+        and (item.maximum_years is None or item.minimum_years <= item.maximum_years)
+    ]
+    if not minima:
+        return None
+    minimum = max(item.minimum_years for item in minima)
+    return float(minimum), any(item.scope_specific for item in minima)
 
 
 def map_candidate_fit(
@@ -197,7 +213,8 @@ def map_candidate_fit(
             }.values())
         supported_skills = _dedupe((*direct_skills, *project_skills))
 
-        year_minimum = _min_years(text)
+        year_requirement = _min_years(text) if requirement.category is RequirementCategory.MUST_HAVE else None
+        year_minimum, scoped_years = year_requirement if year_requirement is not None else (None, False)
         known_years = float(profile.years_of_experience) if profile.years_of_experience is not None else None
         role_matches = [term for term in role_terms if _contains(text, term)]
         evidence: list[str] = []
@@ -221,6 +238,9 @@ def map_candidate_fit(
                 # Other matching skills can show partial alignment, while the
                 # unmet explicit duration remains a clear gap.
                 status = CandidateFitStatus.PARTIAL_MATCH if supported_skills or role_matches else CandidateFitStatus.MISSING
+            elif scoped_years:
+                status = CandidateFitStatus.UNKNOWN
+                evidence.append("Configured total career years do not verify the duration in this specific role or technology.")
             else:
                 status = CandidateFitStatus.MATCH
         elif required_skills:

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from ai_job_hunter.candidates.experience import ExperienceRequirement, extract_experience_requirements
 from ai_job_hunter.candidates.profile import SENIORITY_ORDER, SeniorityLevel
 from ai_job_hunter.candidates.technologies import extract_job_technologies
 from ai_job_hunter.deduplication.normalization import normalize_job_title
@@ -55,6 +56,7 @@ class JobFacts:
     currency: str | None
     salary_period: SalaryPeriod | None
     employment_type: EmploymentType | None
+    experience_requirements: tuple[ExperienceRequirement, ...] = ()
 
     @classmethod
     def from_normalized_job(cls, offer: NormalizedJob) -> JobFacts:
@@ -137,6 +139,7 @@ class JobFacts:
             currency=currency.upper() if currency else None,
             salary_period=_enum_value(SalaryPeriod, salary_period),
             employment_type=_enum_value(EmploymentType, employment_type),
+            experience_requirements=extract_experience_requirements(description),
         )
 
 

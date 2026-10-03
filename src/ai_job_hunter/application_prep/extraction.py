@@ -461,6 +461,14 @@ def _classify_requirement(text: str, section: RequirementCategory) -> tuple[Requ
     if any(cue in normalized for cue in administrative_or_legal_disclosures):
         return RequirementCategory.UNKNOWN, "unknown"
 
+    # Section provenance outranks the bare numeric-years heuristic.
+    if section is RequirementCategory.PREFERRED:
+        return (
+            (RequirementCategory.PREFERRED, "section")
+            if _looks_like_qualification(text)
+            else (RequirementCategory.UNKNOWN, "unknown")
+        )
+
     must_cues = (
         r"\bmust\b",
         r"\brequired\b",
@@ -474,12 +482,6 @@ def _classify_requirement(text: str, section: RequirementCategory) -> tuple[Requ
     if any(re.search(cue, normalized) for cue in must_cues):
         return RequirementCategory.MUST_HAVE, "explicit"
 
-    if section is RequirementCategory.PREFERRED:
-        return (
-            (RequirementCategory.PREFERRED, "section")
-            if _looks_like_qualification(text)
-            else (RequirementCategory.UNKNOWN, "unknown")
-        )
     if section is RequirementCategory.BENEFIT:
         return RequirementCategory.BENEFIT, "section"
     if section is RequirementCategory.RESPONSIBILITY:

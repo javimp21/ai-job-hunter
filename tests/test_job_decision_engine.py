@@ -60,6 +60,10 @@ def sample_offer(**overrides: object) -> NormalizedJob:
         "salary_period": "YEAR",
     }
     values.update(overrides)
+    # These fixtures isolate semantic-policy thresholds; explicit numeric fit
+    # is tested independently in test_experience.py.
+    if values.get("description"):
+        values["description"] = "Minimum 0 years of professional experience required.\n" + str(values["description"])
     return NormalizedJob.model_validate(values)
 
 

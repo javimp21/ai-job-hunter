@@ -85,6 +85,48 @@ def test_explicit_minimum_years_uses_known_experience(years, expected):
     assert any("requirement states at least 5 years" in item for item in fit.evidence)
 
 
+def test_range_uses_lower_endpoint_not_tail_and_upper_bound_is_not_minimum():
+    fit = map_candidate_fit(
+        [_requirement("range", "3 to 5 years of experience")], _candidate(years=Decimal("3"))
+    )[0]
+    assert fit.status is CandidateFitStatus.MATCH
+    assert any("at least 3 years" in item for item in fit.evidence)
+    upper = map_candidate_fit(
+        [_requirement("upper", "Less than two years of experience")], _candidate(years=Decimal("1"))
+    )[0]
+    assert upper.status is CandidateFitStatus.UNKNOWN  # not a false two-year minimum gap
+
+
+def test_preferred_years_cannot_be_a_mandatory_missing_requirement():
+    requirement = _requirement("preferred", "5+ years of experience").model_copy(
+        update={"category": RequirementCategory.PREFERRED}
+    )
+    fit = map_candidate_fit([requirement], _candidate(years=Decimal("1")))[0]
+    assert fit.status is CandidateFitStatus.UNKNOWN
+    assert fit.candidate_experience is None
+
+
+def test_preferred_section_numeric_years_preserves_category():
+    from ai_job_hunter.application_prep.extraction import extract_job_requirements
+    requirements = extract_job_requirements("Nice to have\n5+ years of experience")
+    assert requirements[0].category is RequirementCategory.PREFERRED
+    fits = map_candidate_fit(requirements, _candidate(years=Decimal("1")))
+    assert fits[0].status is CandidateFitStatus.UNKNOWN
+
+
+def test_exclusive_floor_is_not_claimed_as_inclusive_minimum():
+    fit = map_candidate_fit([_requirement("exclusive", "More than 3 years of experience")], _candidate(years=Decimal("3")))[0]
+    assert fit.status is CandidateFitStatus.UNKNOWN
+
+
+@pytest.mark.parametrize("years,expected", [(Decimal("5"), CandidateFitStatus.UNKNOWN), (Decimal("1"), CandidateFitStatus.MISSING)])
+def test_total_experience_cannot_prove_java_duration(years, expected):
+    fit = map_candidate_fit([_requirement("java-years", "3 years of Java experience required")], _candidate(years=years))[0]
+    assert fit.status is expected
+    if expected is CandidateFitStatus.UNKNOWN:
+        assert any("do not verify" in item for item in fit.evidence)
+
+
 def test_project_technology_can_support_fit_with_named_evidence():
     project = CandidateProject(
         name="API service",

@@ -16,7 +16,7 @@ def test_candidate_config_cli_prints_a_prefilter_summary_offline(monkeypatch, ca
             provider="remotive",
             title="Senior Backend Engineer",
             company_name="Fictional Systems",
-            description="Must have Python experience.",
+            description="Minimum 0 years of professional experience required. Must have Python experience.",
             location="Spain",
             source_url="https://remotive.com/remote-jobs/software/fictional-101",
             remote_policy="REMOTE",

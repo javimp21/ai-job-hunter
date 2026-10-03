@@ -23,6 +23,23 @@ Respect current configured constraints for:
 
 Inspect current configuration before changing them.
 
+## Explicit experience requirements
+
+Experience years are extracted conservatively from public descriptions, independently of title seniority. Explicit upper bounds such as “up to 3 years” are not treated as minimum requirements. Section headings such as `Requirements`, `Required experience`, `Desired qualifications` and `Additional qualifications` preserve mandatory versus preferred provenance. The comparison runs before Jev and is rechecked when displaying cached opportunities or selecting notifications.
+
+Candidate preferences configure two non-negative, candidate-relative tolerances:
+
+- `experience_floor_shortfall_tolerance`: **2 years** by default;
+- `experience_range_shortfall_tolerance`: **1 year** by default.
+
+For a candidate with one year, a mandatory minimum of `3` or `3+` years is a **STRETCH / REVIEW**, while `3–5`, `3 to 5+`, or a minimum of `4+` years is **SKIP**. The stricter range tolerance is a search preference, not a claim that hiring requirements are universally rigid. Range upper endpoints are not automatically disqualifying maximums; an explicit “less than two years” is an upper bound, not a two-year minimum.
+
+Preferred/nice-to-have years never become mandatory constraints. Missing/ambiguous experience, unknown candidate tenure, and unverified experience in a particular role/technology remain **UNKNOWN**. Both STRETCH and UNKNOWN cap the final decision at REVIEW, even with strong Jev signals; numeric fit never overrides other hard constraints.
+
+The local feed shows the public requirement, evidence and any numerical shortfall. Telegram includes public requirements and generic concerns, never the candidate's years or numerical personal gap. UNKNOWN reviews are not globally hidden by this change.
+
+Historical evaluations and notification ledger rows are preserved. The new prefilter version invalidates old semantic decisions; incompatible current requirements can still produce a read-only SKIP projection. Other legacy results remain STALE until a normal authorized evaluation/cache hit replaces them. No unproven legacy evidence migration or automatic external reevaluation is performed. `refresh --no-jev` still fetches live boards; it is not an offline backfill command.
+
 ## Priority
 
 `priority` means review priority.

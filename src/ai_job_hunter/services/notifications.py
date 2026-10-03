@@ -31,6 +31,7 @@ from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 TELEGRAM_CHANNEL = "TELEGRAM"
 _REASON_LABELS = {
     "EXPERIENCE_BORDERLINE": "Experience fit needs a closer look",
+    "EXPERIENCE_UNKNOWN": "Required experience is not verified",
     "ROLE_FAMILY_UNCERTAIN": "Role and backend fit need review",
     "STACK_UNCERTAIN": "Technology fit needs review",
     "COMPENSATION_UNKNOWN": "Salary details are missing",
@@ -717,6 +718,10 @@ def format_notification_message(item: Opportunity) -> str:
     if technologies:
         labels = [_clean_label(technology, 45) for technology in technologies[:5]]
         lines.append("Technologies: " + ", ".join(labels))
+    if item.experience is not None:
+        lines.append("Experience: " + _clean_label(item.experience.public_summary, 600))
+    else:
+        lines.append("Experience: UNKNOWN")
     if item.priority is not None:
         lines.append(f"Priority: {item.priority}/100 (ranking score, not probability)")
     reasons = _safe_reasons(item.jev_reasons, decision)
