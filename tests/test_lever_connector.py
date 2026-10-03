@@ -160,3 +160,42 @@ def test_lever_constructor_rejects_invalid_region_page_size_and_limit():
         LeverConnector("exampleco", page_size=101)
     with pytest.raises(ValueError, match="max_jobs"):
         LeverConnector("exampleco", max_jobs=0)
+
+
+def test_lever_description_includes_lists_and_closing_sections():
+    item = fixture("lever_jobs_page_two.json")[0]
+    item["descriptionPlain"] = "We build insurance products."
+    item["lists"] = [
+        {"text": "What you'll do", "content": "<li>Design REST APIs</li><li>Own services end to end</li>"},
+        {"text": "Requirements", "content": "<li>3+ years of experience with Java</li>"},
+        "not-a-section",
+    ]
+    item["additionalPlain"] = "Hybrid in Madrid, 2 days per week."
+    client = make_client(lambda req: httpx.Response(200, json=[item]))
+    connector = LeverConnector("sample-site", client=client)
+    try:
+        (offer,) = connector.fetch_jobs()
+    finally:
+        client.close()
+
+    description = offer.description
+    assert description.startswith("We build insurance products.")
+    assert "What you'll do" in description and "Design REST APIs" in description
+    assert "Requirements" in description and "3+ years of experience with Java" in description
+    assert description.endswith("Hybrid in Madrid, 2 days per week.")
+    assert description.index("Design REST APIs") < description.index("Requirements")
+
+
+def test_lever_description_without_lists_is_unchanged():
+    item = fixture("lever_jobs_page_two.json")[0]
+    item.pop("lists", None)
+    item.pop("additional", None)
+    item.pop("additionalPlain", None)
+    client = make_client(lambda req: httpx.Response(200, json=[item]))
+    connector = LeverConnector("sample-site", client=client)
+    try:
+        (offer,) = connector.fetch_jobs()
+    finally:
+        client.close()
+
+    assert offer.description == item["descriptionPlain"]

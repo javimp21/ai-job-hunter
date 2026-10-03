@@ -179,9 +179,7 @@ def _normalize_job(
     salary_min, salary_max, currency, salary_period = _salary(salary)
     hosted_url = _optional_text(raw.get("hostedUrl"))
     apply_url = _optional_text(raw.get("applyUrl"))
-    description = _optional_text(raw.get("descriptionPlain"))
-    if description is None:
-        description = html_to_text(_optional_text(raw.get("description")))
+    description = _description(raw)
     return NormalizedJob(
         provider=LeverConnector.provider,
         external_id=_identifier(raw.get("id")),
@@ -203,6 +201,37 @@ def _normalize_job(
         raw_metadata=dict(raw),
         discovered_at=discovered_at,
     )
+
+
+def _description(raw: Mapping[str, Any]) -> str | None:
+    """Join the opening text with Lever's `lists` sections and closing text.
+
+    Lever keeps requirements and responsibilities in `lists` (a heading plus
+    HTML items) and closing notes in `additional`; `descriptionPlain` alone
+    is often just the company introduction.
+    """
+
+    parts: list[str] = []
+    opening = _optional_text(raw.get("descriptionPlain")) or html_to_text(
+        _optional_text(raw.get("description"))
+    )
+    if opening:
+        parts.append(opening)
+    sections = raw.get("lists")
+    if isinstance(sections, list):
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            heading = _optional_text(section.get("text"))
+            content = html_to_text(_optional_text(section.get("content")))
+            if heading or content:
+                parts.append("\n".join(part for part in (heading, content) if part))
+    closing = _optional_text(raw.get("additionalPlain")) or html_to_text(
+        _optional_text(raw.get("additional"))
+    )
+    if closing:
+        parts.append(closing)
+    return "\n\n".join(parts) or None
 
 
 def _location(categories: Mapping[str, Any], country: Any) -> str | None:
