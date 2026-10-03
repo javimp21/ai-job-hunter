@@ -74,7 +74,7 @@ def test_cached_stretch_apply_is_review_with_requirement_in_cli_and_alert(db_ses
     assert "minimum 3+ years" in local and "Experience shortfall: 2" in local
     previews = preview_notifications(db_session, candidate)
     assert len(previews) == 1 and previews[0].decision == "REVIEW"
-    assert "Experience: mandatory: minimum 3+ years" in previews[0].message
+    assert "Experiencia: piden 3+ años" in previews[0].message
     assert "stretch" in previews[0].message
     assert "shortfall" not in previews[0].message.lower()
     assert "1 year" not in previews[0].message
@@ -116,7 +116,7 @@ def test_unknown_experience_ceilings_current_cached_apply(db_session, monkeypatc
     item = opportunities.get_opportunity(db_session, job.id, candidate)
     assert item.decision is FinalDecision.REVIEW
     assert item.experience.outcome is ExperienceOutcome.UNKNOWN
-    assert "compatibility UNKNOWN" in format_notification_message(item)
+    assert "Experiencia: no especificada" in format_notification_message(item)
 
 
 def test_refresh_hard_rejects_before_existing_evaluated_shortcut(db_session, monkeypatch, tmp_path):
@@ -138,5 +138,5 @@ def test_outgoing_experience_never_discloses_fractional_candidate_gap(db_session
     item = opportunities.get_opportunity(db_session, job.id, candidate)
     personal = assess_experience(extract_experience_requirements("3 years of experience"), Decimal("1.25"))
     message = format_notification_message(replace(item, experience=personal))
-    assert "minimum 3 years" in message
+    assert "Experiencia: piden 3 años" in message
     assert "1.25" not in message and "1.75" not in message

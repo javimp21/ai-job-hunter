@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
@@ -18,6 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from ai_job_hunter.candidates import CandidateConfig
+from ai_job_hunter.candidates.experience import ExperienceOutcome
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.models import (
     HumanReviewStatus,
@@ -31,15 +34,15 @@ from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 
 TELEGRAM_CHANNEL = "TELEGRAM"
 _REASON_LABELS = {
-    "EXPERIENCE_BORDERLINE": "Experience fit needs a closer look",
-    "EXPERIENCE_UNKNOWN": "Required experience is not verified",
-    "ROLE_FAMILY_UNCERTAIN": "Role and backend fit need review",
-    "STACK_UNCERTAIN": "Technology fit needs review",
-    "COMPENSATION_UNKNOWN": "Salary details are missing",
-    "SENIORITY_UNCERTAIN": "Seniority is unclear",
-    "INSUFFICIENT_DESCRIPTION": "Role details are limited",
-    "LOCATION_UNCERTAIN": "Location eligibility needs review",
-    "OTHER": "The available information needs human review",
+    "EXPERIENCE_BORDERLINE": "experiencia algo justa",
+    "EXPERIENCE_UNKNOWN": "experiencia requerida no verificada",
+    "ROLE_FAMILY_UNCERTAIN": "encaje de rol/backend por confirmar",
+    "STACK_UNCERTAIN": "encaje de stack por confirmar",
+    "COMPENSATION_UNKNOWN": "salario no publicado",
+    "SENIORITY_UNCERTAIN": "seniority no clara",
+    "INSUFFICIENT_DESCRIPTION": "descripción escasa",
+    "LOCATION_UNCERTAIN": "elegibilidad geográfica por confirmar",
+    "OTHER": "revisar la información disponible",
 }
 _WHITESPACE = re.compile(r"\s+")
 
@@ -102,6 +105,7 @@ class TelegramProvider:
                 data={
                     "chat_id": self._chat_id,
                     "text": message,
+                    "parse_mode": "HTML",
                     "disable_web_page_preview": "true",
                 },
                 timeout=self._timeout,
@@ -752,59 +756,152 @@ def _dispatch_pending(
 
 
 def format_notification_message(item: Opportunity) -> str:
-    """Build a compact message from public job fields and fixed reason labels."""
+    """Build a Telegram HTML message from public job fields and fixed labels.
+
+    Every dynamic value is length-bounded and HTML-escaped; raw Jev text and
+    candidate facts (years, personal gaps) are never included.
+    """
 
     decision = item.decision.value if item.decision is not None else "REVIEW"
-    title = _clean_label(item.title, 200)
-    company = _clean_label(item.company, 160)
     icon = "🔥" if decision == FinalDecision.APPLY.value else "👀"
-    lines = [f"{icon} {decision} · {company} — {title}"]
-    if item.location:
-        lines.append(f"Location: {_clean_label(item.location, 120)}")
-    if item.remote_policy:
-        lines.append(f"Work mode: {_clean_label(item.remote_policy, 40)}")
-    salary = _format_salary(item)
-    if salary:
-        lines.append(f"Salary: {salary}")
+    header = f"{icon} <b>{decision}</b>"
+    if item.priority is not None:
+        header += f" · prioridad {item.priority}/100"
+    lines = [
+        header,
+        f"<b>{_html(item.title, 200)}</b>",
+        f"🏢 {_html(item.company, 160)}",
+        "",
+        f"📍 {_html(item.location, 120) if item.location else 'Ubicación no indicada'}"
+        f" · {_WORK_MODE_LABELS.get(item.remote_policy or '', 'modalidad no indicada')}",
+        f"💰 {_format_salary(item) or 'Salario no publicado'}",
+        f"🎓 {_format_experience(item)}",
+    ]
     technologies = list(dict.fromkeys((*item.required_technologies, *item.technologies)))
     if technologies:
-        labels = [_clean_label(technology, 45) for technology in technologies[:5]]
-        lines.append("Technologies: " + ", ".join(labels))
-    if item.experience is not None:
-        lines.append("Experience: " + _clean_label(item.experience.public_summary, 600))
-    else:
-        lines.append("Experience: UNKNOWN")
-    if item.priority is not None:
-        lines.append(f"Priority: {item.priority}/100 (ranking score, not probability)")
-    reasons = _safe_reasons(item.jev_reasons, decision)
-    if reasons:
-        lines.append("Why: " + "; ".join(reasons[:3]))
+        lines.append("🧰 " + ", ".join(_html(technology, 45) for technology in technologies[:6]))
+    warning = _location_warning(item)
+    if warning:
+        lines.extend(["", warning])
+    strengths = _strengths(item.jev_signals)
+    concerns = _safe_reasons(item.jev_reasons, decision)
+    if strengths or concerns:
+        lines.append("")
+    if strengths:
+        lines.append("✅ <b>Encaja en:</b> " + ", ".join(strengths))
+    if concerns and decision != FinalDecision.APPLY.value:
+        lines.append("❓ <b>A revisar:</b> " + "; ".join(concerns[:3]))
     url = _safe_public_url(item.url)
     if url:
-        lines.append(f"Open: {url}")
-    return "\n".join(lines)[:3500]
+        lines.extend(["", f'<a href="{html.escape(url, quote=True)}">Ver oferta →</a>'])
+    lines.append("<i>La prioridad ordena la revisión; no es una probabilidad.</i>")
+    return "\n".join(lines)
+
+
+_WORK_MODE_LABELS = {"REMOTE": "🏠 remoto", "HYBRID": "🏙️ híbrido", "ONSITE": "🏢 presencial"}
+_CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
+_PERIOD_LABELS = {"YEAR": "/año", "MONTH": "/mes", "WEEK": "/semana", "DAY": "/día", "HOUR": "/hora"}
+_SIGNAL_LABELS = {
+    "role_relevance": "rol",
+    "backend_relevance": "backend",
+    "stack_transferability": "stack",
+    "experience_accessibility": "experiencia accesible",
+    "requirements_flexibility": "requisitos flexibles",
+    "career_value": "valor de carrera",
+    "observable_role_quality": "calidad de la oferta",
+}
+_REMOTE_TEXT = re.compile(r"\b(?:remote|remoto|remota|anywhere|worldwide|teletrabajo)\b", re.IGNORECASE)
+
+
+def _html(value: str | None, limit: int) -> str:
+    return html.escape(_clean_label(value, limit), quote=False)
 
 
 def _format_salary(item: Opportunity) -> str | None:
     if item.salary_min is None and item.salary_max is None:
         return None
-    if item.salary_min is not None and item.salary_max is not None:
-        amount = f"{item.salary_min}–{item.salary_max}"
-    elif item.salary_min is not None:
-        amount = f"from {item.salary_min}"
+    currency = (item.currency or "").upper()
+    symbol = _CURRENCY_SYMBOLS.get(currency, _clean_label(currency, 8))
+    low = _format_amount(item.salary_min)
+    high = _format_amount(item.salary_max)
+    if low and high:
+        amount = low if low == high else f"{low}–{high}"
+    elif low:
+        amount = f"desde {low}"
     else:
-        amount = f"up to {item.salary_max}"
-    parts = [amount]
-    if item.currency:
-        parts.append(_clean_label(item.currency, 8))
-    if item.salary_period:
-        parts.append("per " + _clean_label(item.salary_period.lower(), 16))
-    return " ".join(parts)[:100]
+        amount = f"hasta {high}"
+    period = _PERIOD_LABELS.get((item.salary_period or "").upper(), "")
+    return html.escape(" ".join(part for part in (amount, symbol) if part) + period, quote=False)[:100]
+
+
+def _format_amount(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        number = Decimal(str(value))
+    except (ArithmeticError, ValueError):
+        return _clean_label(str(value), 20)
+    if number != number.to_integral_value():
+        return _clean_label(str(value), 20)
+    return f"{int(number):,}".replace(",", ".")
+
+
+def _format_experience(item: Opportunity) -> str:
+    experience = item.experience
+    if experience is None or not experience.mandatory:
+        return "Experiencia: no especificada"
+    labels = {
+        ExperienceOutcome.MEETS: "encaja",
+        ExperienceOutcome.STRETCH: "⚠️ stretch (piden más experiencia)",
+        ExperienceOutcome.INCOMPATIBLE: "fuera de rango",
+        ExperienceOutcome.UNKNOWN: "encaje no claro",
+    }
+    requirement = "; ".join(item.display() for item in experience.mandatory)
+    for english, spanish in _EXPERIENCE_WORDS:
+        requirement = requirement.replace(english, spanish)
+    return f"Experiencia: piden {_html(requirement, 200)} — {labels[experience.outcome]}"
+
+
+_EXPERIENCE_WORDS = (
+    ("minimum ", ""),
+    ("less than ", "menos de "),
+    ("up to ", "hasta "),
+    ("years", "años"),
+    ("year", "año"),
+    (" to ", " a "),
+)
+
+
+def _location_warning(item: Opportunity) -> str | None:
+    """Flag a named city with no stated work mode outside the configured locations."""
+
+    if item.remote_policy is not None or not item.location or _REMOTE_TEXT.search(item.location):
+        return None
+    signals = item.deterministic_result.get("signals") if isinstance(item.deterministic_result, dict) else None
+    preferred = signals.get("preferred_location") if isinstance(signals, dict) else None
+    if isinstance(preferred, dict) and preferred.get("status") == "COMPATIBLE":
+        return None
+    return (
+        f"⚠️ {_html(item.location, 80)}: la oferta no indica modalidad; "
+        "puede ser presencial o híbrida fuera de tus ubicaciones."
+    )
+
+
+def _strengths(signals: Any) -> list[str]:
+    if not isinstance(signals, dict):
+        return []
+    strong: list[tuple[float, str]] = []
+    for key, label in _SIGNAL_LABELS.items():
+        signal = signals.get(key)
+        value = signal.get("value") if isinstance(signal, dict) else None
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0.75:
+            strong.append((value, label))
+    return [label for _, label in sorted(strong, key=lambda pair: -pair[0])[:4]]
 
 
 def _safe_reasons(raw: Any, decision: str) -> list[str]:
     if decision == FinalDecision.APPLY.value:
-        return ["Strong role, backend and experience fit"]
+        return ["encaje fuerte de rol, backend y experiencia"]
     records = raw.get("review_reasons", []) if isinstance(raw, dict) else []
     labels: list[str] = []
     if isinstance(records, list):
@@ -819,7 +916,7 @@ def _safe_reasons(raw: Any, decision: str) -> list[str]:
                 labels.append(label)
             if len(labels) == 3:
                 break
-    return labels or ["The available information needs human review"]
+    return labels or ["revisar la información disponible"]
 
 
 def _notification_fingerprint(evaluation: JobEvaluation) -> str:

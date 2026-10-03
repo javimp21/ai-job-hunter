@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -381,23 +382,73 @@ def test_formatter_is_bounded_safe_and_includes_role_details():
 
     message = format_notification_message(item)
 
-    assert message.startswith("👀 REVIEW")
-    assert "Remote — Spain" in message
-    assert "Work mode: REMOTE" in message
-    assert "Salary: 60000–80000 EUR per year" in message
-    assert "Technologies: Python, PostgreSQL" in message
-    assert "Priority: 79/100 (ranking score, not probability)" in message
+    assert message.startswith("👀 <b>REVIEW</b> · prioridad 79/100")
+    assert "<b>Backend Engineer</b>" in message
+    assert "🏢 Example Co" in message
+    assert "📍 Remote — Spain · 🏠 remoto" in message
+    assert "💰 60.000–80.000 €/año" in message
+    assert "🎓 Experiencia: no especificada" in message
+    assert "🧰 Python, PostgreSQL" in message
+    assert "encaje de rol/backend por confirmar" in message
+    assert '<a href="https://jobs.example.test/role">Ver oferta →</a>' in message
     assert "candidate@example.test" not in message
     assert "raw Jev" not in message
-    assert "candidate@example.test" not in message.split("Open: ")[-1]
     assert "?email=" not in message
     assert "#apply" not in message
-    assert "Role and backend fit need review" in message
-    apply_message = format_notification_message(
-        _opportunity(job_id, FinalDecision.APPLY, 81)
-    )
-    assert apply_message.startswith("🔥 APPLY")
+    assert "⚠️" not in message
+    apply_message = format_notification_message(_opportunity(job_id, FinalDecision.APPLY, 81))
+    assert apply_message.startswith("🔥 <b>APPLY</b>")
+    assert "A revisar" not in apply_message
     assert len(message) <= 3500
+
+
+def test_formatter_escapes_html_and_reports_missing_fields_and_strengths():
+    item = _opportunity(uuid4(), FinalDecision.REVIEW, 75, company="R&D <Labs>", title="Backend <b>Engineer</b>")
+    item = dataclasses.replace(
+        item,
+        salary_min=None,
+        salary_max=None,
+        remote_policy=None,
+        location=None,
+        technologies=(),
+        required_technologies=(),
+        jev_signals={
+            "role_relevance": {"value": 0.9},
+            "backend_relevance": {"value": 0.8},
+            "career_value": {"value": 0.5},
+        },
+    )
+
+    message = format_notification_message(item)
+
+    assert "R&amp;D &lt;Labs&gt;" in message
+    assert "Backend &lt;b&gt;Engineer&lt;/b&gt;" in message
+    assert "💰 Salario no publicado" in message
+    assert "📍 Ubicación no indicada · modalidad no indicada" in message
+    assert "✅ <b>Encaja en:</b> rol, backend" in message
+    assert "valor de carrera" not in message
+
+
+@pytest.mark.parametrize(
+    ("location", "remote_policy", "preferred_status", "warned"),
+    [
+        ("Barcelona, Spain", None, "UNKNOWN", True),
+        ("Madrid, Spain", None, "COMPATIBLE", False),
+        ("Remote Spain", None, "UNKNOWN", False),
+        ("Barcelona, Spain", "REMOTE", "UNKNOWN", False),
+    ],
+)
+def test_unknown_work_mode_city_outside_locations_is_flagged(location, remote_policy, preferred_status, warned):
+    item = dataclasses.replace(
+        _opportunity(uuid4(), FinalDecision.REVIEW, 81),
+        location=location,
+        remote_policy=remote_policy,
+        deterministic_result={"signals": {"preferred_location": {"status": preferred_status}}},
+    )
+
+    message = format_notification_message(item)
+
+    assert ("⚠️ " + location + ": la oferta no indica modalidad" in message) is warned
 
 
 def test_telegram_provider_returns_message_id_and_redacts_provider_errors():
