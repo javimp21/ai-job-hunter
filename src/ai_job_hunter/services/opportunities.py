@@ -213,6 +213,8 @@ class Opportunity:
     experience: ExperienceAssessment | None = None
     # Human-readable soft-preference changes already applied to `priority`.
     priority_adjustments: tuple[str, ...] = ()
+    # When this job was first seen by the hunter (fallback when a source gives no date).
+    first_seen_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -839,6 +841,7 @@ def list_opportunities(
             application_status=app_status,
             priority=score,
             priority_adjustments=tuple(label for _points, label in adjustments),
+            first_seen_at=job.created_at,
             deterministic_result=_prefilter_payload(snapshot.context.deterministic),
             experience=experience,
             jev_signals=answers if isinstance(answers, dict) else None,

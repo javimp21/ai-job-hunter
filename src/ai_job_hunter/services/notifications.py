@@ -216,11 +216,12 @@ def preview_notifications(
     *,
     review_threshold: int = 70,
     limit: int | None = None,
+    max_age_days: int | None = None,
 ) -> list[NotificationPreview]:
     """Return qualifying APPLY/high-priority REVIEW messages without writes."""
 
     _validate_threshold(review_threshold)
-    current = _current_opportunities(session, candidate, review_threshold)
+    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days)
     return _preview_current(session, current, limit=limit)
 
 
@@ -251,11 +252,12 @@ def send_notifications(
     *,
     review_threshold: int = 70,
     limit: int | None = None,
+    max_age_days: int | None = None,
 ) -> NotificationBatchResult:
     """Record selected evaluations and send pending notifications once."""
 
     _validate_threshold(review_threshold)
-    current = _current_opportunities(session, candidate, review_threshold)
+    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days)
     sendable = _preview_current(session, current, limit=limit)
     selected_keys = {(item.job_id, item.evaluation_fingerprint) for item in sendable}
     result = _materialize(session, current, selected_keys=selected_keys)
@@ -426,6 +428,8 @@ def _current_opportunities(
     session: Session,
     candidate: CandidateConfig,
     threshold: int,
+    *,
+    max_age_days: int | None = None,
 ) -> list[_CurrentOpportunity]:
     opportunities = list_opportunities(
         session,
@@ -490,6 +494,10 @@ def _current_opportunities(
                 or _repeat_suppression(decision, sent_decisions.get(item.job_id, {}), fingerprint)
             )
             eligible = reason is None
+        if eligible and max_age_days is not None and _older_than(item, max_age_days):
+            # Only freshly published postings alert; older ones stay in the feed.
+            reason = "older_than_max_age"
+            eligible = False
         if eligible and fingerprint not in sent_decisions.get(item.job_id, {}):
             # The same posting can reach us from a portal and the company ATS as
             # two jobs (dedup never merges without a shared URL): alert once.
@@ -571,6 +579,17 @@ def _repeat_suppression(
 
 
 MAX_ALERTS_PER_COMPANY_PER_RUN = 2
+
+
+def _older_than(item: Opportunity, days: int) -> bool:
+    """Publication date when the source gives one, otherwise when the hunter first saw it."""
+
+    moment = item.published_at or item.first_seen_at
+    if moment is None:
+        return False
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return moment < datetime.now(UTC) - timedelta(days=days)
 
 
 def _job_identity(item: Opportunity) -> tuple[str, frozenset[str], frozenset[str]]:

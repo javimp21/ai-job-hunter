@@ -596,3 +596,21 @@ def test_duplicates_in_one_run_and_company_cap(db_session, monkeypatch):
 
     # Duplicate "Backend Engineer" dropped; at most two alerts for the company.
     assert [item.title for item in previews] == ["Backend Engineer", "Platform Engineer"]
+
+
+@pytest.mark.parametrize(
+    ("published_days_ago", "first_seen_days_ago", "alerts"),
+    [(1, None, True), (5, None, False), (None, 1, True), (None, 10, False), (None, None, True)],
+)
+def test_only_recent_postings_alert(db_session, monkeypatch, published_days_ago, first_seen_days_ago, alerts):
+    job, evaluation = _seed_evaluation(db_session, "APPLY")
+    now = datetime.now(UTC)
+    item = dataclasses.replace(
+        _opportunity(job.id, FinalDecision.APPLY, 90, fingerprint=evaluation.evaluation_fingerprint),
+        published_at=now - timedelta(days=published_days_ago) if published_days_ago is not None else None,
+        first_seen_at=now - timedelta(days=first_seen_days_ago) if first_seen_days_ago is not None else None,
+    )
+    _install_opportunities(monkeypatch, [item])
+
+    assert bool(preview_notifications(db_session, _candidate(), max_age_days=3)) is alerts
+    assert preview_notifications(db_session, _candidate())  # no age limit unless requested

@@ -502,6 +502,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         session,
                         candidate,
                         review_threshold=settings.notify_review_min_priority,
+                        max_age_days=settings.notify_max_age_days,
                         limit=args.max_notifications,
                     )
                     _print_notification_previews(previews)
@@ -518,6 +519,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     candidate,
                     provider,
                     review_threshold=settings.notify_review_min_priority,
+                    max_age_days=settings.notify_max_age_days,
                     limit=args.max_notifications,
                 )
                 _print_notification_batch(result)
@@ -1159,6 +1161,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             session,
             candidate,
             review_threshold=settings.notify_review_min_priority,
+            max_age_days=settings.notify_max_age_days,
             limit=args.limit,
         )
         print(
@@ -1188,6 +1191,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             candidate,
             provider,
             review_threshold=settings.notify_review_min_priority,
+            max_age_days=settings.notify_max_age_days,
             limit=args.limit,
         )
     elif command == "retry-failed":

@@ -18,6 +18,16 @@ $archive = Join-Path $build "source.zip"
 & git @git archive --format=zip -o $archive HEAD
 Expand-Archive -Path $archive -DestinationPath (Join-Path $build "src") -Force
 
+# The bot runs from .venv-stable; Windows cannot replace an executable in use.
+$botTask = Get-ScheduledTask -TaskName "AI Job Hunter Bot" -ErrorAction SilentlyContinue
+$botWasRunning = $botTask -and $botTask.State -eq "Running"
+if ($botWasRunning) {
+    Stop-ScheduledTask -TaskName "AI Job Hunter Bot"
+    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "venv-stable" -and $_.CommandLine -match "\sbot(\s|$)" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 2
+}
+
 $venv = Join-Path $root ".venv-stable"
 if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
     & (Join-Path $root ".venv\Scripts\python.exe") -m venv $venv
@@ -31,3 +41,7 @@ Remove-Item -Recurse -Force $build
 
 "$commit $(Get-Date -Format o)" | Out-File -FilePath (Join-Path $root "data\local\stable-version.txt") -Encoding utf8
 Write-Host "Stable runtime now at commit $commit."
+if ($botWasRunning) {
+    Start-ScheduledTask -TaskName "AI Job Hunter Bot"
+    Write-Host "Bot restarted."
+}
