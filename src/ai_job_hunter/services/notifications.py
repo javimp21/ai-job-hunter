@@ -828,6 +828,7 @@ def format_notification_message(item: Opportunity) -> str:
         lines.extend(["", warning])
     strengths = _strengths(item.jev_signals)
     concerns = _safe_reasons(item.jev_reasons, decision)
+    concerns = [_clean_label(label, 80) for label in item.priority_adjustments] + concerns
     if strengths or concerns:
         lines.append("")
     if strengths:

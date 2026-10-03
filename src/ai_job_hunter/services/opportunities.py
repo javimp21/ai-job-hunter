@@ -31,6 +31,7 @@ from ai_job_hunter.candidates import (
     evaluate_job,
 )
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome
+from ai_job_hunter.candidates.prefilter import SignalStatus
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.factory import build_job_connectors
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
@@ -208,6 +209,8 @@ class Opportunity:
     outreach_recommendation: OutreachRecommendation = OutreachRecommendation.NO_OUTREACH
     evaluation_fingerprint: str | None = None
     experience: ExperienceAssessment | None = None
+    # Human-readable soft-preference changes already applied to `priority`.
+    priority_adjustments: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -798,6 +801,9 @@ def list_opportunities(
             continue
         answers = evaluation.jev_signals if evaluation and not stale else None
         score = _priority(answers)
+        adjustments = _priority_adjustments(snapshot.context) if score is not None else ()
+        if score is not None:
+            score = max(0, score + sum(points for points, _label in adjustments))
         role_relevance = _signal_value(answers, "role_relevance")
         strong_mismatch = _has_strong_mismatch(
             evaluation.deterministic_result if evaluation and not stale else None
@@ -830,6 +836,7 @@ def list_opportunities(
             review_state=effective_status,
             application_status=app_status,
             priority=score,
+            priority_adjustments=tuple(label for _points, label in adjustments),
             deterministic_result=_prefilter_payload(snapshot.context.deterministic),
             experience=experience,
             jev_signals=answers if isinstance(answers, dict) else None,
@@ -1448,6 +1455,30 @@ def _evaluation_order(item: _PreparedOffer) -> tuple[Any, ...]:
         str(item.context.offer.external_id or ""),
         item.fingerprint,
     )
+
+
+RELOCATION_PENALTY = 15
+_REMOTE_LOCATION_TEXT = re.compile(r"\b(?:remote|remoto|remota|anywhere|worldwide)\b", re.IGNORECASE)
+
+
+def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """Soft preferences that change review order (never eligibility).
+
+    Relocation is acceptable but much less attractive than Madrid: an on-site or
+    hybrid role (or an unknown work mode in a named city) outside the preferred
+    locations loses RELOCATION_PENALTY points.
+    """
+
+    offer = context.offer
+    preferred = context.deterministic.signals.preferred_location.status
+    if offer.remote_policy is RemotePolicy.REMOTE or preferred is SignalStatus.COMPATIBLE:
+        return ()
+    if not context.candidate.preferences.preferred_locations:
+        return ()
+    if offer.remote_policy is None and (not offer.location or _REMOTE_LOCATION_TEXT.search(offer.location)):
+        return ()
+    places = ", ".join(context.candidate.preferences.preferred_locations)
+    return ((-RELOCATION_PENALTY, f"fuera de {places}, requiere mudanza (−{RELOCATION_PENALTY})"),)
 
 
 def _priority(signals: dict[str, Any] | None) -> int | None:

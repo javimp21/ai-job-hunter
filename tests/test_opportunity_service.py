@@ -1032,3 +1032,36 @@ def test_reevaluate_reports_selected_jobs_without_source_snapshots(db_session, t
     assert summary.items == []
     assert summary.jobs_without_snapshot == [job.id]
     assert engine.calls == []
+
+
+@pytest.mark.parametrize(
+    ("location", "remote_policy", "penalized"),
+    [
+        ("Málaga, Spain", "HYBRID", True),
+        ("Málaga, Spain", "ONSITE", True),
+        ("Madrid, Spain", "HYBRID", False),
+        ("Remote Spain", "REMOTE", False),
+        ("Remote", None, False),
+        ("Bilbao, Spain", None, True),
+    ],
+)
+def test_roles_outside_preferred_locations_lose_review_priority(location, remote_policy, penalized) -> None:
+    candidate = _candidate()
+    candidate = candidate.model_copy(
+        update={
+            "preferences": candidate.preferences.model_copy(
+                update={"preferred_locations": ["Madrid"], "acceptable_locations": ["Madrid", "Málaga", "Bilbao"]}
+            )
+        }
+    )
+    offer = _offer("role-x", location=location, remote_policy=remote_policy or "REMOTE")
+    if remote_policy is None:
+        offer = offer.model_copy(update={"remote_policy": None})
+    prepared = opportunities._prepare_offer(offer, candidate, engine_identity="offline")
+
+    adjustments = opportunities._priority_adjustments(prepared.context)
+
+    assert bool(adjustments) is penalized
+    if penalized:
+        assert adjustments[0][0] == -opportunities.RELOCATION_PENALTY
+        assert "fuera de Madrid" in adjustments[0][1]
