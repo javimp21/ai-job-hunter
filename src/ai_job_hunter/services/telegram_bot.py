@@ -262,6 +262,7 @@ def run_bot(
     offset_path: Path,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    log: Callable[[str], None] = lambda message: print(message, flush=True),
 ) -> None:
     """Long-poll until interrupted (or ``max_cycles`` polls, used by tests)."""
 
@@ -275,9 +276,10 @@ def run_bot(
             updates = bot.get_updates(offset)
             for update in updates:
                 try:
-                    handle_update(
+                    outcome = handle_update(
                         update, chat_id=chat_id, bot=bot, generate=generate, generated=generated
                     )
+                    log(f"update {update.get('update_id')}: {outcome}")
                 finally:
                     # Advance even when replying fails so a paid generation is never repeated.
                     update_id = update.get("update_id")
@@ -285,6 +287,8 @@ def run_bot(
                         offset = update_id + 1
                         save_offset(offset_path, offset)
             backoff = _BACKOFF_START
-        except (TelegramBotError, httpx.HTTPError):
+        except (TelegramBotError, httpx.HTTPError) as error:
+            # Errors never contain the token (see TelegramBotClient).
+            log(f"telegram poll failed: {error if isinstance(error, TelegramBotError) else type(error).__name__}; retrying in {backoff:.0f}s")
             sleep(backoff)
             backoff = min(backoff * 2, _BACKOFF_MAX)

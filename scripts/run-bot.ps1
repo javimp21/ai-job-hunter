@@ -7,6 +7,7 @@ Set-Location $root
 $logDir = Join-Path $root "data\local\logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUNBUFFERED = "1"
 # Native stderr is merged into the log; keep going so the exit code is recorded.
 $ErrorActionPreference = "Continue"
 
