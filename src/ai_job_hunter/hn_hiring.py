@@ -140,6 +140,11 @@ def _company_name(header: str) -> str | None:
     first = header.split("|", 1)[0]
     first = re.sub(r"\(.*?\)|https?://\S+", " ", first)
     name = " ".join(first.split()).strip(" -–—:,")
+    label = re.match(r"^(company|employer)\s*:\s*", name, re.IGNORECASE)
+    if label:
+        name = name[label.end():]
+    elif re.match(r"^(location|role|position|remote|salary|compensation|title)\s*:", name, re.IGNORECASE):
+        return None  # a field label, not a company name
     return name or None
 
 

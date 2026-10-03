@@ -16,6 +16,8 @@ THREAD = {
                            '<a href="https://acme.example/careers/backend?utm_campaign=x">role</a>'},
         {"id": 14, "text": 'Onsite Inc | Engineer | ONSITE Berlin'},
         {"id": 15, "text": None},
+        {"id": 16, "text": "Location: Dubrovnik, Croatia | REMOTE (EU) | Engineer"},
+        {"id": 17, "text": 'Company: Beta Labs | REMOTE (Europe) | <a href="https://beta.example">site</a>'},
     ],
 }
 
@@ -23,7 +25,7 @@ THREAD = {
 def test_thread_becomes_reachable_remote_leads_with_provenance():
     leads = {lead.company_name: lead for lead in leads_from_thread(THREAD).leads}
 
-    assert set(leads) == {"Checkly", "Acme"}
+    assert set(leads) == {"Checkly", "Acme", "Beta Labs"}
     checkly = leads["Checkly"]
     assert checkly.website_url == "https://www.checklyhq.com"
     assert checkly.careers_url == "https://jobs.ashbyhq.com/checkly"
