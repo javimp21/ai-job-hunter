@@ -312,6 +312,9 @@ _ENGINEERING_JOB_TOKENS = {
     "engineer", "engineering", "programmer", "programming", "sre", "devops",
     "ingeniero", "ingeniera", "programador", "programadora", "desarrollador",
     "desarrolladora",
+    # German, French, Italian, Portuguese and Croatian equivalents.
+    "entwickler", "softwareentwickler", "ingenieur", "informatiker", "developpeur",
+    "developpeuse", "sviluppatore", "desenvolvedor", "programer", "inzenjer",
 }
 _GOVERNANCE_TOKENS = {"governance", "compliance", "grc", "audit", "auditor", "risk"}
 _ANALYST_TOKENS = {"analyst", "analista"}
@@ -340,7 +343,9 @@ _TECHNICAL_ROLE_MARKERS = {
     "end", "platform", "infrastructure", "devops", "devtools", "data",
     "database", "security", "systems", "programmer", "programming", "sre",
     "ai", "ml", "machine", "learning", "cloud", "api", "full", "stack",
-    "technical",
+    "technical", "tech", "technology", "architect", "architecture", "qa", "cto",
+    "frontend", "fullstack", "mobile", "ios", "android", "web", "network",
+    "postgres", "kubernetes", "java", "python", "golang", "rust",
 }
 _LEGACY_UNRELATED_ROLE = re.compile(
     r"^[\W_]*(?:(?:senior|junior|mid|lead|staff|principal|freelance|contract|temporary|"
@@ -620,6 +625,11 @@ def _clearly_non_technical_role(title: str) -> str | None:
         tokens & {"spontaneous", "espontanea", "unsolicited"} and tokens & {"application", "candidatura"}
     ):
         return "unscoped application"
+    # A title with no engineering noun and no technical term in any supported
+    # language ("Freelance Prodajni Predstavnik", "Steuerfachangestellte",
+    # "Human Resources Business Partner") is not a technical role.
+    if not tokens & (_ENGINEERING_JOB_TOKENS | _TECHNICAL_ROLE_MARKERS):
+        return "non-technical (no technical term in title)"
     if not technical:
         if "product" in tokens:
             return "product"
@@ -1062,7 +1072,12 @@ def _remote_region_countries(location: str | None) -> set[str]:
         result.update(_EMEA_COUNTRIES)
     if re.search(r"\b(?:apac|asia[\s-]+pacific)\b", folded):
         result.update(_APAC_COUNTRIES)
+    if re.search(r"\b(?:amer|americas|latam|latin america|north america|south america)\b", folded):
+        result.update(_AMERICAS_COUNTRIES)
     return result
+
+
+_AMERICAS_COUNTRIES = {"United States", "Canada", "Mexico", "Brazil", "Argentina"}
 
 
 def _assess_country_restriction(

@@ -755,3 +755,33 @@ def test_talent_pools_and_spontaneous_applications_are_unscoped(title: str) -> N
 
     assert result.signals.role_family.family == "unscoped application"
     assert result.decision is PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Freelance Prodajni Predstavnik", "Initiativbewerbung - Deutschland", "Steuerfachangestellte (w/m/d)",
+     "Human Resources Business Partner", "Scrum Master"],
+)
+def test_titles_without_any_technical_term_are_non_target(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
+    assert result.decision is PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Tech Lead", "Software Architect", "CTO", "QA Automation", "Member of Technical Staff",
+     "Softwareentwickler Java (m/w/d)", "Développeur Backend", "Founding Engineer", "iOS Developer"],
+)
+def test_technical_titles_in_several_languages_are_kept(title: str) -> None:
+    assert evaluate_job(facts_for(title=title), make_config()).signals.role_family.fit is not RoleFamilyFit.NON_TARGET
+
+
+def test_americas_only_remote_region_excludes_spain() -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location="Remote, AMER", remote_policy="REMOTE", remote_eligibility="UNKNOWN"),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
