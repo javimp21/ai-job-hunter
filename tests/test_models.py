@@ -35,6 +35,7 @@ def test_models_import_and_relationships_are_configured() -> None:
         "outreaches",
         "outreach_events",
         "opportunity_notifications",
+        "monitored_sources",
     }
     assert Company.jobs.property.mapper.class_ is Job
     assert Company.evidence_items.property.mapper.class_ is CompanyEvidence

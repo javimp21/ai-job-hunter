@@ -8,6 +8,7 @@ from ai_job_hunter.models.job import Job
 from ai_job_hunter.models.job_evaluation import EvaluationStatus, JobEvaluation
 from ai_job_hunter.models.job_review import HumanReviewStatus, JobReview
 from ai_job_hunter.models.job_source import JobSource
+from ai_job_hunter.models.monitored_source import MonitoredSource, MonitoredSourceState
 from ai_job_hunter.models.contact import Contact, ContactType
 from ai_job_hunter.models.outreach import (
     Outreach,
@@ -38,6 +39,8 @@ __all__ = [
     "JobEvaluation",
     "JobReview",
     "JobSource",
+    "MonitoredSource",
+    "MonitoredSourceState",
     "Outreach",
     "OutreachChannel",
     "OutreachEvent",

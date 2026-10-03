@@ -81,10 +81,14 @@ from ai_job_hunter.outreach.recommendations import (
 )
 from ai_job_hunter.services.company_intelligence import (
     CompanyMonitorFilters,
-    build_company_monitor_targets,
     get_company_facts_for_job,
 )
 from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, ingest_job
+from ai_job_hunter.services.monitored_sources import (
+    active_monitor_targets,
+    record_fetch_results,
+    sync_monitored_sources,
+)
 from ai_job_hunter.jev import JevJobDecisionEngine
 from ai_job_hunter.rubric import RUBRIC_SPEC
 
@@ -241,12 +245,12 @@ def refresh_opportunities(
 
     summary = RefreshSummary(dry_run=dry_run)
     filters = candidate_filters or CompanyMonitorFilters(supported_ats=True)
+    if not dry_run:
+        # Newly discovered boards are recorded for review; they are never fetched
+        # until someone makes them ACTIVE.
+        sync_monitored_sources(session)
     try:
-        targets = build_company_monitor_targets(
-            session,
-            filters,
-            limit_companies=max_companies,
-        )
+        targets = active_monitor_targets(session, filters, limit_companies=max_companies)
     except ValueError as error:
         raise OpportunityServiceError(str(error)) from error
     summary.companies_checked = len({target.company_id for target in targets})
@@ -261,6 +265,8 @@ def refresh_opportunities(
     )
     summary.jobs_fetched = len(offers)
     summary.failures.extend(failures)
+    if not dry_run:
+        record_fetch_results(session, targets, offers, failures)
 
     if dry_run:
         for offer, _target in offers:

@@ -118,3 +118,11 @@ def test_reevaluate_summary_reports_planned_calls_for_dry_run(capsys) -> None:
     assert "Jev calls planned: 1" in output
     assert "Jev calls attempted: 0" in output
     assert "Data Analyst | DETERMINISTIC_SKIP -> SKIP" in output
+
+
+def test_sources_commands_validate_arguments_before_database(capsys) -> None:
+    for argv in (["sources"], ["sources", "activate", "not-a-uuid"], ["sources", "list", "--state", "bogus"]):
+        with pytest.raises(SystemExit) as error:
+            main(argv)
+        assert error.value.code == 2
+    capsys.readouterr()

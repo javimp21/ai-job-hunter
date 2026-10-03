@@ -329,6 +329,20 @@ def find_companies_to_monitor(
     return results
 
 
+def company_matches_filters(facts: CompanyFacts, filters: CompanyMonitorFilters) -> bool:
+    """True when the company's evidence satisfies every enabled monitor filter."""
+
+    checks = (
+        (not filters.spanish_top_tech or _has_evidence(facts, "compensation", "spanish_top_tech_companies")),
+        (not filters.remote_from_spain or facts.remote_from_spain is FactStatus.YES),
+        (not filters.has_career_page or bool(facts.career_pages or facts.ats_discoveries)),
+        (not filters.public_salary or facts.public_salary is FactStatus.YES),
+        (not filters.compensation_evidence or bool(facts.compensation_evidence)),
+        (not filters.multiple_evidence_sources or facts.source_count > 1),
+    )
+    return all(checks)
+
+
 def build_company_monitor_targets(
     session: Session,
     filters: CompanyMonitorFilters,
@@ -357,15 +371,7 @@ def build_company_monitor_targets(
         if name_key is not None and normalize_company_name(company.name) != name_key:
             continue
         facts = company_facts(company)
-        checks = (
-            (not filters.spanish_top_tech or _has_evidence(facts, "compensation", "spanish_top_tech_companies")),
-            (not filters.remote_from_spain or facts.remote_from_spain is FactStatus.YES),
-            (not filters.has_career_page or bool(facts.career_pages or facts.ats_discoveries)),
-            (not filters.public_salary or facts.public_salary is FactStatus.YES),
-            (not filters.compensation_evidence or bool(facts.compensation_evidence)),
-            (not filters.multiple_evidence_sources or facts.source_count > 1),
-        )
-        if not all(checks):
+        if not company_matches_filters(facts, filters):
             continue
 
         company_targets: list[CompanyMonitorTarget] = []
@@ -377,7 +383,7 @@ def build_company_monitor_targets(
             key = (company.id, discovery.provider, identifier.casefold(), discovery.region)
             if key in seen_targets:
                 continue
-            careers_url = discovery.source_url or _public_board_url(
+            careers_url = discovery.source_url or public_board_url(
                 discovery.provider, identifier, discovery.region
             )
             company_targets.append(
@@ -631,7 +637,7 @@ def _make_ats_observation(
     }
 
 
-def _public_board_url(provider: ATSProvider, identifier: str, region: str | None) -> str:
+def public_board_url(provider: ATSProvider, identifier: str, region: str | None) -> str:
     from urllib.parse import quote
 
     slug = quote(identifier, safe="")

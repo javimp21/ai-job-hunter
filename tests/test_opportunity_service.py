@@ -31,6 +31,7 @@ from ai_job_hunter.models import (
     JobSource,
 )
 from ai_job_hunter.services import opportunities
+from ai_job_hunter.services.monitored_sources import sync_monitored_sources
 from ai_job_hunter.services.opportunities import (
     EvaluationOutcome,
     OpportunityServiceError,
@@ -71,6 +72,8 @@ def _monitor_company(session) -> Company:
     )
     session.add(company)
     session.commit()
+    # Boards are fetched only once explicitly activated.
+    sync_monitored_sources(session, activate_new=True, reason="test fixture")
     return company
 
 

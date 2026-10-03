@@ -102,6 +102,8 @@ class CompanyMonitorTarget(BaseModel):
     careers_url: str
     evidence_source: str
     confidence: ATSDiscoveryConfidence
+    # Set when the target comes from a reviewed monitored_sources row.
+    source_id: UUID | None = None
 
 
 class CompanyEvidenceFact(BaseModel):

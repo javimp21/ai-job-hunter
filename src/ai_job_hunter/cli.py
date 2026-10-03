@@ -64,6 +64,13 @@ from ai_job_hunter.outreach import (
 from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
 from ai_job_hunter.outreach.projects import load_candidate_projects
 from ai_job_hunter.services.cover_letters import CoverLetterError, generate_cover_letter
+from ai_job_hunter.services.monitored_sources import (
+    MonitoredSourceError,
+    list_sources,
+    set_source_state,
+    sync_monitored_sources,
+)
+from ai_job_hunter.models import MonitoredSourceState
 from ai_job_hunter.services.telegram_bot import TelegramBotClient, run_bot
 from ai_job_hunter.services.opportunities import (
     Opportunity,
@@ -202,6 +209,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     reevaluate.add_argument("--dry-run", action="store_true", help="show the plan without database, cache or Jev writes")
     reevaluate.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
+    sources = subparsers.add_parser(
+        "sources",
+        help="review company job boards: only ACTIVE boards are fetched by refresh/run",
+    )
+    source_commands = sources.add_subparsers(dest="sources_command", required=True)
+    sources_list = source_commands.add_parser("list", help="list boards and their review state")
+    sources_list.add_argument("--state", choices=tuple(item.value.casefold() for item in MonitoredSourceState))
+    sources_sync = source_commands.add_parser(
+        "sync", help="record boards found in company evidence (new boards wait for review)"
+    )
+    sources_sync.add_argument(
+        "--activate-current",
+        action="store_true",
+        help="one-time adoption: make newly recorded boards ACTIVE (for boards already monitored before review existed)",
+    )
+    for name, help_text in (
+        ("activate", "start fetching a board"),
+        ("pause", "stop fetching a board for now"),
+        ("reject", "never fetch a board"),
+    ):
+        command = source_commands.add_parser(name, help=help_text)
+        command.add_argument("source_id", type=UUID)
+        command.add_argument("--reason")
 
     cover_letter = subparsers.add_parser(
         "cover-letter",
@@ -435,6 +466,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1 if summary.pending_errors else 0
             if args.command == "notify":
                 return _run_notification_command(args, session, candidate, settings)
+            if args.command == "sources":
+                return _run_sources_command(args, session)
             if args.command == "run":
                 summary = refresh_opportunities(
                     session,
@@ -1026,6 +1059,49 @@ def _run_bot_command(candidate, settings) -> int:
         print("Bot stopped.")
     finally:
         engine.dispose()
+    return 0
+
+
+def _run_sources_command(args, session) -> int:
+    command = args.sources_command
+    if command == "sync":
+        summary = sync_monitored_sources(
+            session,
+            activate_new=args.activate_current,
+            reason="Adopted: already monitored before source review existed." if args.activate_current else None,
+        )
+        print(
+            f"SOURCES SYNC: new for review={summary.created} activated={summary.activated} "
+            f"already known={summary.existing} conflicts={summary.conflicts}"
+        )
+        return 0
+    if command == "list":
+        state = MonitoredSourceState(args.state.upper()) if args.state else None
+        rows = list_sources(session, state=state)
+        print(f"SOURCES: {len(rows)}")
+        for row in rows:
+            fetched = row.last_fetched_at.isoformat(timespec="minutes") if row.last_fetched_at else "never"
+            health = f"{row.last_fetch_status or '-'}"
+            if row.last_job_count is not None:
+                health += f" ({row.last_job_count} jobs)"
+            if row.consecutive_failures:
+                health += f", {row.consecutive_failures} failures in a row"
+            print(
+                f"{row.id} | {row.state} | {row.company.name} | {row.provider}:{row.identifier}"
+                f" | fetched {fetched} | {health} | {row.careers_url or ''}"
+            )
+        return 0
+    states = {
+        "activate": MonitoredSourceState.ACTIVE,
+        "pause": MonitoredSourceState.PAUSED,
+        "reject": MonitoredSourceState.REJECTED,
+    }
+    try:
+        row = set_source_state(session, args.source_id, states[command], reason=args.reason)
+    except MonitoredSourceError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    print(f"{row.company.name} | {row.provider}:{row.identifier} -> {row.state}")
     return 0
 
 

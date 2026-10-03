@@ -122,7 +122,7 @@ def test_unknown_experience_ceilings_current_cached_apply(db_session, monkeypatc
 def test_refresh_hard_rejects_before_existing_evaluated_shortcut(db_session, monkeypatch, tmp_path):
     candidate, job, evaluation = seed(db_session, monkeypatch, "4+ years of experience required")
     prepared = opportunities._prepare_from_source(job, job.sources[0], candidate, "offline")
-    monkeypatch.setattr(opportunities, "build_company_monitor_targets", lambda *a, **k: [type("Target", (), {"company_id": job.company_id})()])
+    monkeypatch.setattr(opportunities, "active_monitor_targets", lambda *a, **k: [type("Target", (), {"company_id": job.company_id, "source_id": None})()])
     monkeypatch.setattr(opportunities, "_fetch_targets", lambda *a, **k: ([(prepared.offer, None)], []))
     class NeverEngine:
         cache_identity = "offline"
