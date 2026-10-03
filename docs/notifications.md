@@ -29,12 +29,23 @@ The `run` command refreshes already monitored supported ATS sources through the 
 ai-job-hunter run --limit-companies 10 --max-jobs-per-company 100 --max-jev-jobs 20 --max-notifications 20
 ```
 
-To schedule it about every two hours from 08:00 through 22:00:
+`scripts/run-scheduled.ps1` wraps `run` for Task Scheduler: it checks every monitored company (`--limit-companies 1000`), allows `-MaxJevJobs` new Jev calls per run (default 20), and appends each run's output and exit code to a monthly log in the Git-ignored `data\local\logs`. Test it without writes, Jev calls or Telegram:
 
-1. Open **Task Scheduler** and choose **Create Task**.
-2. On **General**, select the Windows account that owns this checkout and choose **Run only when user is logged on** if the local environment is not available to background tasks.
-3. On **Triggers**, create a daily trigger at 08:00. Enable **Repeat task every: 2 hours** and set **for a duration of: 14 hours**.
-4. On **Actions**, use the installed command path `<project>\.venv\Scripts\ai-job-hunter.exe`, arguments `run --limit-companies 10 --max-jobs-per-company 100 --max-jev-jobs 20 --max-notifications 20`, and **Start in** the repository root. If the console entry point is unavailable, use `<project>\.venv\Scripts\python.exe -m ai_job_hunter.cli` with those arguments.
-5. On **Settings**, choose **Do not start a new instance** if the task is already running. Review **Last Run Result** after the first scheduled run.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-scheduled.ps1 -DryRun
+```
+
+Register it every two hours from 08:00 to 22:00 (run from the repository root; it runs only while you are logged on, and a run still in progress is never started twice):
+
+```powershell
+$root = (Get-Location).Path
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$root\scripts\run-scheduled.ps1`"" -WorkingDirectory $root
+$trigger = New-ScheduledTaskTrigger -Daily -At 08:00
+$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At 08:00 -RepetitionInterval (New-TimeSpan -Hours 2) -RepetitionDuration (New-TimeSpan -Hours 14)).Repetition
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 1) -StartWhenAvailable
+Register-ScheduledTask -TaskName "AI Job Hunter" -Action $action -Trigger $trigger -Settings $settings -Description "Fetch monitored ATS jobs, evaluate and send Telegram alerts"
+```
+
+Pause with `Disable-ScheduledTask -TaskName "AI Job Hunter"`, resume with `Enable-ScheduledTask`, remove with `Unregister-ScheduledTask -TaskName "AI Job Hunter"`. `Get-ScheduledTaskInfo -TaskName "AI Job Hunter"` shows the last result (0 means success); details are in the log file.
 
 Use `--no-notifications` to schedule refreshes without Telegram delivery. Use `--dry-run` only to inspect a refresh plan; it does not persist refresh/evaluation/notification changes or send messages.
