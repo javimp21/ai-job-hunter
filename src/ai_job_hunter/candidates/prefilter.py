@@ -577,6 +577,8 @@ def _clearly_non_technical_role(title: str) -> str | None:
             return "non-engineering analyst"
         if tokens & _SCIENCE_TOKENS:
             return "science / research"
+        if "comercial" in tokens:
+            return "sales"
     if "research" in tokens and tokens & (_AI_TOKENS | _ML_SPECIALTY_TOKENS):
         return "ML research"
 

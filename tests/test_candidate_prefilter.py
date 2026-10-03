@@ -468,6 +468,7 @@ def test_explicit_non_technical_role_families_are_hard_rejected(title: str) -> N
         "Security Risk Analyst",
         "Agente de Ventas (Seguros Auto)",
         "Ingeniero de Ventas",
+        "Agente Comercial",
         "Científico de Datos",
         "Técnico de RRHH",
         "ML Research Engineer",
