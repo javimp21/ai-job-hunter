@@ -1,4 +1,7 @@
-"""No-scrape identification of public Greenhouse, Lever, and Ashby job boards."""
+"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, and SmartRecruiters job boards.
+
+Teamtailor is detected only on ``{company}.teamtailor.com``; custom career
+domains are not guessed."""
 
 from __future__ import annotations
 
@@ -39,6 +42,7 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
     provider: ATSProvider | None = None
     region: str | None = None
     evidence: str | None = None
+    identifier: str | None = None
     if host in {"boards.greenhouse.io", "job-boards.greenhouse.io", "boards.eu.greenhouse.io"}:
         provider = ATSProvider.GREENHOUSE
         evidence = f"Exact Greenhouse board hostname '{host}' matched; the first path segment is the board token."
@@ -49,10 +53,20 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
     elif host == "jobs.ashbyhq.com":
         provider = ATSProvider.ASHBY
         evidence = "Exact Ashby jobs hostname matched; the first path segment is the job board name."
+    elif host in {"jobs.smartrecruiters.com", "careers.smartrecruiters.com"}:
+        provider = ATSProvider.SMARTRECRUITERS
+        evidence = f"Exact SmartRecruiters hostname '{host}' matched; the first path segment is the company identifier."
+    else:
+        label, _, parent = host.partition(".")
+        if parent == "teamtailor.com" and label not in {"www", "app", "api"}:
+            provider = ATSProvider.TEAMTAILOR
+            identifier = label
+            evidence = f"Teamtailor career-site subdomain '{host}' matched; the subdomain is the company identifier."
 
     if provider is None:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
-    identifier = segments[0] if segments else None
+    if provider is not ATSProvider.TEAMTAILOR:
+        identifier = segments[0] if segments else None
     if identifier is None or not _BOARD_IDENTIFIER.fullmatch(identifier):
         return ATSDiscoveryResult(
             provider=provider,

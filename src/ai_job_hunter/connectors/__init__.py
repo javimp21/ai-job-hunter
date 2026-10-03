@@ -8,7 +8,17 @@ from ai_job_hunter.connectors.lever import LeverConnector, LeverConnectorError
 from ai_job_hunter.connectors.protocol import JobConnector
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
 
+from ai_job_hunter.connectors.smartrecruiters import (
+    SmartRecruitersConnector,
+    SmartRecruitersConnectorError,
+)
+from ai_job_hunter.connectors.teamtailor import TeamtailorConnector, TeamtailorConnectorError
+
 __all__ = [
+    "SmartRecruitersConnector",
+    "SmartRecruitersConnectorError",
+    "TeamtailorConnector",
+    "TeamtailorConnectorError",
     "FakeJobConnector",
     "AshbyConnector",
     "AshbyConnectorError",

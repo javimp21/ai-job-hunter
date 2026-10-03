@@ -11,6 +11,7 @@ from ai_job_hunter.domain.company_intelligence import (
     company_facts,
 )
 from ai_job_hunter.models import Company, CompanyEvidence
+from ai_job_hunter.services.company_intelligence import public_board_url
 
 
 @pytest.mark.parametrize(
@@ -21,6 +22,10 @@ from ai_job_hunter.models import Company, CompanyEvidence
         ("https://jobs.lever.co/acme/abc", ATSProvider.LEVER, "acme", "global"),
         ("https://jobs.eu.lever.co/acme-eu/abc", ATSProvider.LEVER, "acme-eu", "eu"),
         ("https://jobs.ashbyhq.com/acme-company/abc", ATSProvider.ASHBY, "acme-company", None),
+        ("https://acme.teamtailor.com/jobs/123-role", ATSProvider.TEAMTAILOR, "acme", None),
+        ("https://Acme-Co.teamtailor.com", ATSProvider.TEAMTAILOR, "Acme-Co".casefold(), None),
+        ("https://jobs.smartrecruiters.com/AcmeCo/744-role", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),
+        ("https://careers.smartrecruiters.com/AcmeCo", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),
     ],
 )
 def test_discovery_extracts_exact_public_board_identifiers(url, provider, identifier, region):
@@ -43,6 +48,13 @@ def test_discovery_extracts_exact_public_board_identifiers(url, provider, identi
         ("not a valid url ://", "malformed"),
         ("https://boards.greenhouse.io.evil.test/acme", "does not match"),
         ("https://user:pass@boards.greenhouse.io/acme", "credentials"),
+        ("https://acme.teamtailor.com.evil.test/jobs", "does not match"),
+        ("https://careers.acme.com/jobs", "does not match"),
+        ("https://a.b.teamtailor.com/jobs", "does not match"),
+        ("https://www.teamtailor.com/en/", "does not match"),
+        ("https://teamtailor.com/", "does not match"),
+        ("https://smartrecruiters.com/AcmeCo", "does not match"),
+        ("https://jobs.smartrecruiters.com.evil.test/AcmeCo", "does not match"),
     ],
 )
 def test_unknown_urls_are_not_guessed(url, evidence_part):
@@ -63,6 +75,26 @@ def test_known_ats_host_without_a_board_path_is_not_monitorable():
     assert result.identifier is None
     assert result.confidence is ATSDiscoveryConfidence.UNKNOWN
     assert not result.is_supported
+
+
+def test_smartrecruiters_host_without_company_path_is_not_monitorable():
+    result = discover_ats_url("https://jobs.smartrecruiters.com/")
+
+    assert result.provider is ATSProvider.SMARTRECRUITERS
+    assert result.identifier is None
+    assert not result.is_supported
+
+
+@pytest.mark.parametrize(
+    ("provider", "identifier", "region", "expected"),
+    [
+        (ATSProvider.TEAMTAILOR, "acme", None, "https://acme.teamtailor.com/jobs"),
+        (ATSProvider.SMARTRECRUITERS, "AcmeCo", None, "https://jobs.smartrecruiters.com/AcmeCo"),
+        (ATSProvider.ASHBY, "acme", None, "https://jobs.ashbyhq.com/acme"),
+    ],
+)
+def test_public_board_url_for_new_providers(provider, identifier, region, expected):
+    assert public_board_url(provider, identifier, region) == expected
 
 
 def test_observed_job_source_evidence_takes_precedence_over_url_inference():

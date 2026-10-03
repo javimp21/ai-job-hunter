@@ -25,7 +25,20 @@ class ATSProvider(StrEnum):
     GREENHOUSE = "GREENHOUSE"
     LEVER = "LEVER"
     ASHBY = "ASHBY"
+    TEAMTAILOR = "TEAMTAILOR"
+    SMARTRECRUITERS = "SMARTRECRUITERS"
     UNKNOWN = "UNKNOWN"
+
+
+SUPPORTED_ATS_PROVIDERS = frozenset(
+    {
+        ATSProvider.GREENHOUSE,
+        ATSProvider.LEVER,
+        ATSProvider.ASHBY,
+        ATSProvider.TEAMTAILOR,
+        ATSProvider.SMARTRECRUITERS,
+    }
+)
 
 
 class ATSDiscoveryConfidence(StrEnum):
@@ -67,7 +80,7 @@ class CareerPageFact(BaseModel):
     def is_supported(self) -> bool:
         """Whether this URL identifies a board handled by an existing connector."""
 
-        return self.ats_provider in {ATSProvider.GREENHOUSE, ATSProvider.LEVER, ATSProvider.ASHBY}
+        return self.ats_provider in SUPPORTED_ATS_PROVIDERS
 
 
 class ATSDiscoveryResult(BaseModel):
@@ -84,7 +97,7 @@ class ATSDiscoveryResult(BaseModel):
 
     @property
     def is_supported(self) -> bool:
-        return self.provider in {ATSProvider.GREENHOUSE, ATSProvider.LEVER, ATSProvider.ASHBY} and bool(
+        return self.provider in SUPPORTED_ATS_PROVIDERS and bool(
             self.identifier and self.identifier.strip()
         )
 

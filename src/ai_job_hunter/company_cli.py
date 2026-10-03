@@ -24,6 +24,8 @@ from ai_job_hunter.connectors import FakeJobConnector, build_job_connectors
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
+from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
+from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.company_sources import (
     DEFAULT_SNAPSHOT_DIR,
     CompanySourceError,
@@ -81,7 +83,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     monitor.add_argument("--remote-from-spain", action="store_true")
     monitor.add_argument("--supported-ats", action="store_true", help="explicitly select supported boards (always required)")
     monitor.add_argument("--company")
-    monitor.add_argument("--provider", choices=("greenhouse", "lever", "ashby"))
+    monitor.add_argument("--provider", choices=("greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters"))
     monitor.add_argument("--limit-companies", type=int, default=10)
     monitor.add_argument("--max-jobs-per-company", type=int, default=100)
     monitor.add_argument("--candidate-config", metavar="PATH", help="run the deterministic prefilter; no Jev calls")
@@ -347,7 +349,13 @@ def _run_monitor(args, session) -> None:
                     f"IDENTIFIER: {spec.identifier} | JOBS FETCHED: {len(fetched)} | "
                     f"EVIDENCE: {target.evidence_source}"
                 )
-            except (AshbyConnectorError, GreenhouseConnectorError, LeverConnectorError) as error:
+            except (
+                AshbyConnectorError,
+                GreenhouseConnectorError,
+                LeverConnectorError,
+                SmartRecruitersConnectorError,
+                TeamtailorConnectorError,
+            ) as error:
                 failures.append((target.company_name, str(error)))
                 print(f"COMPANY: {target.company_name} | FETCH ERROR: {error}", file=sys.stderr)
 

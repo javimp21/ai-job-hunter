@@ -36,6 +36,8 @@ from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.factory import build_job_connectors
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
+from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
+from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.decision_engine import (
     POLICY_VERSION_V2,
     RUBRIC_VERSION,
@@ -1028,7 +1030,13 @@ def _fetch_targets(
             target = target_by_key[(spec.provider, spec.identifier.casefold(), spec.region)]
             try:
                 fetched = connector.fetch_jobs()
-            except (AshbyConnectorError, GreenhouseConnectorError, LeverConnectorError) as error:
+            except (
+                AshbyConnectorError,
+                GreenhouseConnectorError,
+                LeverConnectorError,
+                SmartRecruitersConnectorError,
+                TeamtailorConnectorError,
+            ) as error:
                 failures.append(
                     SourceFailure(target.company_name, spec.provider.upper(), type(error).__name__)
                 )

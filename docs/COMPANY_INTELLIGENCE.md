@@ -63,6 +63,8 @@ ai-job-hunter sources reject <source-id> --reason "mostly sales roles"
 
 Each refresh records new boards for review, fetches ACTIVE boards least-recently-fetched first (so `--limit-companies` rotates through all of them) and stores the last fetch time, status, job count and consecutive failures. `sources sync --activate-current` exists only for the one-time adoption of boards that were monitored before this lifecycle existed (done 2026-10-03 for the 11 original companies).
 
+Supported ATS providers (public, keyless connectors): Greenhouse, Lever, Ashby, Teamtailor (`{company}.teamtailor.com/jobs.rss`) and SmartRecruiters (`api.smartrecruiters.com/v1/companies/{companyId}/postings`). Discovery matches exact hosts only (`jobs.`/`careers.smartrecruiters.com/{CompanyId}`, `{company}.teamtailor.com`); custom career domains are not detected and stay UNKNOWN. Neither connector derives remote eligibility: Teamtailor's `remoteStatus` and SmartRecruiters' `remote` flag only describe work mode.
+
 ## Job portals
 
 Besides ACTIVE company boards, `refresh`/`run` query the job portals listed in `JOB_PORTALS` (default `himalayas`; set it empty in `.env` to disable). Portals are searched with filters (country Spain, backend/software/platform/Java keywords), not crawled, and each one is queried at most once per polling interval (Himalayas: 20 h, state in `data/local/portal-state.json`; `--dry-run` never advances it).

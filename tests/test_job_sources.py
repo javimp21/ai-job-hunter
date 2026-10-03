@@ -88,3 +88,32 @@ def test_invalid_or_missing_source_config_has_readable_error(tmp_path):
         load_job_sources(path)
     with pytest.raises(JobSourcesConfigError, match="Cannot read"):
         load_job_sources(tmp_path / "missing.json")
+
+
+def test_teamtailor_and_smartrecruiters_sources_build_connectors():
+    from ai_job_hunter.connectors import SmartRecruitersConnector, TeamtailorConnector
+
+    config = JobSourcesConfig.model_validate(
+        {
+            "sources": [
+                {"provider": "Teamtailor", "identifier": "acme", "company_name": "Acme", "max_jobs": 5},
+                {"provider": "smartrecruiters", "identifier": "AcmeCo", "max_jobs": 7},
+            ]
+        }
+    )
+    connectors = build_job_connectors(config)
+    try:
+        assert isinstance(connectors[0], TeamtailorConnector)
+        assert connectors[0].company == "acme"
+        assert connectors[0].company_name == "Acme"
+        assert connectors[0].max_jobs == 5
+        assert isinstance(connectors[1], SmartRecruitersConnector)
+        assert connectors[1].company_id == "AcmeCo"
+        assert connectors[1].max_jobs == 7
+    finally:
+        for connector in connectors:
+            connector.close()
+    with pytest.raises(ValueError, match="only supported by Lever"):
+        JobSourcesConfig.model_validate(
+            {"sources": [{"provider": "teamtailor", "identifier": "acme", "region": "eu"}]}
+        )

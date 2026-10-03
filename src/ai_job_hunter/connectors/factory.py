@@ -8,6 +8,8 @@ from ai_job_hunter.connectors.ashby import AshbyConnector
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnector
 from ai_job_hunter.connectors.lever import LeverConnector
 from ai_job_hunter.connectors.protocol import JobConnector
+from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
+from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
 from ai_job_hunter.job_sources import JobSourcesConfig
 
 
@@ -45,6 +47,26 @@ def build_job_connectors(
         elif source.provider == "ashby":
             connectors.append(
                 AshbyConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                )
+            )
+        elif source.provider == "teamtailor":
+            connectors.append(
+                TeamtailorConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                )
+            )
+        elif source.provider == "smartrecruiters":
+            connectors.append(
+                SmartRecruitersConnector(
                     source.identifier,
                     company_name=source.company_name,
                     max_jobs=source.max_jobs,
