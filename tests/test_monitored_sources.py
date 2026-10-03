@@ -195,3 +195,27 @@ def test_refresh_never_fetches_boards_waiting_for_review(db_session, monkeypatch
     newcomer = _source(db_session, "newcomer")
     assert newcomer.state == MonitoredSourceState.REVIEW_SOURCE.value
     assert _source(db_session, "reviewed").last_fetched_at is not None
+
+
+def test_lead_derived_active_board_becomes_a_target(db_session) -> None:
+    company = Company(name="Duna", website_url="https://duna.example.test")
+    db_session.add(company)
+    db_session.flush()
+    db_session.add(
+        MonitoredSource(
+            company_id=company.id,
+            provider="ASHBY",
+            identifier="duna",
+            identifier_key="duna",
+            careers_url="https://jobs.ashbyhq.com/duna",
+            state=MonitoredSourceState.ACTIVE.value,
+            origin="career_url",
+        )
+    )
+    db_session.commit()
+
+    (target,) = active_monitor_targets(db_session)
+
+    assert target.provider.value == "ASHBY"
+    assert target.evidence_source == "career_url"
+    assert target.confidence.value == "DIRECT_URL_PATTERN"

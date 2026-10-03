@@ -184,7 +184,7 @@ def active_monitor_targets(
                 confidence=(
                     ATSDiscoveryConfidence.OBSERVED_JOB_SOURCE
                     if row.origin == "observed_job_source"
-                    else ATSDiscoveryConfidence.EXACT_PUBLIC_URL
+                    else ATSDiscoveryConfidence.DIRECT_URL_PATTERN
                 ),
                 source_id=row.id,
             )
