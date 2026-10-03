@@ -48,9 +48,23 @@ class SalaryEvaluation(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class RoleFamilyFit(StrEnum):
+    TARGET = "TARGET"
+    POTENTIALLY_RELEVANT = "POTENTIALLY_RELEVANT"
+    NON_TARGET = "NON_TARGET"
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass(frozen=True, slots=True)
 class SignalAssessment:
     status: SignalStatus
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class RoleFamilyAssessment:
+    fit: RoleFamilyFit
+    family: str
     reason: str
 
 
@@ -83,6 +97,7 @@ class JobPreFilterSignals:
     preferred_location: SignalAssessment
     technology: TechnologyMatch
     experience: ExperienceAssessment
+    role_family: RoleFamilyAssessment
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,7 +286,46 @@ _NON_TECHNICAL_ROLE_MARKERS = {
     "growth": "growth",
     "support": "customer support",
     "success": "customer success",
+    # Unambiguous Spanish title markers.
+    "ventas": "sales",
+    "rrhh": "recruiting / HR",
+    "reclutador": "recruiting / HR",
+    "reclutadora": "recruiting / HR",
+    "abogado": "legal",
+    "abogada": "legal",
+    "contable": "finance",
+    "disenador": "design",
+    "disenadora": "design",
 }
+# Tokens naming an engineering job (not a technical domain such as "security"
+# or "data"). Titles without one cannot be rescued by a domain word alone.
+_ENGINEERING_JOB_TOKENS = {
+    "engineer", "engineering", "programmer", "programming", "sre", "devops",
+    "ingeniero", "ingeniera", "programador", "programadora", "desarrollador",
+    "desarrolladora",
+}
+_GOVERNANCE_TOKENS = {"governance", "compliance", "grc", "audit", "auditor", "risk"}
+_ANALYST_TOKENS = {"analyst", "analista"}
+_SCIENCE_TOKENS = {
+    "scientist", "researcher", "cientifico", "cientifica", "investigador", "investigadora",
+}
+_AI_TOKENS = {"ai", "genai", "llm", "llms", "ml", "mlops"}
+_ML_SPECIALTY_TOKENS = {"vision", "nlp", "deep", "cv"}
+_DATA_TOKENS = {"data", "datos", "analytics"}
+_CUSTOMER_FACING_ENGINEERING_TOKENS = {"field", "fde", "solutions", "solution", "forward", "deployed"}
+_CORE_SOFTWARE_TOKENS = {
+    "backend", "software", "fullstack", "api", "devtools", "sre", "devops",
+}
+_PLATFORM_TOKENS = {"platform", "infrastructure", "infra", "cloud"}
+# Compound spellings are expanded both ways so "Back End" matches "Backend".
+_TITLE_COMPOUNDS = (
+    ({"back", "end"}, "backend"),
+    ({"full", "stack"}, "fullstack"),
+    ({"machine", "learning"}, "ml"),
+    ({"gen", "ai"}, "genai"),
+    ({"inteligencia", "artificial"}, "ai"),
+    ({"artificial", "intelligence"}, "ai"),
+)
 _TECHNICAL_ROLE_MARKERS = {
     "engineer", "engineering", "developer", "software", "backend", "back",
     "end", "platform", "infrastructure", "devops", "devtools", "data",
@@ -307,7 +361,8 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
             "The candidate profile says remote work is not currently feasible.",
         )
     role = _evaluate_role(facts.title, preferences)
-    location = _evaluate_preferred_location(facts.location, preferences)
+    role_family = _classify_role_family(facts.title)
+    location =_evaluate_preferred_location(facts.location, preferences)
     technology = _evaluate_technology(facts, profile, preferences)
     experience = assess_experience(
         facts.experience_requirements,
@@ -326,6 +381,7 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
         preferred_location=location,
         technology=technology,
         experience=experience,
+        role_family=role_family,
     )
     hard_mismatches: list[str] = []
     review_reasons: list[str] = []
@@ -334,11 +390,10 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     elif experience.outcome is not ExperienceOutcome.MEETS:
         review_reasons.append(experience.reason + " " + experience.requirement_display)
 
-    unrelated_role = _clearly_non_technical_role(facts.title)
-    if unrelated_role:
-        hard_mismatches.append(
-            f"Title belongs to the non-target {unrelated_role} role family."
-        )
+    if role_family.fit is RoleFamilyFit.NON_TARGET:
+        hard_mismatches.append(role_family.reason)
+    elif role_family.fit is RoleFamilyFit.POTENTIALLY_RELEVANT:
+        review_reasons.append(role_family.reason)
 
     for label, assessment in (
         ("Geography", geography),
@@ -415,24 +470,115 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     return JobPreFilterResult(decision=decision, reasons=reasons, signals=signals)
 
 
+def _role_tokens(title: str, *, include_seniority: bool = True) -> frozenset[str]:
+    """Normalized title tokens plus both spellings of known compound role words."""
+
+    normalized = normalize_job_title(title)
+    tokens = set(normalized.tokens | normalized.seniority if include_seniority else normalized.tokens)
+    for parts, compound in _TITLE_COMPOUNDS:
+        if parts <= tokens:
+            tokens.add(compound)
+        elif compound in tokens and compound not in {"ml", "ai"}:
+            tokens |= parts
+    return frozenset(tokens)
+
+
+def _classify_role_family(title: str) -> RoleFamilyAssessment:
+    """Classify the title's role family; ambiguous families are left for review.
+
+    Only explicit title evidence is used. Families whose fit depends on the
+    actual work (data, AI/ML, customer-facing engineering) are never rejected
+    here: the description decides, through review.
+    """
+
+    non_target = _clearly_non_technical_role(title)
+    if non_target:
+        return RoleFamilyAssessment(
+            RoleFamilyFit.NON_TARGET,
+            non_target,
+            f"Title belongs to the non-target {non_target} role family.",
+        )
+    tokens = _role_tokens(title)
+    if not tokens & _ENGINEERING_JOB_TOKENS:
+        return RoleFamilyAssessment(
+            RoleFamilyFit.UNKNOWN,
+            "unclassified",
+            "Title does not name a recognized engineering role family.",
+        )
+
+    def potentially_relevant(family: str, focus: str) -> RoleFamilyAssessment:
+        return RoleFamilyAssessment(
+            RoleFamilyFit.POTENTIALLY_RELEVANT,
+            family,
+            f"Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+        )
+
+    software_focus = "mainly software/backend engineering"
+    if tokens & (_AI_TOKENS | _ML_SPECIALTY_TOKENS):
+        if tokens & _ML_SPECIALTY_TOKENS:
+            return potentially_relevant("ML specialist (vision/NLP/deep learning)", software_focus)
+        if tokens & _CORE_SOFTWARE_TOKENS:
+            return RoleFamilyAssessment(
+                RoleFamilyFit.TARGET,
+                "software/backend engineering (AI domain)",
+                "Title names a software/backend engineering role in an AI domain.",
+            )
+        if tokens & _PLATFORM_TOKENS:
+            return potentially_relevant("AI/ML platform engineering", "platform, serving or tooling engineering")
+        if "ml" in tokens and not tokens & {"ai", "genai", "llm", "llms"}:
+            return potentially_relevant("machine learning engineering", "software-heavy rather than model research")
+        return potentially_relevant("AI engineering", "software around models (APIs, RAG, agents, serving, evaluation)")
+    if tokens & _DATA_TOKENS:
+        family = "analytics engineering" if "analytics" in tokens else "data engineering"
+        return potentially_relevant(family, "software-heavy (pipelines, data platform, distributed systems)")
+    if tokens & _CUSTOMER_FACING_ENGINEERING_TOKENS:
+        return potentially_relevant("customer-facing engineering", software_focus)
+    if "research" in tokens:
+        return potentially_relevant("research engineering", software_focus)
+    if tokens & (_CORE_SOFTWARE_TOKENS | _PLATFORM_TOKENS):
+        return RoleFamilyAssessment(
+            RoleFamilyFit.TARGET,
+            "software/backend/platform engineering",
+            "Title names a software, backend or platform engineering role.",
+        )
+    return RoleFamilyAssessment(
+        RoleFamilyFit.UNKNOWN,
+        "other engineering",
+        "Title names an engineering role outside the recognized target families.",
+    )
+
+
 def _clearly_non_technical_role(title: str) -> str | None:
     """Classify explicit non-technical title families using normalized title tokens."""
 
-    normalized = normalize_job_title(title)
-    tokens = normalized.tokens | normalized.seniority
+    tokens = _role_tokens(title)
+    engineering_job = bool(tokens & _ENGINEERING_JOB_TOKENS)
     # Sales and support titles remain out of scope even when their names contain
     # the word "engineer" (for example, Sales Engineer).
     for marker in (
-        "sales", "support", "success", "designer", "legal", "counsel", "attorney",
+        "sales", "ventas", "support", "success", "designer", "legal", "counsel", "attorney",
         "lawyer", "marketing", "marketer", "recruiter", "recruiting", "recruitment",
         "hr", "hrbp", "finance", "accountant", "accounting", "community", "producer",
-        "copywriter", "writer",
+        "copywriter", "writer", "rrhh", "reclutador", "reclutadora", "abogado",
+        "abogada", "contable", "disenador", "disenadora",
     ):
         if marker in tokens:
-            if marker == "sales" and tokens & _TECHNICAL_ROLE_MARKERS:
+            if marker in {"sales", "ventas"} and tokens & _TECHNICAL_ROLE_MARKERS:
                 if not _LEGACY_UNRELATED_ROLE.search(title):
                     continue
             return _NON_TECHNICAL_ROLE_MARKERS[marker]
+
+    # A technical domain word ("security", "data") does not make a governance,
+    # analyst or scientist title an engineering job; an engineering noun does.
+    if not engineering_job:
+        if tokens & _GOVERNANCE_TOKENS:
+            return "governance / risk / compliance"
+        if tokens & _ANALYST_TOKENS:
+            return "non-engineering analyst"
+        if tokens & _SCIENCE_TOKENS:
+            return "science / research"
+    if "research" in tokens and tokens & (_AI_TOKENS | _ML_SPECIALTY_TOKENS):
+        return "ML research"
 
     # Product management is its own family; "product engineer" remains technical.
     if {"product", "manager"} <= tokens:
@@ -729,7 +875,7 @@ def _evaluate_remote_preference(
 def _evaluate_role(title: str, preferences: CandidatePreferences) -> SignalAssessment:
     if not preferences.preferred_roles:
         return SignalAssessment(SignalStatus.COMPATIBLE, "No preferred role keywords are configured.")
-    title_tokens = normalize_job_title(title).tokens
+    title_tokens = _role_tokens(title, include_seniority=False)
     for role in preferences.preferred_roles:
         role_tokens = normalize_job_title(role).tokens
         if role_tokens and role_tokens <= title_tokens:

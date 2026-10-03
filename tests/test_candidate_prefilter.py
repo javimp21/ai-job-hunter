@@ -15,6 +15,7 @@ from ai_job_hunter.candidates import (
     load_candidate_config,
 )
 from ai_job_hunter.candidates.prefilter import (
+    RoleFamilyFit,
     SalaryEvaluation,
     SignalStatus,
 )
@@ -458,19 +459,108 @@ def test_explicit_non_technical_role_families_are_hard_rejected(title: str) -> N
         "GTM Operations Engineer",
         "Open Application",
         "General Application",
+        "Data Analyst",
+        "BI Analyst",
+        "Data Scientist",
+        "Data Scientist - Fraud Detection",
+        "Research Scientist",
+        "Cyber Security Governance Specialist",
+        "Security Risk Analyst",
+        "Agente de Ventas (Seguros Auto)",
+        "Ingeniero de Ventas",
+        "Científico de Datos",
+        "Técnico de RRHH",
+        "ML Research Engineer",
+        "Deep Learning Research Engineer",
     ],
 )
 def test_unscoped_or_non_engineering_role_families_are_hard_rejected(title: str) -> None:
     result = evaluate_job(facts_for(title=title), make_config())
 
     assert result.decision is PreFilterDecision.REJECT
+    assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
     assert any("non-target" in reason for reason in result.reasons)
+
+
+@pytest.mark.parametrize(
+    ("title", "family"),
+    [
+        ("Data Engineer", "data engineering"),
+        ("Ingeniero de Datos", "data engineering"),
+        ("Data Platform Engineer", "data engineering"),
+        ("Analytics Engineer II, Full Stack (Revenue Analytics)", "analytics engineering"),
+        ("AI Engineer", "AI engineering"),
+        ("Applied AI Engineer", "AI engineering"),
+        ("LLM Engineer", "AI engineering"),
+        ("GenAI Engineer", "AI engineering"),
+        ("AI Platform Engineer", "AI/ML platform engineering"),
+        ("ML Platform Engineer", "AI/ML platform engineering"),
+        ("Machine Learning Engineer", "machine learning engineering"),
+        ("Applied ML Engineer", "machine learning engineering"),
+        ("Computer Vision Engineer", "ML specialist (vision/NLP/deep learning)"),
+        ("Research Engineer", "research engineering"),
+        ("Field Engineer / FDE", "customer-facing engineering"),
+    ],
+)
+def test_context_dependent_role_families_are_reviewed_not_rejected(title: str, family: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.decision is not PreFilterDecision.REJECT
+    assert result.signals.role_family.fit is RoleFamilyFit.POTENTIALLY_RELEVANT
+    assert result.signals.role_family.family == family
+    assert result.signals.role_family.reason in result.reasons
 
 
 @pytest.mark.parametrize(
     "title",
     [
-        "Data Analyst",
+        "Backend Engineer",
+        "Back End Engineer",
+        "Desarrollador Backend",
+        "Software Engineer, Platform",
+        "Software Engineer, AI",
+        "Backend Engineer - GenAI",
+    ],
+)
+def test_software_backend_titles_are_target_role_family(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.TARGET
+
+
+def test_potentially_relevant_ai_family_never_passes_prefilter_alone() -> None:
+    candidate = make_config(
+        profile={"years_of_experience": 1},
+        preferences={"preferred_roles": ["Backend Engineer", "AI Engineer"]},
+    )
+    description = "1 year of professional experience required. Build APIs with Python."
+    ai = evaluate_job(facts_for(title="AI Engineer", description=description), candidate)
+    backend_ai = evaluate_job(
+        facts_for(title="Backend Engineer - GenAI", description=description),
+        candidate,
+    )
+    backend = evaluate_job(facts_for(title="Backend Engineer", description=description), candidate)
+
+    assert ai.decision is PreFilterDecision.REVIEW
+    assert ai.signals.role_family.reason in ai.reasons
+    # A backend title in an AI domain is treated exactly like a backend title.
+    assert backend_ai.decision is backend.decision
+    assert backend_ai.reasons == backend.reasons
+
+
+def test_back_end_spelling_matches_backend_preferred_role() -> None:
+    candidate = make_config(preferences={"preferred_roles": ["Backend Engineer", "Full Stack Engineer"]})
+
+    spaced = evaluate_job(facts_for(title="Back End Engineer"), candidate)
+    fullstack = evaluate_job(facts_for(title="Fullstack Engineer"), candidate)
+
+    assert spaced.signals.preferred_role.status is SignalStatus.COMPATIBLE
+    assert fullstack.signals.preferred_role.status is SignalStatus.COMPATIBLE
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
         "Solutions Engineer",
         "Field Engineer / FDE",
         "Analytics Engineer",

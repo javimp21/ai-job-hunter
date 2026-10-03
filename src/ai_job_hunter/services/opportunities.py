@@ -91,7 +91,7 @@ from ai_job_hunter.rubric import RUBRIC_SPEC
 
 _ENGINE_NAME = "typesafe-jev"
 _DETERMINISTIC_ENGINE_NAME = "deterministic-prefilter"
-_PREFILTER_VERSION = "candidate-prefilter-v3-experience"
+_PREFILTER_VERSION = "candidate-prefilter-v4-role-family"
 _REASON_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
 _APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
     ApplicationStatus.DRAFT: frozenset({ApplicationStatus.APPLIED, ApplicationStatus.WITHDRAWN}),
@@ -1304,6 +1304,11 @@ def _prefilter_payload(result: JobPreFilterResult) -> dict[str, Any]:
             "employment_type": {"status": signals.employment_type.status.value, "reason": signals.employment_type.reason},
             "remote_preference": {"status": signals.remote_preference.status.value, "reason": signals.remote_preference.reason},
             "preferred_role": {"status": signals.preferred_role.status.value, "reason": signals.preferred_role.reason},
+            "role_family": {
+                "fit": signals.role_family.fit.value,
+                "family": signals.role_family.family,
+                "reason": signals.role_family.reason,
+            },
             "preferred_location": {"status": signals.preferred_location.status.value, "reason": signals.preferred_location.reason},
             "technology": {
                 "matching_primary_skills": list(signals.technology.matching_primary_skills),

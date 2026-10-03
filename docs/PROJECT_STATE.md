@@ -18,6 +18,7 @@ Validate explicit experience-years filtering for real use: floors and ranges hav
 
 ## Pending / limits
 - Earlier real-use refresh: 3 companies, 68 fetched offers, 2 new Jev evaluations, 5 cache hits, no notifications sent in that cycle. The user confirmed receipt of the two earlier Telegram alerts; this is not a new delivery test.
+- The ledger keeps those two real Telegram deliveries (2026-10-01: Duna — Backend Engineer; Notion — Software Engineer, Early Career) and one suppressed row (fal — Creative Technologist) as valid history. They were sent before the experience and role/geography tightening; under the current prefilter both are deterministic SKIP (Duna requires 3–5+ years; Notion is San Francisco only), so they cannot notify again. Ledger deduplication is per job *and* evaluation fingerprint: a future current evaluation of a previously sent job is a new notification candidate.
 - Experience-policy version changes deliberately leave historical semantic evaluations STALE; there is no offline backfill/migration of unproven old Jev evidence. This validation did not refresh candidate-specific database results, so stale rows remain stale pending an explicitly authorized evaluation. No automatic new Jev calls were made.
 - Two pre-existing notification noise issues remain: applied/dismissed jobs can alert, and a changed evaluation can notify again with the same decision. Resolve before relying on scheduled sends.
 - Live browser/ATS submission interactions remain unverified; no application submission is authorized.
