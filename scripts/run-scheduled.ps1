@@ -22,7 +22,10 @@ $runArgs = @(
     "--limit-companies", "1000",
     "--max-jobs-per-company", "500",
     "--max-jev-jobs", "$MaxJevJobs",
-    "--max-notifications", "$MaxNotifications"
+    "--max-notifications", "$MaxNotifications",
+    # Jobs deferred by an earlier run's Jev budget are retried within this
+    # run's budget; without it they would stay PENDING forever.
+    "--retry-pending"
 )
 if ($NoNotifications) { $runArgs += "--no-notifications" }
 if ($DryRun) { $runArgs += "--dry-run" }
