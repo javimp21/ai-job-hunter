@@ -31,7 +31,10 @@ if ($DryRun) { $runArgs += "--dry-run" }
 $env:PYTHONIOENCODING = "utf-8"
 # Native stderr is merged into the log; keep going so the exit code is recorded.
 $ErrorActionPreference = "Continue"
-& (Join-Path $root ".venv\Scripts\ai-job-hunter.exe") @runArgs 2>&1 |
+# Prefer the frozen runtime from scripts/deploy-stable.ps1 so work in progress can't break runs.
+$exe = Join-Path $root ".venv-stable\Scripts\ai-job-hunter.exe"
+if (-not (Test-Path $exe)) { $exe = Join-Path $root ".venv\Scripts\ai-job-hunter.exe" }
+& $exe @runArgs 2>&1 |
     ForEach-Object { "$_" } |
     Out-File -FilePath $log -Append -Encoding utf8
 $code = $LASTEXITCODE

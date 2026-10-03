@@ -74,3 +74,6 @@ candidate_projects.local.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# Frozen runtime used by scheduled runs (scripts/deploy-stable.ps1)
+/.venv-stable/

@@ -13,7 +13,9 @@ $ErrorActionPreference = "Continue"
 while ($true) {
     $log = Join-Path $logDir ("bot-" + (Get-Date -Format "yyyy-MM") + ".log")
     "==== $(Get-Date -Format o) ====" | Out-File -FilePath $log -Append -Encoding utf8
-    & (Join-Path $root ".venv\Scripts\ai-job-hunter.exe") bot 2>&1 |
+    $exe = Join-Path $root ".venv-stable\Scripts\ai-job-hunter.exe"
+    if (-not (Test-Path $exe)) { $exe = Join-Path $root ".venv\Scripts\ai-job-hunter.exe" }
+    & $exe bot 2>&1 |
         ForEach-Object { "$_" } |
         Out-File -FilePath $log -Append -Encoding utf8
     "exit=$LASTEXITCODE; restarting in 30 seconds" | Out-File -FilePath $log -Append -Encoding utf8
