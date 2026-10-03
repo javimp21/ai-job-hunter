@@ -527,7 +527,7 @@ def test_v2_does_not_override_hard_geography_reject() -> None:
     assert engine.calls == []
 
 
-def test_v2_unknown_san_francisco_geography_cannot_apply_on_strong_signals() -> None:
+def test_v2_incompatible_san_francisco_geography_hard_skips_strong_signals() -> None:
     context = context_for(
         sample_offer(
             location="San Francisco",
@@ -544,8 +544,8 @@ def test_v2_unknown_san_francisco_geography_cannot_apply_on_strong_signals() -> 
 
     result = apply_decision_policy_v2(context, evidence)
 
-    assert result.final_decision is FinalDecision.REVIEW
-    assert ReviewReasonCode.LOCATION_UNCERTAIN in {reason.code for reason in result.review_reasons}
+    assert result.final_decision is FinalDecision.SKIP
+    assert any("location excludes" in reason for reason in result.reasons)
 
 
 def test_v2_explicit_eu_remote_geography_can_apply() -> None:

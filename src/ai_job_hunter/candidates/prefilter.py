@@ -139,6 +139,22 @@ _COUNTRIES = (
     _Country("Argentina", ("argentina", "ar")),
     _Country("Mexico", ("mexico", "mx")),
     _Country("Singapore", ("singapore", "sg")),
+    _Country("South Korea", ("south korea", "republic of korea", "korea", "kr")),
+    _Country("Indonesia", ("indonesia", "id")),
+    _Country("Malaysia", ("malaysia", "my")),
+    _Country("Philippines", ("philippines", "ph")),
+    _Country("Thailand", ("thailand", "th")),
+    _Country("Vietnam", ("vietnam", "viet nam", "vn")),
+    _Country("Taiwan", ("taiwan", "tw")),
+    _Country("Hong Kong", ("hong kong", "hk")),
+    _Country("Pakistan", ("pakistan", "pk")),
+    _Country("Bangladesh", ("bangladesh", "bd")),
+    _Country("Nepal", ("nepal", "np")),
+    _Country("Sri Lanka", ("sri lanka", "lk")),
+    _Country("Myanmar", ("myanmar", "burma", "mm")),
+    _Country("Cambodia", ("cambodia", "kh")),
+    _Country("Laos", ("laos", "lao pdr", "la")),
+    _Country("Mongolia", ("mongolia", "mn")),
     _Country("Japan", ("japan", "jp")),
     _Country("China", ("china", "cn")),
     _Country("Israel", ("israel", "il")),
@@ -201,6 +217,30 @@ _EUROPE_COUNTRIES = _EU_COUNTRIES | {
     "Iceland",
     "Turkey",
 }
+_APAC_COUNTRIES = {
+    "Australia",
+    "Bangladesh",
+    "Cambodia",
+    "China",
+    "Hong Kong",
+    "India",
+    "Indonesia",
+    "Japan",
+    "Laos",
+    "Malaysia",
+    "Mongolia",
+    "Myanmar",
+    "Nepal",
+    "New Zealand",
+    "Pakistan",
+    "Philippines",
+    "Singapore",
+    "South Korea",
+    "Sri Lanka",
+    "Taiwan",
+    "Thailand",
+    "Vietnam",
+}
 _BACKEND_SKILL = re.compile(
     r"\b(?:back\s*end|backend|software\s+(?:engineering|development)|"
     r"api\s+development|distributed\s+systems)\b",
@@ -219,6 +259,7 @@ _NON_TECHNICAL_ROLE_MARKERS = {
     "recruiting": "recruiting / HR",
     "recruitment": "recruiting / HR",
     "hr": "recruiting / HR",
+    "hrbp": "recruiting / HR",
     "finance": "finance",
     "accountant": "finance",
     "accounting": "finance",
@@ -236,6 +277,7 @@ _TECHNICAL_ROLE_MARKERS = {
     "end", "platform", "infrastructure", "devops", "devtools", "data",
     "database", "security", "systems", "programmer", "programming", "sre",
     "ai", "ml", "machine", "learning", "cloud", "api", "full", "stack",
+    "technical",
 }
 _LEGACY_UNRELATED_ROLE = re.compile(
     r"^[\W_]*(?:(?:senior|junior|mid|lead|staff|principal|freelance|contract|temporary|"
@@ -383,7 +425,7 @@ def _clearly_non_technical_role(title: str) -> str | None:
     for marker in (
         "sales", "support", "success", "designer", "legal", "counsel", "attorney",
         "lawyer", "marketing", "marketer", "recruiter", "recruiting", "recruitment",
-        "hr", "finance", "accountant", "accounting", "community", "producer",
+        "hr", "hrbp", "finance", "accountant", "accounting", "community", "producer",
         "copywriter", "writer",
     ):
         if marker in tokens:
@@ -403,11 +445,24 @@ def _clearly_non_technical_role(title: str) -> str | None:
     # Operations and growth can occur in technical titles; only reject when no
     # engineering/software family marker disambiguates them.
     technical = bool(tokens & _TECHNICAL_ROLE_MARKERS)
+    engineering_context = bool(
+        tokens & (_TECHNICAL_ROLE_MARKERS - {"engineer", "engineering"})
+    )
     if not technical:
+        if "product" in tokens:
+            return "product"
+        if "analyst" in tokens:
+            return "non-engineering analyst"
+        if ("open" in tokens or "general" in tokens) and "application" in tokens:
+            return "unscoped application"
+        if ("solution" in tokens or "solutions" in tokens) and "consultant" in tokens:
+            return "solutions consulting"
+    if not engineering_context:
         if "operations" in tokens:
             return "operations"
         if "growth" in tokens:
             return "growth"
+    if not technical:
         if "commercial" in tokens and ({"head", "director", "manager"} & tokens):
             return "commercial"
         if {"office", "assistant"} <= tokens or {"administrative", "assistant"} <= tokens:
@@ -469,6 +524,45 @@ def _evaluate_geography(facts: JobFacts, candidate: CandidateConfig) -> SignalAs
             )
         return SignalAssessment(SignalStatus.UNKNOWN, "Candidate country is not configured.")
 
+    explicit_remote_location = bool(
+        facts.location and re.search(r"\bremote\b", facts.location, re.IGNORECASE)
+    )
+    if explicit_remote_location:
+        restricted_countries = _countries_in((facts.location,)) | _remote_region_countries(
+            facts.location
+        )
+        if restricted_countries:
+            return _assess_country_restriction(
+                restricted_countries,
+                current_countries,
+                eligible_countries,
+                known_countries,
+                preferences,
+                mode="remote",
+            )
+        if facts.location and re.search(
+            r"\b(?:global|worldwide)\b", facts.location, re.IGNORECASE
+        ):
+            if facts.remote_eligibility is RemoteEligibility.COUNTRY_RESTRICTED:
+                return SignalAssessment(
+                    SignalStatus.UNKNOWN,
+                    "Remote eligibility is marked country-restricted but no permitted country is identified.",
+                )
+            return SignalAssessment(
+                SignalStatus.COMPATIBLE,
+                "Explicit global remote eligibility includes the candidate's country.",
+            )
+        if facts.remote_eligibility not in {
+            RemoteEligibility.WORLDWIDE,
+            RemoteEligibility.SPAIN_ONLY,
+            RemoteEligibility.EU_REMOTE,
+            RemoteEligibility.EMEA_REMOTE,
+        }:
+            return SignalAssessment(
+                SignalStatus.UNKNOWN,
+                "Explicit remote location does not identify an eligible country or region.",
+            )
+
     if facts.remote_eligibility is RemoteEligibility.WORLDWIDE:
         return SignalAssessment(SignalStatus.COMPATIBLE, "Worldwide remote eligibility includes the candidate.")
     if facts.remote_eligibility is RemoteEligibility.SPAIN_ONLY:
@@ -502,18 +596,44 @@ def _evaluate_geography(facts: JobFacts, candidate: CandidateConfig) -> SignalAs
         restricted_countries = offer_countries | _remote_region_countries(facts.location)
         if not restricted_countries:
             return SignalAssessment(SignalStatus.UNKNOWN, "Remote country restriction is not recognized.")
-        if restricted_countries & current_countries:
-            return SignalAssessment(SignalStatus.COMPATIBLE, "Remote country restriction includes the candidate's current country.")
-        if not preferences.international_remote_openness and current_countries:
+        return _assess_country_restriction(
+            restricted_countries,
+            current_countries,
+            eligible_countries,
+            known_countries,
+            preferences,
+            mode="remote",
+        )
+
+    if facts.remote_policy is RemotePolicy.REMOTE:
+        return SignalAssessment(
+            SignalStatus.UNKNOWN,
+            "Remote eligibility is unknown; the offer is retained for review.",
+        )
+
+    # A specific city/country without an explicit remote label is a location
+    # restriction even when an ATS omitted the work-mode field.
+    if offer_countries:
+        if preferences.acceptable_locations and _location_matches(
+            facts.location, preferences.acceptable_locations
+        ):
             return SignalAssessment(
-                SignalStatus.INCOMPATIBLE,
-                "The remote role is restricted to another country and international remote work is disabled in preferences.",
+                SignalStatus.COMPATIBLE,
+                "Offer location matches an explicitly acceptable location.",
             )
-        if preferences.relocation_willingness and restricted_countries & eligible_countries:
-            return SignalAssessment(SignalStatus.COMPATIBLE, "Remote country restriction matches an eligible country and relocation is allowed.")
-        if known_countries:
-            return SignalAssessment(SignalStatus.INCOMPATIBLE, "Remote country restriction excludes the candidate's current and eligible countries.")
-        return SignalAssessment(SignalStatus.UNKNOWN, "Remote country restriction cannot be checked without candidate country data.")
+        if profile.current_city and _location_matches(facts.location, (profile.current_city,)):
+            return SignalAssessment(
+                SignalStatus.COMPATIBLE,
+                "Offer location matches the candidate's current city.",
+            )
+        return _assess_country_restriction(
+            offer_countries,
+            current_countries,
+            eligible_countries,
+            known_countries,
+            preferences,
+            mode="listed",
+        )
 
     return SignalAssessment(
         SignalStatus.UNKNOWN,
@@ -711,11 +831,13 @@ def _countries_in(values: Iterable[str | None]) -> set[str]:
         for alias, pattern in _COUNTRY_PATTERNS:
             if pattern.search(folded):
                 result.add(_ALIAS_TO_COUNTRY[alias])
+        if re.search(r"\bsan francisco\b|\bsf\s+office\b", folded):
+            result.add("United States")
     return result
 
 
 def _remote_region_countries(location: str | None) -> set[str]:
-    """Expand explicit EU/Europe/EMEA eligibility labels to their countries."""
+    """Expand explicit remote-region labels to their included countries."""
 
     if not location:
         return set()
@@ -727,4 +849,36 @@ def _remote_region_countries(location: str | None) -> set[str]:
         result.update(_EUROPE_COUNTRIES)
     if re.search(r"\bemea\b", folded):
         result.update(_EMEA_COUNTRIES)
+    if re.search(r"\b(?:apac|asia[\s-]+pacific)\b", folded):
+        result.update(_APAC_COUNTRIES)
     return result
+
+
+def _assess_country_restriction(
+    restricted_countries: set[str],
+    current_countries: set[str],
+    eligible_countries: set[str],
+    known_countries: set[str],
+    preferences: CandidatePreferences,
+    *,
+    mode: str,
+) -> SignalAssessment:
+    if restricted_countries & current_countries:
+        return SignalAssessment(
+            SignalStatus.COMPATIBLE,
+            f"The {mode} location includes the candidate's current country.",
+        )
+    if preferences.relocation_willingness and restricted_countries & eligible_countries:
+        return SignalAssessment(
+            SignalStatus.COMPATIBLE,
+            f"The {mode} location matches an eligible country and relocation is allowed.",
+        )
+    if known_countries:
+        return SignalAssessment(
+            SignalStatus.INCOMPATIBLE,
+            f"The {mode} location excludes the candidate's current and eligible countries.",
+        )
+    return SignalAssessment(
+        SignalStatus.UNKNOWN,
+        f"The {mode} country restriction cannot be checked without candidate country data.",
+    )

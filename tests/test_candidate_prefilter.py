@@ -229,6 +229,121 @@ def test_onsite_location_in_another_country_is_incompatible() -> None:
     assert result.decision is PreFilterDecision.REJECT
 
 
+@pytest.mark.parametrize(
+    ("location", "expected"),
+    [
+        ("Remote Spain", SignalStatus.COMPATIBLE),
+        ("Remote Europe", SignalStatus.COMPATIBLE),
+        ("Remote EU", SignalStatus.COMPATIBLE),
+        ("Remote EMEA", SignalStatus.COMPATIBLE),
+        ("Remote - Global", SignalStatus.COMPATIBLE),
+        ("Remote Worldwide", SignalStatus.COMPATIBLE),
+        ("Remote UK", SignalStatus.INCOMPATIBLE),
+        ("Remote Poland", SignalStatus.INCOMPATIBLE),
+        ("Remote US", SignalStatus.INCOMPATIBLE),
+        ("Remote APAC", SignalStatus.INCOMPATIBLE),
+        ("Remote Asia-Pacific", SignalStatus.INCOMPATIBLE),
+        ("Remote", SignalStatus.UNKNOWN),
+    ],
+)
+def test_explicit_remote_location_restrictions_are_parsed_without_ats_flags(
+    location: str,
+    expected: SignalStatus,
+) -> None:
+    result = evaluate_job(
+        facts_for(
+            location=location,
+            remote_policy=None,
+            remote_eligibility="UNKNOWN",
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is expected
+    if expected is SignalStatus.INCOMPATIBLE:
+        assert result.decision is PreFilterDecision.REJECT
+    elif expected is SignalStatus.UNKNOWN:
+        assert result.decision is PreFilterDecision.REVIEW
+
+
+@pytest.mark.parametrize(
+    "eligibility",
+    ["COUNTRY_RESTRICTED", "EU_REMOTE", "WORLDWIDE"],
+)
+def test_explicit_remote_country_restriction_wins_over_global_wording(
+    eligibility: str,
+) -> None:
+    result = evaluate_job(
+        facts_for(
+            location="Remote US — Global team",
+            remote_policy="REMOTE",
+            remote_eligibility=eligibility,
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+    assert result.decision is PreFilterDecision.REJECT
+
+
+def test_country_restricted_remote_global_without_a_country_remains_unknown() -> None:
+    result = evaluate_job(
+        facts_for(
+            location="Remote Global",
+            remote_policy="REMOTE",
+            remote_eligibility="COUNTRY_RESTRICTED",
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.UNKNOWN
+    assert result.decision is PreFilterDecision.REVIEW
+
+
+@pytest.mark.parametrize("eligibility", ["WORLDWIDE", "SPAIN_ONLY", "EU_REMOTE", "EMEA_REMOTE"])
+def test_unqualified_remote_location_keeps_known_structured_eligibility(eligibility: str) -> None:
+    result = evaluate_job(
+        facts_for(
+            location="Remote",
+            remote_policy="REMOTE",
+            remote_eligibility=eligibility,
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.COMPATIBLE
+
+
+@pytest.mark.parametrize("location", ["Paris, France", "San Francisco", "SF Office"])
+def test_specific_non_remote_location_outside_spain_is_rejected_when_work_mode_is_missing(
+    location: str,
+) -> None:
+    result = evaluate_job(
+        facts_for(
+            location=location,
+            remote_policy=None,
+            remote_eligibility="UNKNOWN",
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+    assert result.decision is PreFilterDecision.REJECT
+
+
+def test_specific_non_remote_location_in_spain_is_compatible_when_work_mode_is_missing() -> None:
+    result = evaluate_job(
+        facts_for(
+            location="Madrid, Spain",
+            remote_policy=None,
+            remote_eligibility="UNKNOWN",
+        ),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.COMPATIBLE
+
+
 def test_acceptable_eu_location_matches_a_listed_eu_country() -> None:
     result = evaluate_job(
         facts_for(remote_policy="ONSITE", location="Madrid, Spain"),
@@ -335,6 +450,47 @@ def test_explicit_non_technical_role_families_are_hard_rejected(title: str) -> N
 @pytest.mark.parametrize(
     "title",
     [
+        "Associate HRBP",
+        "Product",
+        "Analyst",
+        "Analyst II, Credit",
+        "Solutions Consultant, Commercial, France",
+        "GTM Operations Engineer",
+        "Open Application",
+        "General Application",
+    ],
+)
+def test_unscoped_or_non_engineering_role_families_are_hard_rejected(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.decision is PreFilterDecision.REJECT
+    assert any("non-target" in reason for reason in result.reasons)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Data Analyst",
+        "Solutions Engineer",
+        "Field Engineer / FDE",
+        "Analytics Engineer",
+        "Product Engineer",
+        "Backend Engineer",
+        "Platform Engineer",
+        "Infrastructure Engineer",
+    ],
+)
+def test_technical_and_potentially_relevant_role_families_are_not_hard_rejected(
+    title: str,
+) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.decision is not PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
         "Backend Engineer",
         "Platform Engineer",
         "Infrastructure Engineer",
@@ -349,7 +505,7 @@ def test_target_technical_role_families_are_not_rejected(title: str) -> None:
     assert result.decision is not PreFilterDecision.REJECT
 
 
-def test_unknown_us_city_geography_is_reviewable_not_compatible() -> None:
+def test_us_city_without_remote_eligibility_is_not_compatible() -> None:
     result = evaluate_job(
         facts_for(
             title="Software Engineer, Early Career",
@@ -360,8 +516,8 @@ def test_unknown_us_city_geography_is_reviewable_not_compatible() -> None:
         make_config(),
     )
 
-    assert result.signals.geography.status is SignalStatus.UNKNOWN
-    assert result.decision is PreFilterDecision.REVIEW
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+    assert result.decision is PreFilterDecision.REJECT
 
 
 def test_role_match_does_not_match_only_on_generic_engineer_token() -> None:
