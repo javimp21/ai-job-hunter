@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from ai_job_hunter.candidates import CandidateConfig, CandidateProfile
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.models import (
+    ApplicationStatus,
     Company,
     EvaluationStatus,
     HumanReviewStatus,
@@ -46,6 +47,8 @@ def _opportunity(
     fingerprint: str = "snapshot-1",
     company: str = "Example Co",
     title: str = "Backend Engineer",
+    review_state: HumanReviewStatus = HumanReviewStatus.NEW,
+    application_status: ApplicationStatus | None = None,
 ) -> Opportunity:
     return Opportunity(
         job_id=job_id,
@@ -65,8 +68,8 @@ def _opportunity(
         decision=decision,
         evaluation_status=EvaluationStatus.EVALUATED,
         evaluation_is_stale=stale,
-        review_state=HumanReviewStatus.DISMISSED,
-        application_status=None,
+        review_state=review_state,
+        application_status=application_status,
         priority=priority,
         deterministic_result={},
         jev_signals={},
@@ -148,7 +151,7 @@ class AmbiguousProvider:
         raise RuntimeError("timeout: bot-token-secret-value")
 
 
-def test_preview_policy_is_read_only_and_includes_dismissed_rows(db_session, monkeypatch):
+def test_preview_policy_is_read_only(db_session, monkeypatch):
     rows = []
     for decision, priority in (
         (FinalDecision.APPLY, 42),
@@ -196,12 +199,75 @@ def test_send_is_idempotent_and_uses_evaluation_configuration_identity(db_sessio
     assert row.status == OpportunityNotificationStatus.SENT.value
     assert row.provider_message_id == "msg-123"
 
+    # A re-evaluation with the same decision is not news: no second alert.
     evaluation.config_fingerprint = "candidate-config-2"
     db_session.commit()
     third = send_notifications(db_session, _candidate(), provider)
-    assert (third.created, third.sent) == (1, 1)
+    assert (third.created, third.sent) == (0, 0)
+    assert len(provider.messages) == 1
+    assert db_session.scalar(select(func.count()).select_from(OpportunityNotification)) == 1
+
+
+def test_review_to_apply_upgrade_alerts_again_but_review_repeat_does_not(db_session, monkeypatch):
+    job, evaluation = _seed_evaluation(db_session, decision="REVIEW")
+    _install_opportunities(monkeypatch, [_opportunity(job.id, FinalDecision.REVIEW, 80)])
+    provider = FakeProvider()
+    assert send_notifications(db_session, _candidate(), provider).sent == 1
+
+    evaluation.config_fingerprint = "candidate-config-2"
+    db_session.commit()
+    repeat = send_notifications(db_session, _candidate(), provider)
+    assert repeat.sent == 0
+    suppressed = db_session.scalars(
+        select(OpportunityNotification).where(
+            OpportunityNotification.status == OpportunityNotificationStatus.SUPPRESSED.value
+        )
+    ).all()
+    assert [row.suppression_reason for row in suppressed] == ["already_notified"]
+
+    evaluation.decision = "APPLY"
+    evaluation.config_fingerprint = "candidate-config-3"
+    db_session.commit()
+    _install_opportunities(monkeypatch, [_opportunity(job.id, FinalDecision.APPLY, 85)])
+    upgrade = send_notifications(db_session, _candidate(), provider)
+    assert upgrade.sent == 1
     assert len(provider.messages) == 2
-    assert db_session.scalar(select(func.count()).select_from(OpportunityNotification)) == 2
+
+    evaluation.config_fingerprint = "candidate-config-4"
+    db_session.commit()
+    assert send_notifications(db_session, _candidate(), provider).sent == 0
+    assert len(provider.messages) == 2
+
+
+@pytest.mark.parametrize(
+    ("review_state", "application_status"),
+    [
+        (HumanReviewStatus.DISMISSED, None),
+        (HumanReviewStatus.SEEN, ApplicationStatus.APPLIED),
+        (HumanReviewStatus.NEW, ApplicationStatus.DRAFT),
+    ],
+)
+def test_dismissed_or_applied_jobs_never_alert(db_session, monkeypatch, review_state, application_status):
+    job, _ = _seed_evaluation(db_session)
+    _install_opportunities(
+        monkeypatch,
+        [
+            _opportunity(
+                job.id,
+                FinalDecision.APPLY,
+                95,
+                review_state=review_state,
+                application_status=application_status,
+            )
+        ],
+    )
+    provider = FakeProvider()
+
+    assert preview_notifications(db_session, _candidate()) == []
+    result = send_notifications(db_session, _candidate(), provider)
+
+    assert result.sent == 0
+    assert provider.messages == []
 
 
 def test_low_review_is_suppressed_then_reactivated_when_threshold_changes(db_session, monkeypatch):

@@ -19,7 +19,7 @@ ai-job-hunter notify retry-failed --limit 20
 
 Public experience-years requirements are checked against the current candidate policy before selection; incompatible experience cannot alert from an old saved APPLY/REVIEW. Alerts show the public floor/range and a generic stretch/UNKNOWN label, never candidate years or a numerical personal shortfall. See [experience rules](DOMAIN.md#explicit-experience-requirements). STALE evaluations are not eligible; this change does not globally suppress non-stale UNKNOWN reviews.
 
-Successful deliveries are deduplicated by opportunity evaluation and channel. A changed evaluation can produce a new notification. `retry-failed` resumes safe retries left pending by an interrupted retry. A retry only applies where the stored delivery failure is safe; an uncertain network outcome must not be blindly resent because Telegram does not provide an idempotency key for `sendMessage`.
+Each job alerts at most once per channel: a later evaluation of an already-notified job (new description, new prefilter version, new config) is suppressed as `already_notified`, unless the decision upgrades from REVIEW to APPLY, which alerts once more. Jobs you dismissed or have an application for are suppressed (`dismissed`, `already_applied`). Suppressed rows stay in the ledger for audit. `retry-failed` resumes safe retries left pending by an interrupted retry. A retry only applies where the stored delivery failure is safe; an uncertain network outcome must not be blindly resent because Telegram does not provide an idempotency key for `sendMessage`.
 
 ## Periodic local run on Windows
 

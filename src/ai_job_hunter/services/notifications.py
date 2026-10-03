@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.models import (
+    HumanReviewStatus,
     Job,
     JobEvaluation,
     OpportunityNotification,
@@ -432,6 +433,7 @@ def _current_opportunities(
     evaluations_by_key = {
         (row.job_id, row.evaluation_fingerprint): row for row in evaluations
     }
+    sent_decisions = _sent_decisions_by_job(session, {item.job_id for item in current_rows})
     result: list[_CurrentOpportunity] = []
     for item in current_rows:
         evaluation = evaluations_by_key.get((item.job_id, item.evaluation_fingerprint))
@@ -445,6 +447,11 @@ def _current_opportunities(
             and item.priority >= threshold
         )
         reason = None if eligible else "review_priority_below_threshold"
+        if eligible:
+            reason = _human_state_suppression(item) or _repeat_suppression(
+                decision, sent_decisions.get(item.job_id, {}), fingerprint
+            )
+            eligible = reason is None
         preview = NotificationPreview(
             job_id=item.job_id,
             evaluation_fingerprint=fingerprint,
@@ -464,6 +471,51 @@ def _current_opportunities(
             row.preview.title.casefold(),
         )
     )
+    return result
+
+
+def _human_state_suppression(item: Opportunity) -> str | None:
+    """The user already acted on this job; an alert would only be noise."""
+
+    if item.application_status is not None:
+        return "already_applied"
+    if item.review_state is HumanReviewStatus.DISMISSED:
+        return "dismissed"
+    return None
+
+
+def _repeat_suppression(
+    decision: str,
+    sent: dict[str, str],
+    fingerprint: str,
+) -> str | None:
+    """Alert once per job; only a REVIEW -> APPLY upgrade justifies a new alert.
+
+    ``sent`` maps notification fingerprints already delivered for this job to
+    their decision. Re-evaluations (new description, new prefilter version)
+    produce new fingerprints but are not news by themselves.
+    """
+
+    previous = {value for key, value in sent.items() if key != fingerprint}
+    if not previous:
+        return None
+    if decision == FinalDecision.APPLY.value and FinalDecision.APPLY.value not in previous:
+        return None
+    return "already_notified"
+
+
+def _sent_decisions_by_job(session: Session, job_ids: set[UUID]) -> dict[UUID, dict[str, str]]:
+    result: dict[UUID, dict[str, str]] = {}
+    ids = list(job_ids)
+    for offset in range(0, len(ids), 400):
+        for row in session.scalars(
+            select(OpportunityNotification).where(
+                OpportunityNotification.job_id.in_(ids[offset : offset + 400]),
+                OpportunityNotification.channel == TELEGRAM_CHANNEL,
+                OpportunityNotification.status == OpportunityNotificationStatus.SENT.value,
+            )
+        ).all():
+            result.setdefault(row.job_id, {})[row.evaluation_fingerprint] = row.decision
     return result
 
 
