@@ -614,6 +614,12 @@ def _clearly_non_technical_role(title: str) -> str | None:
     engineering_context = bool(
         tokens & (_TECHNICAL_ROLE_MARKERS - {"engineer", "engineering"})
     )
+    # Talent pools and spontaneous applications are not a concrete role, even
+    # when they mention engineering ("Engineering Talent Pool").
+    if {"talent", "pool"} <= tokens or (
+        tokens & {"spontaneous", "espontanea", "unsolicited"} and tokens & {"application", "candidatura"}
+    ):
+        return "unscoped application"
     if not technical:
         if "product" in tokens:
             return "product"

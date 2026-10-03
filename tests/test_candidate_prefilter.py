@@ -745,3 +745,13 @@ def test_remote_dash_us_state_is_united_states() -> None:
     )
 
     assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+
+
+@pytest.mark.parametrize(
+    "title", ["Secfix Future Talent Pool", "Engineering Talent Pool", "Candidatura espontánea", "Spontaneous Application"]
+)
+def test_talent_pools_and_spontaneous_applications_are_unscoped(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.family == "unscoped application"
+    assert result.decision is PreFilterDecision.REJECT
