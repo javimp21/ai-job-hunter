@@ -1137,3 +1137,16 @@ def test_truncated_or_failed_board_fetches_never_close_postings(db_session, monk
     failed = refresh_opportunities(db_session, candidate, **kwargs)
     assert failed.closed_postings == 0
     assert _source_closed(db_session, "role-b") is None
+
+
+def test_review_reason_is_validated_and_stored(db_session) -> None:
+    job = Job(title="Backend Engineer")
+    db_session.add(job)
+    db_session.commit()
+
+    review = set_review_state(db_session, job.id, HumanReviewStatus.DISMISSED, reason="salary")
+    assert (review.state, review.reason) == ("DISMISSED", "salary") and review.reason_at is not None
+    with pytest.raises(OpportunityServiceError):
+        set_review_state(db_session, job.id, HumanReviewStatus.SAVED, reason="location")
+    review = set_review_state(db_session, job.id, HumanReviewStatus.SEEN)
+    assert review.reason is None

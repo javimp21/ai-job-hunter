@@ -404,3 +404,52 @@ def test_bot_command_requires_telegram_settings(monkeypatch, capsys):
     assert main(["bot"]) == 1
     err = capsys.readouterr().err
     assert "TELEGRAM_BOT_TOKEN" in err and "TELEGRAM_CHAT_ID" in err
+
+
+def test_feedback_buttons_record_state_then_ask_and_store_reason():
+    job_id = uuid4()
+    recorded = []
+    sent = []
+
+    class FeedbackBot(FakeBot):
+        def send_text(self, text, reply_markup=None):
+            sent.append((text, reply_markup))
+
+    bot = FeedbackBot()
+    outcome = handle_update(
+        callback(f"dn:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: recorded.append(args),
+    )
+    assert outcome == "feedback"
+    assert recorded == [(job_id, "DISMISSED", None)]
+    text, markup = sent[0]
+    assert text == "¿Por qué no te interesa?"
+    reasons = [button["callback_data"] for row in markup["inline_keyboard"] for button in row]
+    assert f"dr:sal:{job_id}" in reasons and all(len(data.encode()) <= 64 for data in reasons)
+
+    handle_update(
+        callback(f"dr:sal:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: recorded.append(args),
+    )
+    assert recorded[-1] == (job_id, "DISMISSED", "salary")
+    handle_update(
+        callback(f"ur:lrn:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: recorded.append(args),
+    )
+    assert recorded[-1] == (job_id, "SAVED", "learning")
+
+
+def test_bad_feedback_codes_and_failures_are_safe():
+    job_id = uuid4()
+    bot = FakeBot()
+    assert handle_update(
+        callback(f"dr:zzz:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: None,
+    ) == "ignored"
+
+    def boom(*args):
+        raise RuntimeError("db down")
+
+    assert handle_update(
+        callback(f"up:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={}, record_feedback=boom,
+    ) == "failed"

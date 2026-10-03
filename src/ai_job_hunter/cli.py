@@ -1070,10 +1070,20 @@ def _run_bot_command(candidate, settings) -> int:
                 language=language,
             )
 
+    def record_feedback(job_id: UUID, state: str, reason: str | None) -> None:
+        with session_factory() as feedback_session:
+            set_review_state(feedback_session, job_id, HumanReviewStatus(state), reason=reason)
+
     bot = TelegramBotClient(token, chat_id)
     print("Bot listening for cover-letter requests (Ctrl+C to stop)")
     try:
-        run_bot(bot, chat_id=chat_id.strip(), generate=generate, offset_path=BOT_OFFSET_PATH)
+        run_bot(
+            bot,
+            chat_id=chat_id.strip(),
+            generate=generate,
+            offset_path=BOT_OFFSET_PATH,
+            record_feedback=record_feedback,
+        )
     except KeyboardInterrupt:
         print("Bot stopped.")
     finally:

@@ -898,12 +898,24 @@ def get_opportunity(session: Session, job_id: UUID, candidate: CandidateConfig) 
     return None
 
 
+SAVE_REASONS = ("company", "stack", "salary", "learning", "product", "remote", "career", "other")
+DISMISS_REASONS = (
+    "salary", "location", "role", "seniority", "experience", "stack", "company", "not_interesting", "other",
+)
+
+
 def set_review_state(
     session: Session,
     job_id: UUID,
     state: HumanReviewStatus,
+    *,
+    reason: str | None = None,
 ) -> JobReview:
-    """Persist a user review choice without consulting or altering evaluation."""
+    """Persist a user review choice (and optional reason) without altering evaluation."""
+
+    allowed = {HumanReviewStatus.SAVED: SAVE_REASONS, HumanReviewStatus.DISMISSED: DISMISS_REASONS}.get(state, ())
+    if reason is not None and reason not in allowed:
+        raise OpportunityServiceError(f"Reason '{reason}' is not valid for {state.value}.")
 
     _require_clean_session_for_owned_transactions(session)
     with session.begin():
@@ -915,6 +927,12 @@ def set_review_state(
             session.add(review)
         else:
             review.state = state.value
+        if reason is not None:
+            review.reason = reason
+            review.reason_at = datetime.now(UTC)
+        elif state not in (HumanReviewStatus.SAVED, HumanReviewStatus.DISMISSED):
+            review.reason = None
+            review.reason_at = None
         session.flush()
         return review
 

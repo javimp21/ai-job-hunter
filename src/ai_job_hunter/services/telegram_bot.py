@@ -21,6 +21,9 @@ from ai_job_hunter.services.cover_letters import CoverLetterDraft, CoverLetterEr
 from ai_job_hunter.services.notifications import (
     COVER_LETTER_CALLBACK_PREFIX,
     COVER_LETTER_SPANISH_CALLBACK_PREFIX,
+    DISMISS_REASON_CODES,
+    SAVE_REASON_CODES,
+    feedback_reason_keyboard,
 )
 
 MAX_MESSAGE_CHARS = 4000
@@ -73,9 +76,13 @@ class TelegramBotClient:
     def answer_callback_query(self, callback_id: str, text: str) -> None:
         self._call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
 
-    def send_text(self, text: str) -> None:
-        for chunk in split_text(text):
-            self._call("sendMessage", {"chat_id": self._chat_id, "text": chunk})
+    def send_text(self, text: str, reply_markup: dict[str, Any] | None = None) -> None:
+        chunks = split_text(text)
+        for index, chunk in enumerate(chunks):
+            data: dict[str, Any] = {"chat_id": self._chat_id, "text": chunk}
+            if reply_markup is not None and index == len(chunks) - 1:
+                data["reply_markup"] = json.dumps(reply_markup, separators=(",", ":"))
+            self._call("sendMessage", data)
 
     def send_document(self, path: Path, caption: str | None = None) -> bool:
         """Upload one local file; returns False (nothing sent) when it is missing or too large."""
@@ -170,8 +177,9 @@ def handle_update(
     bot: TelegramBotClient,
     generate: Callable[[UUID, str], CoverLetterDraft],
     generated: dict[tuple[UUID, str], CoverLetterDraft],
+    record_feedback: Callable[[UUID, str, str | None], None] | None = None,
 ) -> str:
-    """Handle one update and return "ignored", "generated", "failed" or "duplicate".
+    """Handle one update and return "ignored", "generated", "failed", "duplicate" or "feedback".
 
     Updates are handled one at a time, so a second tap on the same button
     arrives after the first letter is done; ``generated`` makes it resend that
@@ -187,6 +195,9 @@ def handle_update(
     if origin is None or str(origin) != str(chat_id).strip():
         return "ignored"
     callback_id = str(callback.get("id", ""))
+    feedback = _parse_feedback(callback.get("data"))
+    if feedback is not None:
+        return _handle_feedback(bot, callback_id, feedback, record_feedback)
     request = _parse_request(callback.get("data"))
     if request is None:
         _answer(bot, callback_id, "Acción no reconocida")
@@ -211,6 +222,55 @@ def handle_update(
     generated[key] = draft
     _send_draft(bot, draft)
     return "generated"
+
+
+def _parse_feedback(data: Any) -> tuple[str, UUID, str | None] | None:
+    """('SAVED'|'DISMISSED', job_id, reason) from up:/dn:/ur:<code>:/dr:<code>: callbacks."""
+
+    if not isinstance(data, str):
+        return None
+    kind, _, rest = data.partition(":")
+    state = {"up": "SAVED", "dn": "DISMISSED", "ur": "SAVED", "dr": "DISMISSED"}.get(kind)
+    if state is None:
+        return None
+    reason = None
+    if kind in {"ur", "dr"}:
+        code, _, rest = rest.partition(":")
+        codes = SAVE_REASON_CODES if kind == "ur" else DISMISS_REASON_CODES
+        if code not in codes:
+            return None
+        reason = codes[code][0]
+    try:
+        return state, UUID(rest), reason
+    except ValueError:
+        return None
+
+
+def _handle_feedback(
+    bot: TelegramBotClient,
+    callback_id: str,
+    feedback: tuple[str, UUID, str | None],
+    record_feedback: Callable[[UUID, str, str | None], None] | None,
+) -> str:
+    state, job_id, reason = feedback
+    if record_feedback is None:
+        _answer(bot, callback_id, "Feedback no disponible")
+        return "ignored"
+    try:
+        record_feedback(job_id, state, reason)
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        _answer(bot, callback_id, f"No se pudo guardar ({type(error).__name__})")
+        return "failed"
+    saved = state == "SAVED"
+    if reason is None:
+        _answer(bot, callback_id, "Guardada 👍" if saved else "Descartada 👎")
+        bot.send_text(
+            "¿Qué te gusta de esta oferta?" if saved else "¿Por qué no te interesa?",
+            reply_markup=feedback_reason_keyboard(job_id, saved=saved),
+        )
+    else:
+        _answer(bot, callback_id, "Motivo guardado, gracias")
+    return "feedback"
 
 
 def _answer(bot: TelegramBotClient, callback_id: str, text: str) -> None:
@@ -260,6 +320,7 @@ def run_bot(
     chat_id: str,
     generate: Callable[[UUID, str], CoverLetterDraft],
     offset_path: Path,
+    record_feedback: Callable[[UUID, str, str | None], None] | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -277,7 +338,12 @@ def run_bot(
             for update in updates:
                 try:
                     outcome = handle_update(
-                        update, chat_id=chat_id, bot=bot, generate=generate, generated=generated
+                        update,
+                        chat_id=chat_id,
+                        bot=bot,
+                        generate=generate,
+                        generated=generated,
+                        record_feedback=record_feedback,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:

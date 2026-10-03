@@ -63,3 +63,7 @@ Register-ScheduledTask -TaskName "AI Job Hunter" -Action $action -Trigger $trigg
 Pause with `Disable-ScheduledTask -TaskName "AI Job Hunter"`, resume with `Enable-ScheduledTask`, remove with `Unregister-ScheduledTask -TaskName "AI Job Hunter"`. `Get-ScheduledTaskInfo -TaskName "AI Job Hunter"` shows the last result (0 means success); details are in the log file.
 
 Use `--no-notifications` to schedule refreshes without Telegram delivery. Use `--dry-run` only to inspect a refresh plan; it does not persist refresh/evaluation/notification changes or send messages.
+
+## Feedback buttons
+
+Every alert also carries "👍 Me interesa" and "👎 No me interesa". A tap marks the job SAVED or DISMISSED (dismissed jobs leave the feed and never alert) and the bot asks why with reason buttons (dismiss: salary, location, role, seniority, experience, stack, company, not interested, other; save: company, stack, salary, learning, product, remote, career, other). The reason is stored on the job review (`job_reviews.reason`) as data for future ranking; it never relaxes hard constraints. The bot must be running for buttons to work.

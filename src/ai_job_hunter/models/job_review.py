@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, Uuid
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
@@ -45,5 +46,8 @@ class JobReview(TimestampMixin, Base):
     state: Mapped[str] = mapped_column(
         String(20), nullable=False, default=HumanReviewStatus.NEW.value, server_default="NEW"
     )
+    # Why the job was saved or dismissed (e.g. "salary", "location"); feedback for ranking.
+    reason: Mapped[str | None] = mapped_column(String(40))
+    reason_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     job: Mapped[Job] = relationship("Job")
