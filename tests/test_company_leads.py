@@ -418,3 +418,37 @@ def test_recheck_unsupported_reinspects_resolved_leads_only_on_request(db_sessio
     assert tuple(skipped.results) == ()
     assert rechecked.results[0].status is CompanyLeadStatus.SUPPORTED_ATS
     assert lead.ats_provider == "TEAMTAILOR" and lead.ats_identifier == "acme"
+
+
+def test_directories_become_leads_without_linkedin_careers_pages():
+    from datetime import UTC, datetime
+    from pathlib import Path as _Path
+
+    from ai_job_hunter.company_leads import leads_from_company_directories
+    from ai_job_hunter.company_sources import CompanyEvidenceRecord, CompanySourceBatch
+    from ai_job_hunter.domain.company_intelligence import CompanyEvidenceType
+
+    def record(name, data):
+        return CompanyEvidenceRecord(
+            provider="p", evidence_type=CompanyEvidenceType.COMPENSATION, source_key=name,
+            company_name=name, source_url="https://github.example.test/readme", structured_data=data,
+        )
+
+    batch = CompanySourceBatch(
+        provider="spanish_top_tech_companies", readme_url="https://github.example.test/readme",
+        repository_url="r", license_name="l", license_url="u", fetched_at=datetime.now(UTC),
+        body_sha256="x", source_file_sha=None, snapshot_path=_Path("x"),
+        records=(
+            record("TopCo", {"career_page_url": "https://www.linkedin.com/jobs/search/?f_C=1",
+                             "compensation": {"base_annual_eur": 90000}}),
+            record("SalaryCo", {"career_page_urls": ["https://jobs.lever.co/salaryco"], "public_salary": True}),
+        ),
+    )
+
+    leads = {lead.company_name: lead for lead in leads_from_company_directories([batch]).leads}
+
+    assert leads["TopCo"].careers_url is None
+    assert "linkedin.com" in leads["TopCo"].notes
+    assert "90000" in leads["TopCo"].hiring_hint
+    assert leads["SalaryCo"].careers_url == "https://jobs.lever.co/salaryco"
+    assert leads["SalaryCo"].source_type == "curated_directory"

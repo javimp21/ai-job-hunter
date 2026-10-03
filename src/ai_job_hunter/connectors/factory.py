@@ -8,6 +8,7 @@ from ai_job_hunter.connectors.ashby import AshbyConnector
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnector
 from ai_job_hunter.connectors.lever import LeverConnector
 from ai_job_hunter.connectors.protocol import JobConnector
+from ai_job_hunter.candidates.prefilter import title_may_be_relevant
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
 from ai_job_hunter.job_sources import JobSourcesConfig
@@ -72,6 +73,8 @@ def build_job_connectors(
                     max_jobs=source.max_jobs,
                     timeout=timeout,
                     client=client,
+                    # One detail request per posting: skip clearly non-target titles.
+                    detail_filter=title_may_be_relevant,
                 )
             )
         else:  # Defensive: the config model already restricts this to supported providers.

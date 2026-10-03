@@ -7,6 +7,7 @@ import json
 import re
 import socket
 from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
@@ -31,6 +32,9 @@ from ai_job_hunter.domain.company_intelligence import (
 )
 from ai_job_hunter.models import Company, CompanyEvidence, CompanyLead, CompanyLeadStatus
 from ai_job_hunter.services.company_intelligence import upsert_company_evidence_record
+
+if TYPE_CHECKING:
+    from ai_job_hunter.company_sources import CompanySourceBatch
 
 COMPANY_LEAD_USER_AGENT = "AI-Job-Hunter/0.1 (public company careers discovery)"
 CAREER_LINK_PATTERN = re.compile(
@@ -744,3 +748,44 @@ def _provenance_entry(item: CompanyLeadInput) -> dict[str, str | None]:
         "hiring_hint": item.hiring_hint,
         "notes": item.notes,
     }
+
+
+def leads_from_company_directories(batches: Iterable["CompanySourceBatch"]) -> CompanyLeadsConfig:
+    """Turn curated company directories (Spanish Top Tech, Manfred) into leads.
+
+    A directory only proves the company exists and is worth checking; jobs are
+    still verified on the official careers page/ATS. LinkedIn job searches are
+    never used as careers pages (no LinkedIn scraping); they are kept as notes.
+    """
+
+    leads: list[CompanyLeadInput] = []
+    for batch in batches:
+        for record in batch.records:
+            data = record.structured_data or {}
+            urls = data.get("career_page_urls") or [data.get("career_page_url")]
+            usable = [url for url in urls if isinstance(url, str) and url and "linkedin.com" not in url.casefold()]
+            linkedin = [url for url in urls if isinstance(url, str) and "linkedin.com" in url.casefold()]
+            compensation = data.get("compensation") if isinstance(data.get("compensation"), dict) else {}
+            if compensation.get("base_annual_eur"):
+                hint = (
+                    f"Spanish Top Tech: median base {compensation['base_annual_eur']} EUR/year "
+                    "for Spain-based software engineers with 5+ years"
+                )
+            elif data.get("public_salary"):
+                hint = "Manfred directory: publishes salary ranges in job offers"
+            else:
+                hint = None
+            leads.append(
+                CompanyLeadInput(
+                    company_name=record.company_name,
+                    careers_url=usable[0] if usable else None,
+                    source_type="curated_directory",
+                    source_label=batch.provider,
+                    source_url=record.source_url or batch.readme_url,
+                    hiring_hint=hint[:512] if hint else None,
+                    notes=("LinkedIn jobs page (not used): " + linkedin[0])[:4000] if linkedin else None,
+                )
+            )
+    if not leads:
+        raise CompanyLeadsConfigError("The company directories contained no companies.")
+    return CompanyLeadsConfig(leads=leads)

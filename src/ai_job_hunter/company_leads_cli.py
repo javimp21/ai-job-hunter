@@ -14,9 +14,15 @@ from ai_job_hunter.company_leads import (
     CompanyLeadsConfigError,
     get_company_lead,
     import_company_leads,
+    leads_from_company_directories,
     list_company_leads,
     load_company_leads,
     resolve_company_leads,
+)
+from ai_job_hunter.company_sources import (
+    MANFRED_PUBLIC_SALARY,
+    SPANISH_TOP_TECH,
+    refresh_company_source_snapshots,
 )
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
@@ -30,6 +36,19 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     import_parser = subparsers.add_parser("import", help="validate and import a JSON lead list")
     import_parser.add_argument("--file", required=True, type=Path)
+    directories_parser = subparsers.add_parser(
+        "import-directories",
+        help="import companies from the Spanish Top Tech and Manfred public-salary directories as leads",
+    )
+    directories_parser.add_argument(
+        "--offline", action="store_true", help="use the saved README snapshots instead of fetching them"
+    )
+    directories_parser.add_argument(
+        "--directory",
+        choices=("all", "manfred", "spanish-top-tech"),
+        default="all",
+        help="import one directory at a time (Spanish Top Tech has no usable careers URLs yet)",
+    )
     list_parser = subparsers.add_parser("list", help="list imported company leads")
     list_parser.add_argument("--status", choices=tuple(item.value for item in CompanyLeadStatus))
     list_parser.add_argument("--limit", type=int, default=20)
@@ -44,13 +63,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     show_parser = subparsers.add_parser("show", help="show one lead and its discovery provenance")
     show_parser.add_argument("lead_id", type=UUID)
 
-    for command_parser in (import_parser, list_parser, resolve_parser, show_parser):
+    for command_parser in (import_parser, directories_parser, list_parser, resolve_parser, show_parser):
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
     if args.command == "import":
         try:
             config = load_company_leads(args.file)
+        except CompanyLeadsConfigError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 2
+    elif args.command == "import-directories":
+        batches, skipped = refresh_company_source_snapshots(offline=args.offline)
+        wanted = {"manfred": MANFRED_PUBLIC_SALARY, "spanish-top-tech": SPANISH_TOP_TECH}.get(args.directory)
+        if wanted is not None:
+            batches = tuple(batch for batch in batches if batch.provider == wanted)
+        for item in skipped:
+            print(f"Skipped directory {item.provider}: {item.reason}", file=sys.stderr)
+        try:
+            config = leads_from_company_directories(batches)
         except CompanyLeadsConfigError as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 2
@@ -67,7 +98,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     engine = create_database_engine(settings)
     try:
         with create_session_factory(engine)() as session:
-            if args.command == "import":
+            if args.command in {"import", "import-directories"}:
                 summary = import_company_leads(session, config)
                 session.commit()
                 print(
