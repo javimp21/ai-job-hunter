@@ -5,7 +5,7 @@
 # are never passed on the command line or written to the log.
 param(
     [int]$MaxJevJobs = 40,
-    [int]$MaxNotifications = 20,
+    [int]$MaxNotifications = 10,
     [switch]$NoNotifications,
     # Fetch and preview only: no database writes, no Jev calls, no Telegram.
     [switch]$DryRun

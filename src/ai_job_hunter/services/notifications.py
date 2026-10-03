@@ -22,7 +22,9 @@ from sqlalchemy.orm import Session, joinedload
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.candidates.experience import ExperienceOutcome
 from ai_job_hunter.decision_engine import FinalDecision
+from ai_job_hunter.deduplication.normalization import normalize_company_name, normalize_job_title
 from ai_job_hunter.models import (
+    Company,
     HumanReviewStatus,
     Job,
     JobEvaluation,
@@ -464,7 +466,11 @@ def _current_opportunities(
         (row.job_id, row.evaluation_fingerprint): row for row in evaluations
     }
     sent_decisions = _sent_decisions_by_job(session, {item.job_id for item in current_rows})
+    sent_identities = _sent_job_identities(session)
+    batch_identities: set[tuple[str, frozenset[str], frozenset[str]]] = set()
+    batch_per_company: dict[str, int] = {}
     result: list[_CurrentOpportunity] = []
+    # Rows arrive in feed order (best first), so caps keep the strongest jobs.
     for item in current_rows:
         evaluation = evaluations_by_key.get((item.job_id, item.evaluation_fingerprint))
         if evaluation is None:
@@ -483,6 +489,21 @@ def _current_opportunities(
                 or _human_state_suppression(item)
                 or _repeat_suppression(decision, sent_decisions.get(item.job_id, {}), fingerprint)
             )
+            eligible = reason is None
+        if eligible and fingerprint not in sent_decisions.get(item.job_id, {}):
+            # The same posting can reach us from a portal and the company ATS as
+            # two jobs (dedup never merges without a shared URL): alert once.
+            identity = _job_identity(item)
+            company = identity[0]
+            if identity in sent_identities and item.job_id not in sent_identities[identity]:
+                reason = "already_notified_elsewhere"
+            elif identity in batch_identities:
+                reason = "duplicate_in_batch"
+            elif batch_per_company.get(company, 0) >= MAX_ALERTS_PER_COMPANY_PER_RUN:
+                reason = "company_cap"
+            else:
+                batch_identities.add(identity)
+                batch_per_company[company] = batch_per_company.get(company, 0) + 1
             eligible = reason is None
         preview = NotificationPreview(
             job_id=item.job_id,
@@ -547,6 +568,34 @@ def _repeat_suppression(
     if decision == FinalDecision.APPLY.value and FinalDecision.APPLY.value not in previous:
         return None
     return "already_notified"
+
+
+MAX_ALERTS_PER_COMPANY_PER_RUN = 2
+
+
+def _job_identity(item: Opportunity) -> tuple[str, frozenset[str], frozenset[str]]:
+    """Company + normalized title + seniority: the same posting across sources."""
+
+    title = normalize_job_title(item.title)
+    return (normalize_company_name(item.company) or item.company.casefold(), title.tokens, title.seniority)
+
+
+def _sent_job_identities(session: Session) -> dict[tuple[str, frozenset[str], frozenset[str]], set[UUID]]:
+    rows = session.execute(
+        select(OpportunityNotification.job_id, Job.title, Company.name)
+        .join(Job, Job.id == OpportunityNotification.job_id)
+        .outerjoin(Company, Company.id == Job.company_id)
+        .where(
+            OpportunityNotification.channel == TELEGRAM_CHANNEL,
+            OpportunityNotification.status == OpportunityNotificationStatus.SENT.value,
+        )
+    ).all()
+    identities: dict[tuple[str, frozenset[str], frozenset[str]], set[UUID]] = {}
+    for job_id, title, company in rows:
+        normalized = normalize_job_title(title or "")
+        key = (normalize_company_name(company) or (company or "").casefold(), normalized.tokens, normalized.seniority)
+        identities.setdefault(key, set()).add(job_id)
+    return identities
 
 
 def _sent_decisions_by_job(session: Session, job_ids: set[UUID]) -> dict[UUID, dict[str, str]]:

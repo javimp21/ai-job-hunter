@@ -177,6 +177,7 @@ def test_preview_policy_is_read_only(db_session, monkeypatch):
                 decision,
                 priority,
                 fingerprint=evaluation.evaluation_fingerprint,
+                title=f"Backend Engineer {chr(65 + len(rows))}",
             )
         )
     rows[-1] = _opportunity(rows[-1].job_id, None, None)
@@ -558,3 +559,40 @@ def test_onsite_roles_alert_only_when_exceptional(db_session, monkeypatch, decis
     previews = preview_notifications(db_session, _candidate())
 
     assert bool(previews) is alerts
+
+
+
+def _seed_job(session, company: str, title: str, decision: str = "REVIEW"):
+    job, evaluation = _seed_evaluation(session, decision, fingerprint=f"fp-{uuid4()}")
+    return job, evaluation
+
+
+def test_same_posting_from_another_source_alerts_once(db_session, monkeypatch):
+    first, first_eval = _seed_job(db_session, "Example Co", "Backend Engineer")
+    second, second_eval = _seed_job(db_session, "Example Co", "Backend Engineer")
+    provider = FakeProvider()
+    _install_opportunities(monkeypatch, [_opportunity(first.id, FinalDecision.REVIEW, 80, fingerprint=first_eval.evaluation_fingerprint)])
+    assert send_notifications(db_session, _candidate(), provider).sent == 1
+
+    # The same posting arrives later from a portal as a different job.
+    _install_opportunities(monkeypatch, [_opportunity(second.id, FinalDecision.REVIEW, 82, fingerprint=second_eval.evaluation_fingerprint)])
+    again = send_notifications(db_session, _candidate(), provider)
+
+    assert again.sent == 0
+    assert len(provider.messages) == 1
+    reasons = {row.suppression_reason for row in db_session.scalars(select(OpportunityNotification)).all()}
+    assert "already_notified_elsewhere" in reasons
+
+
+def test_duplicates_in_one_run_and_company_cap(db_session, monkeypatch):
+    rows = []
+    titles = ["Backend Engineer", "Backend Engineer", "Platform Engineer", "Java Developer"]
+    for index, title in enumerate(titles):
+        job, evaluation = _seed_job(db_session, "Example Co", title)
+        rows.append(_opportunity(job.id, FinalDecision.REVIEW, 90 - index, fingerprint=evaluation.evaluation_fingerprint, title=title))
+    _install_opportunities(monkeypatch, rows)
+
+    previews = preview_notifications(db_session, _candidate())
+
+    # Duplicate "Backend Engineer" dropped; at most two alerts for the company.
+    assert [item.title for item in previews] == ["Backend Engineer", "Platform Engineer"]
