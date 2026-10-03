@@ -1059,9 +1059,36 @@ def test_roles_outside_preferred_locations_lose_review_priority(location, remote
         offer = offer.model_copy(update={"remote_policy": None})
     prepared = opportunities._prepare_offer(offer, candidate, engine_identity="offline")
 
-    adjustments = opportunities._priority_adjustments(prepared.context)
+    adjustments = opportunities._relocation_adjustment(prepared.context)
 
     assert bool(adjustments) is penalized
     if penalized:
         assert adjustments[0][0] == -opportunities.RELOCATION_PENALTY
         assert "fuera de Madrid" in adjustments[0][1]
+
+
+@pytest.mark.parametrize(
+    ("salary_min", "salary_max", "currency", "period", "points"),
+    [
+        ("35000", "40000", "EUR", "YEAR", 5),
+        ("70000", "90000", "EUR", "YEAR", 10),
+        ("2000", "2600", "EUR", "MONTH", 5),
+        ("20000", "25000", "EUR", "YEAR", 0),
+        ("90000", "120000", "USD", "YEAR", 0),
+        (None, None, None, None, 0),
+    ],
+)
+def test_published_salary_at_or_above_target_moves_job_up(salary_min, salary_max, currency, period, points) -> None:
+    candidate = _candidate()
+    candidate = candidate.model_copy(
+        update={"preferences": candidate.preferences.model_copy(update={"target_salary": Decimal("30000"), "salary_currency": "EUR"})}
+    )
+    offer = NormalizedJob.model_validate(
+        _offer("role-salary").model_dump()
+        | {"salary_min": salary_min, "salary_max": salary_max, "currency": currency, "salary_period": period}
+    )
+    prepared = opportunities._prepare_offer(offer, candidate, engine_identity="offline")
+
+    adjustments = opportunities._salary_adjustment(prepared.context)
+
+    assert sum(value for value, _label in adjustments) == points

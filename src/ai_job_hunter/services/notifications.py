@@ -828,7 +828,9 @@ def format_notification_message(item: Opportunity) -> str:
         lines.extend(["", warning])
     strengths = _strengths(item.jev_signals)
     concerns = _safe_reasons(item.jev_reasons, decision)
-    concerns = [_clean_label(label, 80) for label in item.priority_adjustments] + concerns
+    bonuses = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" in label]
+    concerns = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" not in label] + concerns
+    strengths = strengths + bonuses
     if strengths or concerns:
         lines.append("")
     if strengths:

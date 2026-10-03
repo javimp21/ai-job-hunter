@@ -805,7 +805,7 @@ def list_opportunities(
         score = _priority(answers)
         adjustments = _priority_adjustments(snapshot.context) if score is not None else ()
         if score is not None:
-            score = max(0, score + sum(points for points, _label in adjustments))
+            score = min(100, max(0, score + sum(points for points, _label in adjustments)))
         role_relevance = _signal_value(answers, "role_relevance")
         strong_mismatch = _has_strong_mismatch(
             evaluation.deterministic_result if evaluation and not stale else None
@@ -1469,12 +1469,21 @@ RELOCATION_PENALTY = 15
 _REMOTE_LOCATION_TEXT = re.compile(r"\b(?:remote|remoto|remota|anywhere|worldwide)\b", re.IGNORECASE)
 
 
-def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
-    """Soft preferences that change review order (never eligibility).
+SALARY_BONUS_AT_TARGET = 5
+SALARY_BONUS_HIGH = 10
 
-    Relocation is acceptable but much less attractive than Madrid: an on-site or
-    hybrid role (or an unknown work mode in a named city) outside the preferred
-    locations loses RELOCATION_PENALTY points.
+
+def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """Soft preferences that change review order (never eligibility)."""
+
+    return _relocation_adjustment(context) + _salary_adjustment(context)
+
+
+def _relocation_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """Relocation is acceptable but much less attractive than the preferred locations.
+
+    An on-site or hybrid role (or an unknown work mode in a named city) outside
+    the preferred locations loses RELOCATION_PENALTY points.
     """
 
     offer = context.offer
@@ -1487,6 +1496,27 @@ def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str],
         return ()
     places = ", ".join(context.candidate.preferences.preferred_locations)
     return ((-RELOCATION_PENALTY, f"fuera de {places}, requiere mudanza (−{RELOCATION_PENALTY})"),)
+
+
+def _salary_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """A published salary at or above the target moves a job up; no currency conversion."""
+
+    preferences = context.candidate.preferences
+    facts = context.facts
+    target = preferences.target_salary
+    currency = (preferences.salary_currency or "").upper()
+    if target is None or not currency or (facts.currency or "").upper() != currency:
+        return ()
+    yearly = {SalaryPeriod.YEAR: Decimal(1), SalaryPeriod.MONTH: Decimal(12)}.get(facts.salary_period)
+    published = facts.salary_max or facts.salary_min
+    if yearly is None or published is None:
+        return ()
+    annual = Decimal(str(published)) * yearly
+    if annual >= Decimal(str(target)) * 2:
+        return ((SALARY_BONUS_HIGH, f"salario alto publicado (+{SALARY_BONUS_HIGH})"),)
+    if annual >= Decimal(str(target)):
+        return ((SALARY_BONUS_AT_TARGET, f"salario publicado ≥ objetivo (+{SALARY_BONUS_AT_TARGET})"),)
+    return ()
 
 
 def _priority(signals: dict[str, Any] | None) -> int | None:
