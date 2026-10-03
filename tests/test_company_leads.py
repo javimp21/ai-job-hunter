@@ -403,3 +403,18 @@ def test_cli_import_and_list_return_zero(tmp_path, capsys, monkeypatch):
     assert "CREATED 1" in capsys.readouterr().out
     assert leads_cli_main(["list", "--status", "NEW"]) == 0
     assert "Example Robotics" in capsys.readouterr().out
+
+
+def test_recheck_unsupported_reinspects_resolved_leads_only_on_request(db_session):
+    lead = _import_one(db_session, _input(careers="https://acme.teamtailor.com/jobs"))
+    lead.status = CompanyLeadStatus.RESOLVED.value
+    db_session.commit()
+
+    skipped = resolve_company_leads(db_session, client=_client({}), host_resolver=PUBLIC_DNS)
+    rechecked = resolve_company_leads(
+        db_session, client=_client({}), host_resolver=PUBLIC_DNS, recheck_unsupported=True
+    )
+
+    assert tuple(skipped.results) == ()
+    assert rechecked.results[0].status is CompanyLeadStatus.SUPPORTED_ATS
+    assert lead.ats_provider == "TEAMTAILOR" and lead.ats_identifier == "acme"

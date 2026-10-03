@@ -237,6 +237,7 @@ def resolve_company_leads(
     *,
     limit: int = 20,
     retry_failed: bool = False,
+    recheck_unsupported: bool = False,
     client: httpx.Client | None = None,
     host_resolver: Callable[[str, int], Iterable[str]] | None = None,
 ) -> CompanyLeadResolveSummary:
@@ -248,6 +249,10 @@ def resolve_company_leads(
     statuses = [CompanyLeadStatus.NEW.value]
     if retry_failed:
         statuses.append(CompanyLeadStatus.FAILED.value)
+    if recheck_unsupported:
+        # After a new ATS connector is added, careers pages that pointed at an
+        # unknown board may now resolve to a supported one.
+        statuses.extend((CompanyLeadStatus.RESOLVED.value, CompanyLeadStatus.UNSUPPORTED_ATS.value))
     leads = list(
         session.scalars(
             select(CompanyLead)

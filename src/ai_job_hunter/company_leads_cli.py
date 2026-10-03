@@ -36,6 +36,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     resolve_parser = subparsers.add_parser("resolve", help="find careers pages and supported ATS boards")
     resolve_parser.add_argument("--limit", type=int, default=20)
     resolve_parser.add_argument("--retry-failed", action="store_true")
+    resolve_parser.add_argument(
+        "--recheck-unsupported",
+        action="store_true",
+        help="re-inspect leads whose careers page had no supported ATS (useful after adding a connector)",
+    )
     show_parser = subparsers.add_parser("show", help="show one lead and its discovery provenance")
     show_parser.add_argument("lead_id", type=UUID)
 
@@ -95,6 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     session,
                     limit=args.limit,
                     retry_failed=args.retry_failed,
+                    recheck_unsupported=args.recheck_unsupported,
                 )
                 session.commit()
                 print(f"LEADS PROCESSED: {summary.selected}")
