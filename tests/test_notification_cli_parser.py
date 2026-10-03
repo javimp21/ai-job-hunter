@@ -71,3 +71,15 @@ def test_notify_system_requires_text(capsys):
         main(["notify", "system"])
     assert error.value.code == 2
     capsys.readouterr()
+
+
+def test_notify_system_reports_missing_telegram_without_crashing(monkeypatch, capsys):
+    from ai_job_hunter import cli
+    from ai_job_hunter.config import Settings
+
+    monkeypatch.setattr(cli, "get_settings", lambda: Settings(telegram_bot_token=None, telegram_chat_id=None))
+    monkeypatch.setattr(cli, "create_database_engine", lambda settings: type("E", (), {"dispose": lambda self: None})())
+    monkeypatch.setattr(cli, "create_session_factory", lambda engine: (lambda: __import__("contextlib").nullcontext(None)))
+
+    assert cli.main(["notify", "system", "--text", "hello"]) == 1
+    assert "not configured" in capsys.readouterr().err

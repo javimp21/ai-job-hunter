@@ -379,7 +379,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--max-jev-jobs cannot be negative")
     if args.command == "opportunities" and args.limit < 1:
         parser.error("--limit must be positive")
-    if args.command == "notify" and args.limit < 1:
+    if args.command == "notify" and getattr(args, "limit", 1) < 1:
         parser.error("--limit must be positive")
     if (
         args.command == "outreach"
