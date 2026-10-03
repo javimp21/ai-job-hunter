@@ -53,10 +53,11 @@ Register it every two hours from 08:00 to 22:00 (run from the repository root; i
 ```powershell
 $root = (Get-Location).Path
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$root\scripts\run-scheduled.ps1`"" -WorkingDirectory $root
-$trigger = New-ScheduledTaskTrigger -Daily -At 08:00
-$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At 08:00 -RepetitionInterval (New-TimeSpan -Hours 2) -RepetitionDuration (New-TimeSpan -Hours 14)).Repetition
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 1) -StartWhenAvailable
-Register-ScheduledTask -TaskName "AI Job Hunter" -Action $action -Trigger $trigger -Settings $settings -Description "Fetch monitored ATS jobs, evaluate and send Telegram alerts"
+# One fixed daily trigger per run: a single trigger with "repeat every 2 hours"
+# silently stopped repeating after the task was edited during the day.
+$triggers = foreach ($h in 8,10,12,14,16,18,20,22) { New-ScheduledTaskTrigger -Daily -At ("{0:D2}:00" -f $h) }
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 1) -StartWhenAvailable -WakeToRun
+Register-ScheduledTask -TaskName "AI Job Hunter" -Action $action -Trigger $triggers -Settings $settings -Description "Fetch monitored ATS jobs, evaluate and send Telegram alerts"
 ```
 
 Pause with `Disable-ScheduledTask -TaskName "AI Job Hunter"`, resume with `Enable-ScheduledTask`, remove with `Unregister-ScheduledTask -TaskName "AI Job Hunter"`. `Get-ScheduledTaskInfo -TaskName "AI Job Hunter"` shows the last result (0 means success); details are in the log file.
