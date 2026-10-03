@@ -540,3 +540,21 @@ def test_notification_threshold_must_be_an_integer_between_zero_and_hundred(db_s
         preview_notifications(db_session, _candidate(), review_threshold=101)
     with pytest.raises(ValueError):
         preview_notifications(db_session, _candidate(), review_threshold=True)
+
+
+@pytest.mark.parametrize(
+    ("decision", "priority", "alerts"),
+    [
+        (FinalDecision.REVIEW, 80, False),
+        (FinalDecision.REVIEW, 85, True),
+        (FinalDecision.APPLY, 60, True),
+    ],
+)
+def test_onsite_roles_alert_only_when_exceptional(db_session, monkeypatch, decision, priority, alerts):
+    job, _ = _seed_evaluation(db_session, decision.value)
+    item = dataclasses.replace(_opportunity(job.id, decision, priority), remote_policy="ONSITE")
+    _install_opportunities(monkeypatch, [item])
+
+    previews = preview_notifications(db_session, _candidate())
+
+    assert bool(previews) is alerts

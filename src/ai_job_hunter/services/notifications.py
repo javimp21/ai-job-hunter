@@ -478,8 +478,10 @@ def _current_opportunities(
         )
         reason = None if eligible else "review_priority_below_threshold"
         if eligible:
-            reason = _human_state_suppression(item) or _repeat_suppression(
-                decision, sent_decisions.get(item.job_id, {}), fingerprint
+            reason = (
+                _onsite_suppression(item, decision)
+                or _human_state_suppression(item)
+                or _repeat_suppression(decision, sent_decisions.get(item.job_id, {}), fingerprint)
             )
             eligible = reason is None
         preview = NotificationPreview(
@@ -502,6 +504,19 @@ def _current_opportunities(
         )
     )
     return result
+
+
+ONSITE_MIN_PRIORITY = 85
+
+
+def _onsite_suppression(item: Opportunity, decision: str) -> str | None:
+    """Fully on-site roles alert only when they are exceptional (APPLY or very high priority)."""
+
+    if item.remote_policy != "ONSITE" or decision == FinalDecision.APPLY.value:
+        return None
+    if item.priority is not None and item.priority >= ONSITE_MIN_PRIORITY:
+        return None
+    return "onsite_not_exceptional"
 
 
 def _human_state_suppression(item: Opportunity) -> str | None:
