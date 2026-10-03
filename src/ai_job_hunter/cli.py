@@ -64,6 +64,7 @@ from ai_job_hunter.outreach import (
 from ai_job_hunter.outreach.projects import CandidateProjectsConfigError
 from ai_job_hunter.outreach.projects import load_candidate_projects
 from ai_job_hunter.services.cover_letters import CoverLetterError, generate_cover_letter
+from ai_job_hunter.services.job_portals import parse_portal_names
 from ai_job_hunter.services.monitored_sources import (
     MonitoredSourceError,
     list_sources,
@@ -426,6 +427,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     # The monitor always requires supported ATS; these are
                     # additional company facts, never policy inputs.
                     candidate_filters=_monitor_filters(args),
+                    portals=parse_portal_names(settings.job_portals),
                 )
                 _print_refresh_summary(summary)
                 return 1 if summary.failures else 0
@@ -479,6 +481,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     retry_pending=args.retry_pending,
                     dry_run=args.dry_run,
                     candidate_filters=_monitor_filters(args),
+                    portals=parse_portal_names(settings.job_portals),
                 )
                 _print_refresh_summary(summary)
                 if args.no_notifications:
@@ -1359,6 +1362,7 @@ def _print_refresh_summary(summary: RefreshSummary) -> None:
     print(mode)
     for label, value in (
         ("Companies checked", summary.companies_checked),
+        ("Portals checked", summary.portals_checked),
         ("Jobs fetched", summary.jobs_fetched),
         ("New jobs", summary.new_jobs),
         ("Known jobs", summary.known_jobs),

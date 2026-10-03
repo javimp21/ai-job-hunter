@@ -837,6 +837,9 @@ def format_notification_message(item: Opportunity) -> str:
     url = _safe_public_url(item.url)
     if url:
         lines.extend(["", f'<a href="{html.escape(url, quote=True)}">Ver oferta →</a>'])
+        if (urlsplit(url).hostname or "").endswith("himalayas.app"):
+            # Himalayas' terms ask for a visible credit and link.
+            lines.append('📡 Fuente: <a href="https://himalayas.app">Himalayas</a>')
     lines.append("<i>La prioridad ordena la revisión; no es una probabilidad.</i>")
     return "\n".join(lines)
 

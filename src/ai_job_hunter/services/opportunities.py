@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any, Iterable
+from pathlib import Path
+from typing import Any, Iterable, Sequence
 from uuid import UUID
 
 import httpx
@@ -84,6 +85,11 @@ from ai_job_hunter.services.company_intelligence import (
     get_company_facts_for_job,
 )
 from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, ingest_job
+from ai_job_hunter.services.job_portals import (
+    DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
+    due_portals,
+    fetch_portals,
+)
 from ai_job_hunter.services.monitored_sources import (
     active_monitor_targets,
     record_fetch_results,
@@ -125,6 +131,7 @@ class SourceFailure:
 @dataclass(slots=True)
 class RefreshSummary:
     companies_checked: int = 0
+    portals_checked: int = 0
     jobs_fetched: int = 0
     new_jobs: int = 0
     known_jobs: int = 0
@@ -226,8 +233,10 @@ def refresh_opportunities(
     cache: DecisionCache | None = None,
     engine: JobDecisionEngine | None = None,
     client: httpx.Client | None = None,
+    portals: Sequence[str] = (),
+    portal_state_path: Path = DEFAULT_PORTAL_STATE_PATH,
 ) -> RefreshSummary:
-    """Fetch monitored ATS boards, ingest, then evaluate new/stale job snapshots.
+    """Fetch monitored ATS boards and due job portals, ingest, then evaluate new/stale snapshots.
 
     The caller supplies a clean SQLAlchemy Session. The existing ``ingest_job``
     function owns its per-offer transaction, so reads are ended before ingestion
@@ -255,18 +264,30 @@ def refresh_opportunities(
         raise OpportunityServiceError(str(error)) from error
     summary.companies_checked = len({target.company_id for target in targets})
     session.rollback()  # End the read transaction before any connector or ingest work.
-    if not targets:
+    due = due_portals(portals, state_path=portal_state_path) if portals else []
+    if not targets and not due:
         return summary
 
-    offers, failures = _fetch_targets(
-        targets,
-        max_jobs_per_company=max_jobs_per_company,
-        client=client,
+    offers: list[tuple[NormalizedJob, CompanyMonitorTarget | None]]
+    offers, failures = (
+        _fetch_targets(targets, max_jobs_per_company=max_jobs_per_company, client=client)
+        if targets
+        else ([], [])
     )
-    summary.jobs_fetched = len(offers)
     summary.failures.extend(failures)
     if not dry_run:
         record_fetch_results(session, targets, offers, failures)
+    if due:
+        # Portal offers have no company board; ingestion matches/creates the company.
+        portal_offers, portal_failures = fetch_portals(
+            due, client=client, state_path=portal_state_path, record=not dry_run
+        )
+        offers.extend((offer, None) for offer in portal_offers)
+        summary.portals_checked = len(due)
+        summary.failures.extend(
+            SourceFailure(failure.portal, "PORTAL", failure.error_type) for failure in portal_failures
+        )
+    summary.jobs_fetched = len(offers)
 
     if dry_run:
         for offer, _target in offers:
@@ -1404,9 +1425,9 @@ def _source_context_fingerprints(
     ]
 
 
-def _offer_order(offer: NormalizedJob, target: CompanyMonitorTarget) -> tuple[Any, ...]:
+def _offer_order(offer: NormalizedJob, target: CompanyMonitorTarget | None) -> tuple[Any, ...]:
     return (
-        normalize_company_name(target.company_name) or "",
+        normalize_company_name(target.company_name if target else offer.company_name) or "",
         offer.provider.casefold(),
         offer.published_at.timestamp() * -1 if offer.published_at else 0.0,
         normalize_job_title(offer.title).tokens,

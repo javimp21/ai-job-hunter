@@ -4,7 +4,7 @@
 # monthly log under data\local\logs (Git-ignored). Credentials stay in .env and
 # are never passed on the command line or written to the log.
 param(
-    [int]$MaxJevJobs = 20,
+    [int]$MaxJevJobs = 40,
     [int]$MaxNotifications = 20,
     [switch]$NoNotifications,
     # Fetch and preview only: no database writes, no Jev calls, no Telegram.

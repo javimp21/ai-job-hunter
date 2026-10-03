@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
     notify_review_min_priority: int = Field(default=70, ge=0, le=100)
+    # Comma-separated job portals queried by refresh/run (empty disables portals).
+    job_portals: str = "himalayas"
 
 
 def get_settings() -> Settings:
