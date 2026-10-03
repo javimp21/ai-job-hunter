@@ -140,6 +140,34 @@ class RefreshSummary:
     failures: list[SourceFailure] = field(default_factory=list)
 
 
+class EvaluationOutcome(StrEnum):
+    """What the evaluation loop did (or, in a dry run, would do) for one snapshot."""
+
+    CURRENT = "CURRENT"
+    DETERMINISTIC_SKIP = "DETERMINISTIC_SKIP"
+    CACHE_HIT = "CACHE_HIT"
+    JEV_CALL = "JEV_CALL"
+    PENDING_BUDGET = "PENDING_BUDGET"
+    PENDING_NO_JEV = "PENDING_NO_JEV"
+    PENDING_ERROR = "PENDING_ERROR"
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationItemResult:
+    job_id: UUID
+    company: str | None
+    title: str
+    outcome: EvaluationOutcome
+    decision: str | None = None
+
+
+@dataclass(slots=True)
+class ReevaluationSummary(RefreshSummary):
+    jobs_selected: int = 0
+    items: list[EvaluationItemResult] = field(default_factory=list)
+    jobs_without_snapshot: list[UUID] = field(default_factory=list)
+
+
 @dataclass(frozen=True, slots=True)
 class Opportunity:
     job_id: UUID
@@ -331,13 +359,146 @@ def refresh_opportunities(
         and any(fingerprint not in prior_fingerprints.get(job_id, set()) for fingerprint in snapshots)
     )
 
+    _evaluate_prepared(
+        session,
+        (item for snapshots in prepared_by_job.values() for item in snapshots.values()),
+        summary,
+        engine=active_engine,
+        cache=active_cache,
+        engine_identity=engine_identity,
+        max_jev_jobs=max_jev_jobs,
+        no_jev=no_jev,
+        retry_pending=retry_pending,
+    )
+    return summary
+
+
+def reevaluate_jobs(
+    session: Session,
+    candidate: CandidateConfig,
+    job_ids: Iterable[UUID],
+    *,
+    max_jev_jobs: int,
+    dry_run: bool = False,
+    cache: DecisionCache | None = None,
+    engine: JobDecisionEngine | None = None,
+) -> ReevaluationSummary:
+    """Re-evaluate explicitly selected persisted jobs without fetching any source.
+
+    Only the selected jobs' stored source snapshots are prepared, so other
+    stale or unevaluated jobs are never touched. Evaluation reuses the refresh
+    work loop: current evaluations are reused, deterministic rejects never call
+    Jev, and each new Jev attempt is counted before it is made. Explicit
+    selection retries budget-deferred PENDING work. ``dry_run`` reads only: it
+    neither writes evaluations nor calls Jev nor writes the decision cache.
+    """
+
+    if max_jev_jobs < 0:
+        raise OpportunityServiceError("max_jev_jobs cannot be negative.")
+    selected = list(dict.fromkeys(job_ids))
+    if not selected:
+        raise OpportunityServiceError("Select at least one job id.")
+    _require_clean_session_for_owned_transactions(session)
+
+    active_cache = cache or DecisionCache()
+    active_engine = engine or JevJobDecisionEngine()
+    try:
+        engine_identity = active_engine.cache_identity
+    except Exception as error:
+        raise OpportunityServiceError(f"Cannot initialize Jev engine ({type(error).__name__}).") from error
+
+    jobs = {
+        job.id: job
+        for job in session.scalars(
+            select(Job)
+            .options(joinedload(Job.company), selectinload(Job.sources))
+            .where(Job.id.in_(selected))
+        ).unique().all()
+    }
+    missing = [str(job_id) for job_id in selected if job_id not in jobs]
+    if missing:
+        session.rollback()
+        raise OpportunityServiceError("Unknown job id(s): " + ", ".join(missing) + ".")
+    snapshots_by_job = {
+        job_id: _source_context_fingerprints(jobs[job_id], candidate, engine_identity)
+        for job_id in selected
+    }
+    session.rollback()
+    prepared = [item for snapshots in snapshots_by_job.values() for item in snapshots]
+
+    summary = ReevaluationSummary(
+        dry_run=dry_run,
+        jobs_selected=len(selected),
+        jobs_without_snapshot=[job_id for job_id, snapshots in snapshots_by_job.items() if not snapshots],
+    )
+    summary.items = _evaluate_prepared(
+        session,
+        prepared,
+        summary,
+        engine=active_engine,
+        cache=active_cache,
+        engine_identity=engine_identity,
+        max_jev_jobs=max_jev_jobs,
+        no_jev=False,
+        retry_pending=True,
+        dry_run=dry_run,
+    )
+    return summary
+
+
+class _CacheOnlyEngine:
+    """Engine for cache hits: never calls Jev, so the budget cannot be bypassed.
+
+    If the cache entry disappears between the lookup and the read (for example,
+    another process rewrote the file), the item becomes a retryable error.
+    """
+
+    def __init__(self, engine: JobDecisionEngine) -> None:
+        self._engine = engine
+
+    @property
+    def cache_identity(self) -> str:
+        return self._engine.cache_identity
+
+    def evaluate(self, context: JobDecisionContext):
+        raise JobDecisionError("Cached decision disappeared; Jev was not called outside the budget.")
+
+
+def _evaluate_prepared(
+    session: Session,
+    items: Iterable[_PreparedOffer],
+    summary: RefreshSummary,
+    *,
+    engine: JobDecisionEngine,
+    cache: DecisionCache,
+    engine_identity: str,
+    max_jev_jobs: int,
+    no_jev: bool,
+    retry_pending: bool,
+    dry_run: bool = False,
+) -> list[EvaluationItemResult]:
+    """Evaluate prepared snapshots; shared by refresh and targeted reevaluation.
+
+    With ``dry_run`` every item is classified exactly as a real run would
+    classify it, including the Jev budget, but nothing is persisted, Jev is not
+    called and cached results are not loaded.
+    """
+
     # Work order is fixed across runs: deterministic PASS before REVIEW, then
     # published date, company/title, and persistent UUID. Cached work is never
     # blocked by the new-call budget.
-    prepared = sorted(
-        (item for snapshots in prepared_by_job.values() for item in snapshots.values()),
-        key=_evaluation_order,
-    )
+    prepared = sorted(items, key=_evaluation_order)
+    results: list[EvaluationItemResult] = []
+
+    def record(item: _PreparedOffer, outcome: EvaluationOutcome, decision: str | None = None) -> None:
+        results.append(EvaluationItemResult(
+            job_id=_required_job_id(item),
+            company=item.offer.company_name,
+            title=item.offer.title,
+            outcome=outcome,
+            decision=decision,
+        ))
+
     jev_calls = 0
     for item in prepared:
         existing = _evaluation_for_fingerprint(session, item)
@@ -351,23 +512,30 @@ def refresh_opportunities(
                 saved_decision = FinalDecision.REVIEW.value
             session.rollback()
             _count_decision(summary, saved_decision)
+            record(item, EvaluationOutcome.CURRENT, saved_decision)
             continue
         session.rollback()
         if item.context.deterministic.decision is PreFilterDecision.REJECT:
             summary.hard_skips += 1
-            result = _evaluate_hard_skip(item.context, engine_identity)
-            _persist_evaluation(session, item, result, engine_name=_DETERMINISTIC_ENGINE_NAME)
+            if not dry_run:
+                result = _evaluate_hard_skip(item.context, engine_identity)
+                _persist_evaluation(session, item, result, engine_name=_DETERMINISTIC_ENGINE_NAME)
             summary.skip += 1
+            record(item, EvaluationOutcome.DETERMINISTIC_SKIP, FinalDecision.SKIP.value)
             continue
 
-        cache_key = active_cache.key_for(item.context, engine_identity, RUBRIC_VERSION)
-        cached = active_cache.contains(cache_key)
+        cache_key = cache.key_for(item.context, engine_identity, RUBRIC_VERSION)
+        cached = cache.contains(cache_key)
         if cached:
+            if dry_run:
+                summary.jev_cache_hits += 1
+                record(item, EvaluationOutcome.CACHE_HIT)
+                continue
             try:
                 result = evaluate_job_decision(
                     item.context,
-                    active_engine,
-                    cache=active_cache,
+                    _CacheOnlyEngine(engine),
+                    cache=cache,
                     policy_version=POLICY_VERSION_V2,
                 )
             except JobDecisionError as error:
@@ -379,10 +547,12 @@ def refresh_opportunities(
                 )
                 summary.pending += 1
                 summary.pending_errors += 1
+                record(item, EvaluationOutcome.PENDING_ERROR)
                 continue
             summary.jev_cache_hits += 1
             _persist_evaluation(session, item, result, engine_name=_ENGINE_NAME)
             _count_decision(summary, result.final_decision)
+            record(item, EvaluationOutcome.CACHE_HIT, result.final_decision.value)
             continue
 
         pending_budget_limit = None
@@ -404,33 +574,40 @@ def refresh_opportunities(
             # budget or pass retry_pending to explicitly resume deferred work.
             summary.pending += 1
             summary.pending_budget += 1
+            record(item, EvaluationOutcome.PENDING_BUDGET)
             continue
 
         if no_jev or jev_calls >= max_jev_jobs:
             reason = "Jev disabled by --no-jev." if no_jev else "Pending: --max-jev-jobs budget reached."
-            _persist_pending(
-                session,
-                item,
-                engine_identity,
-                reason,
-                budget_limit=None if no_jev else max_jev_jobs,
-            )
+            if not dry_run:
+                _persist_pending(
+                    session,
+                    item,
+                    engine_identity,
+                    reason,
+                    budget_limit=None if no_jev else max_jev_jobs,
+                )
             summary.pending += 1
             if no_jev:
                 summary.pending_no_jev += 1
+                record(item, EvaluationOutcome.PENDING_NO_JEV)
             else:
                 summary.pending_budget += 1
+                record(item, EvaluationOutcome.PENDING_BUDGET)
             continue
 
+        # Count the attempt before calling out so provider failures cannot
+        # exceed the configured number of attempted new requests.
+        jev_calls += 1
+        if dry_run:
+            record(item, EvaluationOutcome.JEV_CALL)
+            continue
+        summary.jev_calls += 1
         try:
-            # Count the attempt before calling out so provider failures cannot
-            # exceed the configured number of attempted new requests.
-            jev_calls += 1
-            summary.jev_calls += 1
             result = evaluate_job_decision(
                 item.context,
-                active_engine,
-                cache=active_cache,
+                engine,
+                cache=cache,
                 policy_version=POLICY_VERSION_V2,
             )
         except JobDecisionError as error:
@@ -439,12 +616,14 @@ def refresh_opportunities(
             _persist_pending(session, item, engine_identity, f"Jev unavailable ({type(error).__name__}).")
             summary.pending += 1
             summary.pending_errors += 1
+            record(item, EvaluationOutcome.PENDING_ERROR)
             continue
         summary.jev_evaluated += 1
         _persist_evaluation(session, item, result, engine_name=_ENGINE_NAME)
         _count_decision(summary, result.final_decision)
+        record(item, EvaluationOutcome.JEV_CALL, result.final_decision.value)
 
-    return summary
+    return results
 
 
 def list_opportunities(

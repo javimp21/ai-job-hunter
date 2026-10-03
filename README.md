@@ -89,6 +89,12 @@ Refresh monitored job sources and update the opportunity feed:
 ai-job-hunter refresh --limit-companies 10 --max-jev-jobs 20
 ```
 
+Re-evaluate only specific stored jobs (no ATS fetch; other stale jobs are untouched). Preview first; `--dry-run` writes nothing and calls no Jev:
+
+```powershell
+ai-job-hunter reevaluate --job-id <uuid> --job-id <uuid> --max-jev-jobs 2 --dry-run
+```
+
 Review the highest-priority opportunities currently classified as `APPLY`:
 
 ```powershell

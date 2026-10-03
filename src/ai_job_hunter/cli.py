@@ -66,9 +66,11 @@ from ai_job_hunter.outreach.projects import load_candidate_projects
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
+    ReevaluationSummary,
     RefreshSummary,
     get_opportunity,
     list_opportunities,
+    reevaluate_jobs,
     refresh_opportunities,
     set_review_state,
     transition_application,
@@ -181,9 +183,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     refresh.add_argument("--multiple-evidence-sources", action="store_true")
     refresh.add_argument("--remote-from-spain", action="store_true")
 
+    reevaluate = subparsers.add_parser(
+        "reevaluate",
+        help="re-evaluate selected stored jobs without fetching ATS boards",
+        description=(
+            "Evaluate only the given persisted jobs. Current evaluations are reused, deterministic "
+            "SKIPs never call Jev, and --dry-run writes nothing and calls nothing."
+        ),
+    )
+    reevaluate.add_argument("--job-id", type=UUID, action="append", required=True, dest="job_ids")
+    reevaluate.add_argument(
+        "--max-jev-jobs",
+        type=int,
+        required=True,
+        help="maximum new Jev calls attempted in this run (required)",
+    )
+    reevaluate.add_argument("--dry-run", action="store_true", help="show the plan without database, cache or Jev writes")
+    reevaluate.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     _add_notification_and_run_parsers(subparsers)
 
-    opportunities = subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
+    opportunities =subparsers.add_parser("opportunities", help="list current APPLY and REVIEW opportunities")
     opportunities.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
     opportunities.add_argument("--decision", choices=("apply", "review", "skip"))
     opportunities.add_argument("--status", choices=tuple(item.value.casefold() for item in HumanReviewStatus))
@@ -290,6 +310,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--max-jev-jobs cannot be negative")
         if args.max_notifications < 1:
             parser.error("--max-notifications must be positive")
+    if args.command == "reevaluate" and args.max_jev_jobs < 0:
+        parser.error("--max-jev-jobs cannot be negative")
     if args.command == "opportunities" and args.limit < 1:
         parser.error("--limit must be positive")
     if args.command == "notify" and args.limit < 1:
@@ -314,7 +336,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_local_apply_command(apply_args)
 
     candidate = None
-    if args.command in {"refresh", "opportunities", "show", "run"} or (
+    if args.command in {"refresh", "reevaluate", "opportunities", "show", "run"} or (
         args.command == "notify"
         and args.notification_command in {"send", "retry-failed"}
     ) or (
@@ -353,6 +375,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _print_refresh_summary(summary)
                 return 1 if summary.failures else 0
+            if args.command == "reevaluate":
+                summary = reevaluate_jobs(
+                    session,
+                    candidate,
+                    args.job_ids,
+                    max_jev_jobs=args.max_jev_jobs,
+                    dry_run=args.dry_run,
+                )
+                _print_reevaluation_summary(summary)
+                return 1 if summary.pending_errors else 0
             if args.command == "notify":
                 return _run_notification_command(args, session, candidate, settings)
             if args.command == "run":
@@ -1177,6 +1209,28 @@ def _print_refresh_summary(summary: RefreshSummary) -> None:
         print(f"{label}: {value}")
     for failure in summary.failures:
         print(f"Fetch/ingest failure: {failure.company} | {failure.provider} | {failure.error_type}")
+
+
+def _print_reevaluation_summary(summary: ReevaluationSummary) -> None:
+    print("REEVALUATE DRY RUN (no writes, no Jev calls)" if summary.dry_run else "REEVALUATE")
+    print(f"Jobs selected: {summary.jobs_selected}")
+    planned_calls = sum(1 for item in summary.items if item.outcome == "JEV_CALL")
+    if summary.dry_run:
+        print(f"Jev calls planned: {planned_calls}")
+    for label, value in (
+        ("Jev calls attempted", summary.jev_calls),
+        ("Jev evaluated", summary.jev_evaluated),
+        ("Jev cache hits", summary.jev_cache_hits),
+        ("Hard skips", summary.hard_skips),
+        ("Pending: Jev budget", summary.pending_budget),
+        ("Pending: errors", summary.pending_errors),
+    ):
+        print(f"{label}: {value}")
+    for item in summary.items:
+        decision = f" -> {item.decision}" if item.decision else ""
+        print(f"{item.job_id} | {item.company or 'Unknown company'} | {item.title} | {item.outcome}{decision}")
+    for job_id in summary.jobs_without_snapshot:
+        print(f"{job_id} | no evaluable stored source snapshot; not evaluated")
 
 
 def _print_opportunity(item: Opportunity, *, show_company_facts: bool = False) -> None:

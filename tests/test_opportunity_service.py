@@ -32,8 +32,10 @@ from ai_job_hunter.models import (
 )
 from ai_job_hunter.services import opportunities
 from ai_job_hunter.services.opportunities import (
+    EvaluationOutcome,
     OpportunityServiceError,
     list_opportunities,
+    reevaluate_jobs,
     refresh_opportunities,
     set_review_state,
     transition_application,
@@ -768,3 +770,262 @@ def test_list_filters_order_and_priority_are_deterministic(db_session) -> None:
     )
     assert [item.title for item in seen] == ["Backend Engineer Beta"]
     assert seen[0].application_status is ApplicationStatus.APPLIED
+
+
+def _job_id(session, external_id: str):
+    return session.scalar(select(JobSource.job_id).where(JobSource.external_id == external_id))
+
+
+def _forbid_fetch(monkeypatch) -> None:
+    def no_fetch(*args, **kwargs):
+        raise AssertionError("reevaluate must not fetch ATS boards")
+
+    monkeypatch.setattr(opportunities, "_fetch_targets", no_fetch)
+
+
+def _changed_candidate(candidate: CandidateConfig) -> CandidateConfig:
+    """Any candidate change alters the config fingerprint and makes rows stale."""
+
+    return candidate.model_copy(
+        update={"profile": candidate.profile.model_copy(update={"current_role": "Changed Backend Engineer"})}
+    )
+
+
+def _seed_evaluated(db_session, monkeypatch, tmp_path, offers: list[NormalizedJob]) -> CandidateConfig:
+    _monitor_company(db_session)
+    candidate = _candidate()
+    _install_fetch(monkeypatch, offers)
+    refresh_opportunities(
+        db_session,
+        candidate,
+        max_jev_jobs=len(offers),
+        cache=DecisionCache(tmp_path / "seed-decisions.local.json"),
+        engine=FakeEngine(),
+    )
+    _forbid_fetch(monkeypatch)
+    return candidate
+
+
+def _row_state(session) -> list[tuple]:
+    return [
+        (row.job_id, row.evaluation_fingerprint, row.status, row.decision, row.evaluated_at)
+        for row in _evaluations(session)
+    ]
+
+
+def test_reevaluate_evaluates_only_selected_stale_jobs_without_fetching(db_session, monkeypatch, tmp_path) -> None:
+    candidate = _seed_evaluated(
+        db_session, monkeypatch, tmp_path, [_offer("role-a"), _offer("role-b"), _offer("role-c")]
+    )
+    stale_candidate = _changed_candidate(candidate)
+    rows_before = _row_state(db_session)
+    engine = FakeEngine()
+
+    summary = reevaluate_jobs(
+        db_session,
+        stale_candidate,
+        [_job_id(db_session, "role-a"), _job_id(db_session, "role-c")],
+        max_jev_jobs=5,
+        cache=DecisionCache(tmp_path / "reevaluate-decisions.local.json"),
+        engine=engine,
+    )
+
+    assert sorted(engine.calls) == ["role-a", "role-c"]
+    assert summary.jev_calls == 2
+    assert summary.jev_evaluated == 2
+    assert {item.outcome for item in summary.items} == {EvaluationOutcome.JEV_CALL}
+    rows_after = _row_state(db_session)
+    # History is preserved; only one new row per selected job is added.
+    assert set(rows_before) <= set(rows_after)
+    assert len(rows_after) == len(rows_before) + 2
+    new_job_ids = {row[0] for row in set(rows_after) - set(rows_before)}
+    assert new_job_ids == {_job_id(db_session, "role-a"), _job_id(db_session, "role-c")}
+    by_job = {
+        item.job_id: item.evaluation_is_stale
+        for item in list_opportunities(db_session, stale_candidate, engine=engine, include_skip=True, limit=10)
+    }
+    assert by_job[_job_id(db_session, "role-a")] is False
+    assert by_job[_job_id(db_session, "role-b")] is True
+    assert by_job[_job_id(db_session, "role-c")] is False
+
+
+def test_reevaluate_budget_counts_attempts_including_provider_failures(db_session, monkeypatch, tmp_path) -> None:
+    from ai_job_hunter.decision_engine import JobDecisionError
+
+    class FailingEngine(FakeEngine):
+        def evaluate(self, context) -> DecisionEvidence:
+            self.calls.append(context.offer.external_id)
+            raise JobDecisionError("offline fake failure")
+
+    candidate = _seed_evaluated(
+        db_session, monkeypatch, tmp_path, [_offer("role-a"), _offer("role-b"), _offer("role-c")]
+    )
+    engine = FailingEngine()
+
+    summary = reevaluate_jobs(
+        db_session,
+        _changed_candidate(candidate),
+        [_job_id(db_session, external_id) for external_id in ("role-a", "role-b", "role-c")],
+        max_jev_jobs=2,
+        cache=DecisionCache(tmp_path / "budget-decisions.local.json"),
+        engine=engine,
+    )
+
+    assert len(engine.calls) == 2
+    assert summary.jev_calls == 2
+    assert summary.pending_errors == 2
+    assert summary.pending_budget == 1
+    outcomes = sorted(item.outcome for item in summary.items)
+    assert outcomes == sorted(
+        [EvaluationOutcome.PENDING_ERROR, EvaluationOutcome.PENDING_ERROR, EvaluationOutcome.PENDING_BUDGET]
+    )
+
+
+def test_reevaluate_dry_run_plans_without_writes_or_calls(db_session, monkeypatch, tmp_path) -> None:
+    candidate = _seed_evaluated(
+        db_session, monkeypatch, tmp_path, [_offer("role-a"), _offer("role-b")]
+    )
+    rows_before = _row_state(db_session)
+    engine = FakeEngine()
+    cache_path = tmp_path / "dry-run-decisions.local.json"
+
+    summary = reevaluate_jobs(
+        db_session,
+        _changed_candidate(candidate),
+        [_job_id(db_session, "role-a"), _job_id(db_session, "role-b")],
+        max_jev_jobs=1,
+        dry_run=True,
+        cache=DecisionCache(cache_path),
+        engine=engine,
+    )
+
+    assert engine.calls == []
+    assert summary.jev_calls == 0
+    assert summary.dry_run is True
+    assert sorted(item.outcome for item in summary.items) == sorted(
+        [EvaluationOutcome.JEV_CALL, EvaluationOutcome.PENDING_BUDGET]
+    )
+    assert _row_state(db_session) == rows_before
+    assert not cache_path.exists()
+
+
+def test_reevaluate_reuses_current_evaluations_on_second_run(db_session, monkeypatch, tmp_path) -> None:
+    candidate = _seed_evaluated(db_session, monkeypatch, tmp_path, [_offer("role-a")])
+    stale_candidate = _changed_candidate(candidate)
+    job_id = _job_id(db_session, "role-a")
+    engine = FakeEngine()
+    # A fresh cache path per run proves reuse comes from the current DB row.
+    first = reevaluate_jobs(
+        db_session, stale_candidate, [job_id], max_jev_jobs=1,
+        cache=DecisionCache(tmp_path / "first.local.json"), engine=engine,
+    )
+    rows_after_first = _row_state(db_session)
+
+    second = reevaluate_jobs(
+        db_session, stale_candidate, [job_id, job_id], max_jev_jobs=1,
+        cache=DecisionCache(tmp_path / "second.local.json"), engine=engine,
+    )
+
+    assert first.jev_calls == 1
+    assert second.jev_calls == 0
+    assert second.jobs_selected == 1
+    assert [item.outcome for item in second.items] == [EvaluationOutcome.CURRENT]
+    assert engine.calls == ["role-a"]
+    assert _row_state(db_session) == rows_after_first
+
+
+def test_reevaluate_deterministic_skip_never_calls_jev(db_session, monkeypatch, tmp_path) -> None:
+    rejected = _offer(
+        "role-reject",
+        remote_policy="ONSITE",
+        remote_eligibility="COUNTRY_RESTRICTED",
+        location="New York, United States",
+    )
+    candidate = _seed_evaluated(db_session, monkeypatch, tmp_path, [rejected])
+    engine = FakeEngine()
+
+    summary = reevaluate_jobs(
+        db_session,
+        _changed_candidate(candidate),
+        [_job_id(db_session, "role-reject")],
+        max_jev_jobs=1,
+        cache=DecisionCache(tmp_path / "skip.local.json"),
+        engine=engine,
+    )
+
+    assert engine.calls == []
+    assert summary.jev_calls == 0
+    assert [(item.outcome, item.decision) for item in summary.items] == [
+        (EvaluationOutcome.DETERMINISTIC_SKIP, FinalDecision.SKIP.value)
+    ]
+
+
+def test_reevaluate_rejects_unknown_job_ids_before_any_work(db_session, monkeypatch, tmp_path) -> None:
+    from uuid import uuid4
+
+    candidate = _seed_evaluated(db_session, monkeypatch, tmp_path, [_offer("role-a")])
+    rows_before = _row_state(db_session)
+    engine = FakeEngine()
+    unknown = uuid4()
+
+    with pytest.raises(OpportunityServiceError, match=str(unknown)):
+        reevaluate_jobs(
+            db_session,
+            _changed_candidate(candidate),
+            [_job_id(db_session, "role-a"), unknown],
+            max_jev_jobs=1,
+            cache=DecisionCache(tmp_path / "unknown.local.json"),
+            engine=engine,
+        )
+
+    assert engine.calls == []
+    assert _row_state(db_session) == rows_before
+    with pytest.raises(OpportunityServiceError):
+        reevaluate_jobs(db_session, candidate, [], max_jev_jobs=1, engine=engine)
+    with pytest.raises(OpportunityServiceError):
+        reevaluate_jobs(db_session, candidate, [unknown], max_jev_jobs=-1, engine=engine)
+
+
+def test_vanished_cache_entry_never_calls_jev_outside_budget(db_session, monkeypatch, tmp_path) -> None:
+    class VanishingCache(DecisionCache):
+        def contains(self, key: str) -> bool:
+            return True
+
+        def get(self, key: str):
+            return None
+
+    candidate = _seed_evaluated(db_session, monkeypatch, tmp_path, [_offer("role-a")])
+    engine = FakeEngine()
+
+    summary = reevaluate_jobs(
+        db_session,
+        _changed_candidate(candidate),
+        [_job_id(db_session, "role-a")],
+        max_jev_jobs=0,
+        cache=VanishingCache(tmp_path / "vanishing.local.json"),
+        engine=engine,
+    )
+
+    assert engine.calls == []
+    assert summary.jev_calls == 0
+    assert [item.outcome for item in summary.items] == [EvaluationOutcome.PENDING_ERROR]
+
+
+def test_reevaluate_reports_selected_jobs_without_source_snapshots(db_session, tmp_path) -> None:
+    job = Job(title="Backend Engineer")
+    db_session.add(job)
+    db_session.commit()
+    engine = FakeEngine()
+
+    summary = reevaluate_jobs(
+        db_session,
+        _candidate(),
+        [job.id],
+        max_jev_jobs=1,
+        cache=DecisionCache(tmp_path / "empty.local.json"),
+        engine=engine,
+    )
+
+    assert summary.items == []
+    assert summary.jobs_without_snapshot == [job.id]
+    assert engine.calls == []

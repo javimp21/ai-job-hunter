@@ -1,6 +1,6 @@
 import pytest
 
-from ai_job_hunter.cli import _print_prefilter_signals, _print_refresh_summary, main
+from ai_job_hunter.cli import _print_prefilter_signals, _print_reevaluation_summary, _print_refresh_summary, main
 from ai_job_hunter.services.opportunities import RefreshSummary
 
 
@@ -80,3 +80,41 @@ def test_refresh_rejects_negative_budget_before_loading_candidate_or_database() 
         )
 
     assert error.value.code == 2
+
+
+def test_reevaluate_requires_explicit_job_ids_and_budget(capsys) -> None:
+    job_id = "22e0ab77-6132-4050-b96e-770c2aff9225"
+    for argv in (
+        ["reevaluate", "--max-jev-jobs", "1"],
+        ["reevaluate", "--job-id", job_id],
+        ["reevaluate", "--job-id", "not-a-uuid", "--max-jev-jobs", "1"],
+        ["reevaluate", "--job-id", job_id, "--max-jev-jobs", "-1", "--candidate-config", "does-not-exist.json"],
+    ):
+        with pytest.raises(SystemExit) as error:
+            main(argv)
+        assert error.value.code == 2
+    capsys.readouterr()
+
+
+def test_reevaluate_summary_reports_planned_calls_for_dry_run(capsys) -> None:
+    from uuid import UUID
+
+    from ai_job_hunter.services.opportunities import EvaluationItemResult, EvaluationOutcome, ReevaluationSummary
+
+    job_id = UUID("22e0ab77-6132-4050-b96e-770c2aff9225")
+    summary = ReevaluationSummary(
+        dry_run=True,
+        jobs_selected=2,
+        items=[
+            EvaluationItemResult(job_id, "Acme", "Backend Engineer", EvaluationOutcome.JEV_CALL),
+            EvaluationItemResult(job_id, "Acme", "Data Analyst", EvaluationOutcome.DETERMINISTIC_SKIP, "SKIP"),
+        ],
+    )
+
+    _print_reevaluation_summary(summary)
+
+    output = capsys.readouterr().out
+    assert "REEVALUATE DRY RUN (no writes, no Jev calls)" in output
+    assert "Jev calls planned: 1" in output
+    assert "Jev calls attempted: 0" in output
+    assert "Data Analyst | DETERMINISTIC_SKIP -> SKIP" in output
