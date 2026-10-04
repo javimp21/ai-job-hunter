@@ -39,6 +39,7 @@ DETAIL = {
 def make(handler, **kwargs):
     client = httpx.Client(transport=httpx.MockTransport(handler))
     kwargs.setdefault("request_delay", 0)
+    kwargs.setdefault("spain_only", False)  # pagination tests; the Spain filter has its own tests
     return WorkdayConnector("acme/Careers", region="wd3", client=client, **kwargs), client
 
 
@@ -79,7 +80,8 @@ def test_fetch_normalizes_posting_with_detail():
     assert job.employment_type is EmploymentType.FULL_TIME
     assert job.remote_policy is RemotePolicy.HYBRID
     assert job.remote_eligibility is RemoteEligibility.UNKNOWN
-    assert job.published_at is None
+    # "Posted 3 Days Ago" becomes an approximate publication date (day precision).
+    assert job.published_at is not None and (job.discovered_at - job.published_at).days in (3, 4)
     assert job.raw_metadata["posted_on"] == "Posted 3 Days Ago"
 
 
@@ -223,3 +225,73 @@ def test_factory_builds_workday_and_spec_requires_region():
     ):
         with pytest.raises(ValueError):
             JobSourcesConfig.model_validate({"sources": [source]})
+
+
+SPAIN_FACETS = [
+    {
+        "facetParameter": "locationMainGroup",
+        "values": [
+            {"facetParameter": "locationCountry", "values": [
+                {"descriptor": "Spain", "id": "es-id", "count": 3},
+                {"descriptor": "Mexico", "id": "mx-id", "count": 9},
+            ]},
+            {"facetParameter": "locationRegionStateProvince", "values": [
+                {"descriptor": "Madrid", "id": "mad-id", "count": 2},
+            ]},
+        ],
+    },
+    {"facetParameter": "jobFamily", "values": [{"descriptor": "Spain Ops", "id": "x", "count": 1}]},
+]
+
+
+def facet_handler(facets, requests, total=3):
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "POST":
+            body = json.loads(request.content)
+            page = [posting(n) for n in range(body["offset"] + 1, min(body["offset"] + 20, total) + 1)]
+            return httpx.Response(200, json={"total": total if body["offset"] == 0 else 0, "jobPostings": page, "facets": facets})
+        return httpx.Response(200, json=DETAIL)
+
+    return handler
+
+
+def test_spain_only_applies_the_country_facet():
+    requests = []
+    connector, _ = make(facet_handler(SPAIN_FACETS, requests), spain_only=True, detail_filter=lambda title: False)
+
+    jobs = connector.fetch_jobs()
+
+    assert len(jobs) == 3
+    bodies = [json.loads(r.content) for r in requests if r.method == "POST"]
+    assert bodies[0]["appliedFacets"] == {}
+    assert bodies[1]["appliedFacets"] == {"locationCountry": ["es-id"]}
+
+
+def test_spain_only_falls_back_to_spanish_locations_and_skips_sites_without_spain():
+    places = [{"facetParameter": "locations", "values": [
+        {"descriptor": "Madrid (Hubs Spain)", "id": "hub", "count": 1},
+        {"descriptor": "London", "id": "ldn", "count": 5},
+    ]}]
+    requests = []
+    make(facet_handler(places, requests), spain_only=True, detail_filter=lambda title: False)[0].fetch_jobs()
+    assert json.loads(requests[1].content)["appliedFacets"] == {"locations": ["hub"]}
+
+    abroad = [{"facetParameter": "locations", "values": [{"descriptor": "London", "id": "ldn", "count": 5}]}]
+    requests = []
+    assert make(facet_handler(abroad, requests), spain_only=True)[0].fetch_jobs() == []
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("text", "days"),
+    [("Posted Today", 0), ("Posted Yesterday", 1), ("Posted 3 Days Ago", 3), ("Posted 30+ Days Ago", 30), ("soon", None)],
+)
+def test_posted_on_text_becomes_an_approximate_publication_date(text, days):
+    from datetime import UTC, datetime, timedelta
+
+    from ai_job_hunter.connectors.workday import _posted_on
+
+    now = datetime(2026, 10, 4, 15, 30, tzinfo=UTC)
+    expected = None if days is None else datetime(2026, 10, 4, tzinfo=UTC) - timedelta(days=days)
+    assert _posted_on(text, now) == expected

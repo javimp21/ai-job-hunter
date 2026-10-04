@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Callable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
@@ -76,6 +76,7 @@ class WorkdayConnector:
         company_name: str | None = None,
         max_jobs: int | None = None,
         detail_filter: Callable[[str], bool] | None = None,
+        spain_only: bool = True,
         request_delay: float = 0.2,
         sleep: Callable[[float], None] = time.sleep,
         timeout: float = 20.0,
@@ -95,6 +96,7 @@ class WorkdayConnector:
         self.company_name = _optional_text(company_name)
         self.max_jobs = max_jobs
         self.detail_filter = detail_filter
+        self.spain_only = spain_only
         self.request_delay = request_delay
         self._sleep = sleep
         self._requests_made = 0
@@ -110,14 +112,19 @@ class WorkdayConnector:
         offers: list[NormalizedJob] = []
         offset = 0
         total: int | None = None
+        applied: dict[str, list[str]] = {}
+        if self.spain_only:
+            # Large employers list thousands of jobs worldwide, unsorted; the
+            # site's own location facets keep the fetch to Spain.
+            first = self._request("POST", f"{self._api}/jobs", json=_list_body(0, {}))
+            spain = _spain_facets(first)
+            if spain == {}:
+                return []  # the site filters by location and has nothing in Spain
+            applied = spain or {}
         for _ in range(_MAX_PAGES):
             if self.max_jobs is not None and len(offers) >= self.max_jobs:
                 break
-            payload = self._request(
-                "POST",
-                f"{self._api}/jobs",
-                json={"limit": WORKDAY_PAGE_SIZE, "offset": offset, "searchText": "", "appliedFacets": {}},
-            )
+            payload = self._request("POST", f"{self._api}/jobs", json=_list_body(offset, applied))
             postings = payload.get("jobPostings") if isinstance(payload, dict) else None
             if not isinstance(postings, list):
                 raise WorkdayConnectorError("Workday response must contain a jobPostings list.")
@@ -248,9 +255,9 @@ def _normalize_job(
         location=location,
         remote_policy=remote_policy,
         employment_type=_EMPLOYMENT_TYPES.get(time_type.casefold()) if time_type else None,
-        # The list only has relative text ("Posted 3 Days Ago") and "startDate" is
-        # the role start, not the publication date: published_at stays unknown.
-        published_at=None,
+        # The list only has relative text ("Posted 3 Days Ago"); "startDate" is the
+        # role start, not the publication date. "30+ Days" is a lower bound.
+        published_at=_posted_on(raw.get("postedOn"), discovered_at),
         raw_metadata={
             "req_id": req_id,
             "posted_on": _optional_text(raw.get("postedOn")),
@@ -261,6 +268,65 @@ def _normalize_job(
         },
         discovered_at=discovered_at,
     )
+
+
+def _list_body(offset: int, applied: Mapping[str, list[str]]) -> dict[str, Any]:
+    return {"limit": WORKDAY_PAGE_SIZE, "offset": offset, "searchText": "", "appliedFacets": dict(applied)}
+
+
+_SPAIN_LABELS = re.compile(r"\b(?:spain|españa|espana|madrid|barcelona)\b", re.IGNORECASE)
+_COUNTRY_FACETS = {"locationcountry", "country"}
+
+
+def _spain_facets(payload: Any) -> dict[str, list[str]] | None:
+    """Facet ids that select Spain: the country facet when present, else Spanish locations.
+
+    ``None`` means the site has no location facets (fetch everything); ``{}``
+    means it has location facets but nothing in Spain.
+    """
+
+    facets = payload.get("facets") if isinstance(payload, dict) else None
+    country: dict[str, list[str]] = {}
+    places: dict[str, list[str]] = {}
+    has_location = False
+
+    def walk(items: Any, parameter: str | None) -> None:
+        for item in items if isinstance(items, list) else []:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("facetParameter") if isinstance(item.get("facetParameter"), str) else parameter
+            nonlocal has_location
+            if name and ("location" in name.casefold() or name.casefold() in _COUNTRY_FACETS):
+                has_location = True
+            if isinstance(item.get("values"), list):
+                walk(item["values"], name)
+                continue
+            label, value = item.get("descriptor"), item.get("id")
+            if not (name and isinstance(label, str) and isinstance(value, str) and _SPAIN_LABELS.search(label)):
+                continue
+            if name.casefold() in _COUNTRY_FACETS:
+                if label.strip().casefold() in {"spain", "españa", "espana"}:
+                    country.setdefault(name, []).append(value)
+            elif "location" in name.casefold():
+                places.setdefault(name, []).append(value)
+
+    walk(facets, None)
+    if not has_location:
+        return None
+    return country or places
+
+
+_POSTED = re.compile(r"posted\s+(today|yesterday|(\d+)\+?\s+days?\s+ago)", re.IGNORECASE)
+
+
+def _posted_on(value: Any, now: datetime) -> datetime | None:
+    match = _POSTED.search(value) if isinstance(value, str) else None
+    if match is None:
+        return None
+    word = match.group(1).casefold()
+    days = 0 if word == "today" else 1 if word == "yesterday" else int(match.group(2))
+    day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return day - timedelta(days=days)
 
 
 def _bullet_req_id(raw: Mapping[str, Any]) -> str | None:
