@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.decision_engine import FinalDecision
-from ai_job_hunter.models import HumanReviewStatus, OpportunityNotification
+from ai_job_hunter.models import Company, HumanReviewStatus, MonitoredSource, OpportunityNotification
 from ai_job_hunter.services.notifications import (
     APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
@@ -142,7 +142,7 @@ def send_digest(
     )
     if not entries:
         return DigestResult("empty")
-    message = format_digest_message(entries)
+    message = format_digest_message(entries, failing_sources=_failing_sources(session))
     try:
         sent = provider.send_message(message, reply_markup=digest_keyboard(entries))
     except Exception:  # noqa: BLE001 - provider errors never carry details worth echoing
@@ -180,7 +180,7 @@ def preview_digest(
     )
     if not entries:
         return DigestResult("empty")
-    return DigestResult("preview", tuple(entries), format_digest_message(entries))
+    return DigestResult("preview", tuple(entries), format_digest_message(entries, failing_sources=_failing_sources(session)))
 
 
 # The work mode is already on the line, so on-site needs no extra tag.
@@ -190,7 +190,25 @@ _REASON_TAGS = {
 }
 
 
-def format_digest_message(entries: list[DigestEntry]) -> str:
+FAILING_SOURCE_THRESHOLD = 6
+
+
+def _failing_sources(session: Session) -> list[str]:
+    """Active boards whose last FAILING_SOURCE_THRESHOLD+ fetches all failed."""
+
+    rows = session.execute(
+        select(Company.name, MonitoredSource.provider, MonitoredSource.consecutive_failures)
+        .join(Company, Company.id == MonitoredSource.company_id)
+        .where(
+            MonitoredSource.state == "ACTIVE",
+            MonitoredSource.consecutive_failures >= FAILING_SOURCE_THRESHOLD,
+        )
+        .order_by(Company.name)
+    ).all()
+    return [f"{name} ({provider.title()}, {failures} fallos)" for name, provider, failures in rows]
+
+
+def format_digest_message(entries: list[DigestEntry], *, failing_sources: list[str] = ()) -> str:
     count = len(entries)
     lines = [
         f"🗞️ <b>Resumen del día</b> · {count} oferta{'s' if count != 1 else ''} de segunda fila",
@@ -221,6 +239,8 @@ def format_digest_message(entries: list[DigestEntry]) -> str:
         lines.extend(["", '📡 Algunas vía <a href="https://himalayas.app">Himalayas</a>'])
     if any((_host(entry.item.url) or "").endswith("getmanfred.com") for entry in entries):
         lines.extend(["", '📡 Algunas vía <a href="https://www.getmanfred.com">Manfred</a>'])
+    if failing_sources:
+        lines.extend(["", "⚠️ <b>Fuentes que no responden:</b> " + _html(", ".join(failing_sources), 600)])
     lines.append("<i>[n] = prioridad de revisión, no probabilidad.</i>")
     return "\n".join(lines)
 

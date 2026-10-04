@@ -182,6 +182,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     run.add_argument("--remote-from-spain", action="store_true")
 
 
+# `run` finished but some sources (or portals) could not be fetched; the
+# scheduler logs it without sending a Telegram failure notice.
+RUN_PARTIAL_EXIT = 3
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Refresh monitored ATS jobs, review opportunities, and track applications."
@@ -537,7 +542,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _print_refresh_summary(summary)
                 if args.no_notifications:
                     print("Notifications: disabled")
-                    return 1 if summary.failures else 0
+                    return RUN_PARTIAL_EXIT if summary.failures else 0
                 if args.dry_run:
                     print("Notification preview uses the currently stored feed; dry-run refresh did not persist fetched offers.")
                     previews = preview_notifications(
@@ -548,7 +553,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         limit=args.max_notifications,
                     )
                     _print_notification_previews(previews)
-                    return 1 if summary.failures else 0
+                    return RUN_PARTIAL_EXIT if summary.failures else 0
                 provider = _configured_telegram_provider(settings)
                 if provider is None:
                     print(
@@ -565,7 +570,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     limit=args.max_notifications,
                 )
                 _print_notification_batch(result)
-                return 1 if summary.failures or result.failed else 0
+                if result.failed:
+                    return 1
+                return RUN_PARTIAL_EXIT if summary.failures else 0
             if args.command == "opportunities":
                 decision = FinalDecision(args.decision.upper()) if args.decision else None
                 state = HumanReviewStatus(args.status.upper()) if args.status else None

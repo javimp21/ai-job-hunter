@@ -28,6 +28,12 @@ timeout --kill-after=30s "${RUN_TIMEOUT:-55m}" "$exe" run \
     --retry-pending
 code=$?
 log "exit=$code"
+if [ "$code" -eq 3 ]; then
+    # Some sources could not be fetched (e.g. a provider briefly unreachable);
+    # the run itself worked, so no Telegram failure notice.
+    log "partial: some sources failed (see 'Fetch/ingest failure' lines above)"
+    code=0
+fi
 
 hour=$(TZ="$TIMEZONE" date +%H)
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then

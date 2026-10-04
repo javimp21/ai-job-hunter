@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -141,13 +141,23 @@ def list_sources(session: Session, *, state: MonitoredSourceState | None = None)
     return sorted(rows, key=lambda row: (row.state, row.company.name.casefold(), row.provider, row.identifier_key))
 
 
+# Providers polled less often than every run. Lever's API stopped accepting
+# connections from the server after a day of 15-minute polling (2026-10-04).
+PROVIDER_MIN_INTERVAL = {"LEVER": timedelta(hours=2)}
+
+
 def active_monitor_targets(
     session: Session,
     filters: CompanyMonitorFilters | None = None,
     *,
     limit_companies: int = 10,
+    now: datetime | None = None,
 ) -> list[CompanyMonitorTarget]:
-    """ACTIVE boards, least recently fetched first, optionally narrowed by company facts."""
+    """ACTIVE boards, least recently fetched first, optionally narrowed by company facts.
+
+    Boards of a provider in PROVIDER_MIN_INTERVAL are skipped until that much
+    time has passed since their last fetch (successful or not).
+    """
 
     if limit_companies < 1:
         raise ValueError("limit_companies must be positive")
@@ -168,7 +178,12 @@ def active_monitor_targets(
     )
     targets: list[CompanyMonitorTarget] = []
     companies: set[UUID] = set()
+    current = now or datetime.now(UTC)
     for row in rows:
+        interval = PROVIDER_MIN_INTERVAL.get(row.provider.upper())
+        last = _as_utc(row.last_fetched_at)
+        if interval is not None and last is not None and current - last < interval:
+            continue
         if filters is not None and not company_matches_filters(company_facts(row.company), filters):
             continue
         if row.company_id not in companies and len(companies) >= limit_companies:

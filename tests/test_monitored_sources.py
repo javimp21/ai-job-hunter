@@ -252,3 +252,21 @@ def test_preview_summarizes_board_without_ingesting(db_session, monkeypatch) -> 
     assert row.preview_stats["jobs"] == 3
     assert row.state == MonitoredSourceState.REVIEW_SOURCE.value
     assert db_session.query(Job).count() == 0
+
+
+def test_lever_boards_are_polled_at_most_every_two_hours(db_session) -> None:
+    _company(db_session, "Leverco", "leverco", provider="LEVER")
+    _company(db_session, "Greenco", "greenco")
+    sync_monitored_sources(db_session)
+    now = datetime(2026, 10, 4, 18, tzinfo=UTC)
+    lever, green = _source(db_session, "leverco"), _source(db_session, "greenco")
+    for row in (lever, green):
+        set_source_state(db_session, row.id, MonitoredSourceState.ACTIVE, reason="ok", now=now)
+        row.last_fetched_at = now - timedelta(minutes=30)
+    db_session.commit()
+
+    soon = active_monitor_targets(db_session, now=now)
+    later = active_monitor_targets(db_session, now=now + timedelta(hours=2))
+
+    assert [target.company_name for target in soon] == ["Greenco"]
+    assert {target.company_name for target in later} == {"Greenco", "Leverco"}

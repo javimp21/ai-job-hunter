@@ -167,3 +167,9 @@ def test_newly_discovered_older_postings_reach_the_digest_up_to_30_days(db_sessi
     entries = select_digest_entries(db_session, _candidate(), **OPTIONS)
 
     assert [entry.item.title for entry in entries] == ["Recently found"]
+
+
+def test_digest_lists_sources_that_keep_failing():
+    message = digest_service.format_digest_message([], failing_sources=["Qonto (Lever, 7 fallos)"])
+
+    assert "Fuentes que no responden" in message and "Qonto (Lever, 7 fallos)" in message
