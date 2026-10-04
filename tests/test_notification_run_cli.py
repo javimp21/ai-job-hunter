@@ -16,6 +16,7 @@ from ai_job_hunter.models import (
     Job,
     JobEvaluation,
     OpportunityNotification,
+    ReportDelivery,
 )
 from ai_job_hunter.services import notifications
 from ai_job_hunter.services.notifications import NotificationPreview, TelegramSendResult
@@ -199,4 +200,59 @@ def test_notify_send_dry_run_never_builds_provider_or_writes_ledger(
     assert "Fictional Company — Backend Engineer" in output
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(OpportunityNotification)) == 0
+    engine.dispose()
+
+
+def _weekly_cli_setup(tmp_path, monkeypatch, provider_factory):
+    database_url = f"sqlite+pysqlite:///{(tmp_path / 'weekly-cli.sqlite3').as_posix()}"
+    engine = create_engine(database_url)
+    Base.metadata.create_all(engine)
+    candidate = CandidateConfig(profile=CandidateProfile())
+    monkeypatch.setattr("ai_job_hunter.cli.load_candidate_config", lambda _path: candidate)
+    monkeypatch.setattr("ai_job_hunter.cli.create_database_engine", lambda _settings: engine)
+    monkeypatch.setattr(
+        "ai_job_hunter.cli.get_settings", lambda: Settings(_env_file=None, database_url=database_url)
+    )
+    monkeypatch.setattr("ai_job_hunter.cli._configured_telegram_provider", provider_factory)
+    monkeypatch.setattr("ai_job_hunter.services.weekly_report.list_opportunities", lambda *_a, **_k: [])
+    return engine
+
+
+def test_notify_weekly_dry_run_prints_report_without_provider_or_marker(tmp_path, monkeypatch, capsys) -> None:
+    engine = _weekly_cli_setup(
+        tmp_path,
+        monkeypatch,
+        lambda _settings: (_ for _ in ()).throw(AssertionError("dry-run built provider")),
+    )
+
+    assert main(["notify", "weekly", "--dry-run"]) == 0
+
+    output = capsys.readouterr().out
+    assert "Weekly report preview (not sent)" in output and "Resumen semanal" in output
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(ReportDelivery)) == 0
+    engine.dispose()
+
+
+def test_notify_weekly_sends_once_and_force_resends(tmp_path, monkeypatch, capsys) -> None:
+    provider = FakeTelegramProvider()
+    engine = _weekly_cli_setup(tmp_path, monkeypatch, lambda _settings: provider)
+
+    assert main(["notify", "weekly"]) == 0
+    assert main(["notify", "weekly"]) == 0
+    assert main(["notify", "weekly", "--force"]) == 0
+
+    output = capsys.readouterr().out
+    assert output.count("Weekly report sent") == 2
+    assert "already sent in the last 6 days" in output
+    assert len(provider.messages) == 2
+    engine.dispose()
+
+
+def test_notify_weekly_without_telegram_fails_clearly(tmp_path, monkeypatch, capsys) -> None:
+    engine = _weekly_cli_setup(tmp_path, monkeypatch, lambda _settings: None)
+
+    assert main(["notify", "weekly"]) == 1
+
+    assert "Telegram is not configured" in capsys.readouterr().err
     engine.dispose()

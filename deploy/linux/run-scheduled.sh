@@ -3,7 +3,7 @@
 # ai-job-hunter-run.service. Output goes to journald. Never overlaps: a second
 # invocation (or a deploy in progress) skips the run.
 # Tunables (set via `systemctl edit ai-job-hunter-run.service`, [Service] Environment=):
-#   MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  RUN_TIMEOUT (55m)
+#   MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -50,6 +50,11 @@ fi
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1
+fi
+if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FROM_HOUR:-20}" ]; then
+    # Sunday evening. The command itself sends at most one report per 6 days,
+    # so every later tick that evening is a no-op.
+    "$exe" notify weekly || code=1
 fi
 
 if [ "$code" -ne 0 ]; then
