@@ -76,7 +76,7 @@ class WorkdayConnector:
         company_name: str | None = None,
         max_jobs: int | None = None,
         detail_filter: Callable[[str], bool] | None = None,
-        spain_only: bool = True,
+        target_countries_only: bool = True,
         request_delay: float = 0.2,
         sleep: Callable[[float], None] = time.sleep,
         timeout: float = 20.0,
@@ -96,7 +96,7 @@ class WorkdayConnector:
         self.company_name = _optional_text(company_name)
         self.max_jobs = max_jobs
         self.detail_filter = detail_filter
-        self.spain_only = spain_only
+        self.target_countries_only = target_countries_only
         self.request_delay = request_delay
         self._sleep = sleep
         self._requests_made = 0
@@ -113,14 +113,14 @@ class WorkdayConnector:
         offset = 0
         total: int | None = None
         applied: dict[str, list[str]] = {}
-        if self.spain_only:
-            # Large employers list thousands of jobs worldwide, unsorted; the
-            # site's own location facets keep the fetch to Spain.
+        if self.target_countries_only:
+            # Large employers list thousands of jobs worldwide, unsorted; the site's own
+            # location facets keep the fetch to Spain and the preferred relocation countries.
             first = self._request("POST", f"{self._api}/jobs", json=_list_body(0, {}))
-            spain = _spain_facets(first)
-            if spain == {}:
-                return []  # the site filters by location and has nothing in Spain
-            applied = spain or {}
+            targets = _target_facets(first)
+            if targets == {}:
+                return []  # the site filters by location and has nothing in those countries
+            applied = targets or {}
         for _ in range(_MAX_PAGES):
             if self.max_jobs is not None and len(offers) >= self.max_jobs:
                 break
@@ -274,15 +274,27 @@ def _list_body(offset: int, applied: Mapping[str, list[str]]) -> dict[str, Any]:
     return {"limit": WORKDAY_PAGE_SIZE, "offset": offset, "searchText": "", "appliedFacets": dict(applied)}
 
 
-_SPAIN_LABELS = re.compile(r"\b(?:spain|españa|espana|madrid|barcelona)\b", re.IGNORECASE)
+# Spain plus the preferred relocation destinations (Luxembourg, Switzerland, Netherlands,
+# Ireland). Country facet values must name the country; location values may name a main city.
+_TARGET_COUNTRY_LABELS = re.compile(
+    r"spain|españa|espana|luxembourg|luxemburg|switzerland|schweiz|suisse|svizzera"
+    r"|(?:the )?netherlands(?:, the)?|nederland|ireland",
+    re.IGNORECASE,
+)
+_TARGET_LABELS = re.compile(
+    r"\b(?:spain|españa|espana|madrid|barcelona|luxembourg|luxemburg|switzerland|schweiz|suisse|svizzera"
+    r"|z[uü]rich|geneva|gen[eè]ve|lausanne|basel|bern|zug|netherlands|nederland|amsterdam|rotterdam"
+    r"|eindhoven|utrecht|the hague|den haag|ireland|dublin|cork)\b",
+    re.IGNORECASE,
+)
 _COUNTRY_FACETS = {"locationcountry", "country"}
 
 
-def _spain_facets(payload: Any) -> dict[str, list[str]] | None:
-    """Facet ids that select Spain: the country facet when present, else Spanish locations.
+def _target_facets(payload: Any) -> dict[str, list[str]] | None:
+    """Facet ids that select the target countries: country facets when present, else their locations.
 
     ``None`` means the site has no location facets (fetch everything); ``{}``
-    means it has location facets but nothing in Spain.
+    means it has location facets but nothing in those countries.
     """
 
     facets = payload.get("facets") if isinstance(payload, dict) else None
@@ -302,10 +314,10 @@ def _spain_facets(payload: Any) -> dict[str, list[str]] | None:
                 walk(item["values"], name)
                 continue
             label, value = item.get("descriptor"), item.get("id")
-            if not (name and isinstance(label, str) and isinstance(value, str) and _SPAIN_LABELS.search(label)):
+            if not (name and isinstance(label, str) and isinstance(value, str) and _TARGET_LABELS.search(label)):
                 continue
             if name.casefold() in _COUNTRY_FACETS:
-                if label.strip().casefold() in {"spain", "españa", "espana"}:
+                if _TARGET_COUNTRY_LABELS.fullmatch(label.strip()):
                     country.setdefault(name, []).append(value)
             elif "location" in name.casefold():
                 places.setdefault(name, []).append(value)

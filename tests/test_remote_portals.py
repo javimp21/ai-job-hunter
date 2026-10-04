@@ -85,6 +85,24 @@ def test_adzuna_paginates_only_full_pages_and_dedupes_across_searches():
     assert "where" not in requests[2].url.params
 
 
+def test_adzuna_country_searches_use_their_site_currency_and_prefixed_ids():
+    def handler(request):
+        country = request.url.path.split("/")[4]
+        return httpx.Response(200, json={"results": [adzuna_job("7", redirect_url=f"https://www.adzuna.{country}/land/ad/7")]})
+
+    client, requests = client_for(handler)
+    jobs = {job.external_id: job for job in adzuna(client, searches=(("a", None), ("a", None, "nl"), ("a", None, "ch"))).fetch_jobs()}
+
+    assert [r.url.path for r in requests] == [
+        "/v1/api/jobs/es/search/1", "/v1/api/jobs/nl/search/1", "/v1/api/jobs/ch/search/1",
+    ]
+    assert jobs["7"].currency == "EUR"  # Spanish ids are unchanged
+    assert jobs["nl:7"].currency == "EUR" and jobs["ch:7"].currency == "CHF"
+    assert portal_credit(jobs["ch:7"].source_url) == ("Jobs by Adzuna", "https://www.adzuna.ch")
+    with pytest.raises(ValueError, match="country"):
+        adzuna(client, searches=(("a", None, "ie"),))
+
+
 def test_adzuna_without_credentials_is_skipped_without_requests():
     client, requests = client_for(lambda request: httpx.Response(200, json={}))
     for app_id, app_key in ((None, None), ("", "key"), (SecretStr(""), SecretStr(" "))):

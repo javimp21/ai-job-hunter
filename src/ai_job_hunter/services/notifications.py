@@ -985,6 +985,8 @@ _PORTAL_CREDITS = (
     ("getmanfred.com", "Manfred", "https://www.getmanfred.com"),
     ("adzuna.es", "Jobs by Adzuna", "https://www.adzuna.es"),
     ("adzuna.com", "Jobs by Adzuna", "https://www.adzuna.com"),
+    ("adzuna.nl", "Jobs by Adzuna", "https://www.adzuna.nl"),
+    ("adzuna.ch", "Jobs by Adzuna", "https://www.adzuna.ch"),
     ("remoteok.com", "Remote OK", "https://remoteok.com"),
     ("remotive.com", "Remotive", "https://remotive.com"),
     ("jobicy.com", "Jobicy", "https://jobicy.com"),

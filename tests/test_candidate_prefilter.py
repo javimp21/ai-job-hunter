@@ -868,3 +868,13 @@ def test_city_names_with_country_codes_do_not_allow_whole_countries() -> None:
     assert _location_matches("Berlin, Germany", allowed) is False  # "de" is not Germany
     assert _location_matches("Esch-sur-Alzette, Luxembourg", allowed) is True
     assert _location_matches("Santiago de Compostela, Spain", allowed) is True
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["Geneva", "Lausanne, Vaud", "Basel", "Utrecht", "Eindhoven, Noord-Brabant", "The Hague", "Cork", "Dublin 2"],
+)
+def test_relocation_destination_cities_imply_their_country(location):
+    from ai_job_hunter.candidates.prefilter import _location_matches
+
+    assert _location_matches(location, ["Madrid", "Switzerland", "Netherlands", "Ireland"]) is True
