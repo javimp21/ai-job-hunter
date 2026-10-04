@@ -872,7 +872,8 @@ def test_city_names_with_country_codes_do_not_allow_whole_countries() -> None:
 
 @pytest.mark.parametrize(
     "location",
-    ["Geneva", "Lausanne, Vaud", "Basel", "Utrecht", "Eindhoven, Noord-Brabant", "The Hague", "Cork", "Dublin 2"],
+    ["Geneva", "Lausanne, Vaud", "Basel", "Utrecht", "Eindhoven, Noord-Brabant", "The Hague", "Cork", "Dublin 2",
+     "Veldhoven, Noord-Brabant", "Nederland", "Schweiz", "Baar, Kanton Zug"],
 )
 def test_relocation_destination_cities_imply_their_country(location):
     from ai_job_hunter.candidates.prefilter import _location_matches

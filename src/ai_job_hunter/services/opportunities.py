@@ -111,7 +111,7 @@ _ENGINE_NAME = "typesafe-jev"
 _DETERMINISTIC_ENGINE_NAME = "deterministic-prefilter"
 # v5 (2026-10-04): FDE/AI target families, metro areas, hardware titles, more
 # countries, and APPLY allowed when a posting states no experience years.
-_PREFILTER_VERSION = "candidate-prefilter-v6-relocation-cities"
+_PREFILTER_VERSION = "candidate-prefilter-v7-relocation-regions"
 _REASON_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
 _APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
     ApplicationStatus.DRAFT: frozenset({ApplicationStatus.APPLIED, ApplicationStatus.WITHDRAWN}),

@@ -1109,6 +1109,9 @@ _FOREIGN_CITIES = tuple(
         ("paris", "France"),
         ("berlin|munich|münchen|hamburg", "Germany"),
         ("amsterdam|rotterdam|utrecht|eindhoven|the hague|den haag|delft|leiden", "Netherlands"),
+        # Native country names and Dutch provinces / Swiss cantons as job sites write them.
+        ("nederland|noord-holland|zuid-holland|noord-brabant|gelderland|overijssel|flevoland", "Netherlands"),
+        ("schweiz|suisse|svizzera|kanton", "Switzerland"),
         ("dublin|cork|galway|limerick", "Ireland"),
         ("tel aviv|tel-aviv", "Israel"),
         ("toronto|vancouver|montreal|montréal", "Canada"),
