@@ -89,6 +89,7 @@ from ai_job_hunter.services.opportunities import (
     transition_application,
 )
 from ai_job_hunter.services.application_pack import prepare_application
+from ai_job_hunter.services.interview_prep import prepare_interview
 from ai_job_hunter.services.digest import preview_digest, send_digest
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -290,6 +291,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     pack.add_argument("--language", choices=("auto", "es", "en"), default="auto")
     pack.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
+    interview = subparsers.add_parser(
+        "interview-prep",
+        help="interview-prep brief for one job with Claude (saved locally; nothing is sent)",
+    )
+    interview.add_argument("job_id", type=UUID)
+    interview.add_argument("--language", choices=("auto", "es", "en"), default="auto")
+    interview.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     bot = subparsers.add_parser(
         "bot",
         help="listen for Telegram cover-letter buttons and reply with drafts (never sent anywhere)",
@@ -432,7 +441,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     candidate = None
     if args.command in {
-        "refresh", "reevaluate", "cover-letter", "prepare-application", "bot", "opportunities", "show", "run"
+        "refresh", "reevaluate", "cover-letter", "prepare-application", "interview-prep", "bot", "opportunities", "show", "run"
     } or (
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
@@ -496,6 +505,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"Answers: {pack_result.answers_path}")
                 print()
                 print(pack_result.answers_text)
+                return 0
+            if args.command == "interview-prep":
+                try:
+                    brief = prepare_interview(session, candidate, args.job_id, language=args.language)
+                except CoverLetterError as error:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                    return 1
+                print(f"INTERVIEW PREP — {brief.company} — {brief.title} (nothing was sent)")
+                print(f"Markdown: {brief.md_path}")
+                if brief.docx_path is not None:
+                    print(f"Word: {brief.docx_path}")
+                if brief.pdf_path is not None:
+                    print(f"PDF: {brief.pdf_path}")
+                if brief.render_error:
+                    print(f"WARNING: {brief.render_error}", file=sys.stderr)
                 return 0
             if args.command == "cover-letter":
                 try:
@@ -1134,6 +1158,10 @@ def _run_bot_command(candidate, settings) -> int:
                 documents=documents,
             )
 
+    def interview(job_id: UUID):
+        with session_factory() as session:
+            return prepare_interview(session, candidate, job_id)
+
     def record_feedback(job_id: UUID, state: str, reason: str | None) -> None:
         with session_factory() as feedback_session:
             set_review_state(feedback_session, job_id, HumanReviewStatus(state), reason=reason)
@@ -1148,6 +1176,7 @@ def _run_bot_command(candidate, settings) -> int:
             offset_path=BOT_OFFSET_PATH,
             record_feedback=record_feedback,
             prepare=prepare,
+            prepare_interview=interview,
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

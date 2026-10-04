@@ -23,6 +23,7 @@ from ai_job_hunter.services.notifications import (
     COVER_LETTER_CALLBACK_PREFIX,
     COVER_LETTER_SPANISH_CALLBACK_PREFIX,
     DISMISS_REASON_CODES,
+    INTERVIEW_PREP_CALLBACK_PREFIX,
     SAVE_REASON_CODES,
     feedback_reason_keyboard,
 )
@@ -215,6 +216,8 @@ def handle_update(
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
     prepare: Callable[[UUID], Any] | None = None,
     prepared: dict[UUID, Any] | None = None,
+    prepare_interview: Callable[[UUID], Any] | None = None,
+    interviews: dict[UUID, Any] | None = None,
 ) -> str:
     """Handle one update and return "ignored", "generated", "failed", "duplicate" or "feedback".
 
@@ -240,6 +243,11 @@ def handle_update(
     pack_job = _parse_pack(callback.get("data"))
     if pack_job is not None:
         return _handle_pack(bot, callback_id, pack_job, prepare, prepared if prepared is not None else {}, alert_message_id)
+    interview_job = _parse_interview(callback.get("data"))
+    if interview_job is not None:
+        return _handle_interview(
+            bot, callback_id, interview_job, prepare_interview, interviews if interviews is not None else {}, alert_message_id
+        )
     request = _parse_request(callback.get("data"))
     if request is None:
         _answer(bot, callback_id, "Acción no reconocida")
@@ -323,6 +331,61 @@ def _send_pack(bot: TelegramBotClient, pack: Any, reply_to: int | None) -> None:
     if not sent:
         bot.send_text(caption + "\n\n" + letter.text, reply_to=reply_to)
     bot.send_text("📋 Respuestas para el formulario\n\n" + pack.answers_text.replace("**", ""), reply_to=reply_to)
+
+
+def _parse_interview(data: Any) -> UUID | None:
+    if not isinstance(data, str) or not data.startswith(INTERVIEW_PREP_CALLBACK_PREFIX):
+        return None
+    try:
+        return UUID(data[len(INTERVIEW_PREP_CALLBACK_PREFIX):])
+    except ValueError:
+        return None
+
+
+def _handle_interview(
+    bot: TelegramBotClient,
+    callback_id: str,
+    job_id: UUID,
+    prepare_interview: Callable[[UUID], Any] | None,
+    interviews: dict[UUID, Any],
+    reply_to: int | None,
+) -> str:
+    if prepare_interview is None:
+        _answer(bot, callback_id, "Preparar entrevista no disponible")
+        return "ignored"
+    if job_id in interviews:
+        _answer(bot, callback_id, "Ya la preparé; te la reenvío")
+        _send_interview(bot, interviews[job_id], reply_to)
+        return "duplicate"
+    _answer(bot, callback_id, "Preparando entrevista…")
+    try:
+        brief = prepare_interview(job_id)
+    except CoverLetterError as error:
+        bot.send_text(f"No se pudo preparar la entrevista: {error}", reply_to=reply_to)
+        return "failed"
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        bot.send_text(f"No se pudo preparar la entrevista (error inesperado: {type(error).__name__}).", reply_to=reply_to)
+        return "failed"
+    interviews[job_id] = brief
+    _send_interview(bot, brief, reply_to)
+    return "generated"
+
+
+def _send_interview(bot: TelegramBotClient, brief: Any, reply_to: int | None) -> None:
+    """Word + PDF as one grouped reply; the Markdown text if they can't be sent. Nothing is sent elsewhere."""
+
+    files = [path for path in (brief.docx_path, brief.pdf_path) if path is not None]
+    caption = (
+        f"🎯 Preparación de entrevista — {brief.company} · {brief.title}\n"
+        "Revísala y contrasta los datos de la empresa; no se ha enviado nada."
+    )
+    if files and not brief.render_error:
+        try:
+            if bot.send_document_group(files, caption=caption, reply_to=reply_to):
+                return
+        except TelegramBotError:
+            pass  # fall back to text so the paid brief is still delivered
+    bot.send_text(caption + "\n\n" + brief.markdown.replace("**", ""), reply_to=reply_to)
 
 
 def _parse_feedback(data: Any) -> tuple[str, UUID, str | None] | None:
@@ -429,6 +492,7 @@ def run_bot(
     offset_path: Path,
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
     prepare: Callable[[UUID], Any] | None = None,
+    prepare_interview: Callable[[UUID], Any] | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -438,6 +502,7 @@ def run_bot(
     offset = load_offset(offset_path)
     generated: dict[tuple[UUID, str], CoverLetterDraft] = {}
     prepared: dict[UUID, Any] = {}
+    interviews: dict[UUID, Any] = {}
     backoff = _BACKOFF_START
     cycles = 0
     while max_cycles is None or cycles < max_cycles:
@@ -455,6 +520,8 @@ def run_bot(
                         record_feedback=record_feedback,
                         prepare=prepare,
                         prepared=prepared,
+                        prepare_interview=prepare_interview,
+                        interviews=interviews,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:
