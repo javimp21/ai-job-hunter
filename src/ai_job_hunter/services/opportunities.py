@@ -90,7 +90,7 @@ from ai_job_hunter.services.company_intelligence import (
     CompanyMonitorFilters,
     get_company_facts_for_job,
 )
-from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, ingest_job
+from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, candidate_jobs, ingest_job
 from ai_job_hunter.services.job_portals import (
     DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
     due_portals,
@@ -1121,11 +1121,7 @@ def _find_existing_match_fingerprints(
         if job is None:
             return None, set()
     else:
-        jobs = session.scalars(
-            select(Job)
-            .options(joinedload(Job.company), selectinload(Job.sources))
-            .order_by(Job.id)
-        ).unique().all()
+        jobs = candidate_jobs(session, offer)
         matches = [item for item in (match_job(offer, job) for job in jobs) if item.decision is DeduplicationDecision.MATCH]
         if len(matches) != 1:
             return None, set()

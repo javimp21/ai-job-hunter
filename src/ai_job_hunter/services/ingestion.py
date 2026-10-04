@@ -221,20 +221,28 @@ def _fill_missing_canonical_fields(job: Job, offer: NormalizedJob) -> None:
         job.remote_policy = offer.remote_policy.value
 
 
-def _find_plausible_candidates(session: Session, offer: NormalizedJob) -> list[DeduplicationResult]:
-    # match_job can only return MATCH/POSSIBLE_MATCH for a candidate that
-    # shares a job-specific URL, the normalized company name or a company
-    # domain with the offer, so only those jobs are loaded and compared.
+def candidate_jobs(session: Session, offer: NormalizedJob) -> list[Job]:
+    """Jobs that match_job could match: same job-specific URL, company name or domain.
+
+    match_job returns NO_MATCH for every other job, so comparing only these
+    gives the same result as comparing against all jobs, without loading them.
+    """
+
     candidate_ids = _candidate_index(session).candidates(offer)
     if not candidate_ids:
         return []
-    jobs = session.scalars(
-        select(Job)
-        .where(Job.id.in_(candidate_ids))
-        .options(joinedload(Job.company), selectinload(Job.sources))
-        .order_by(Job.id)
-    ).unique().all()
-    results = [match_job(offer, candidate) for candidate in jobs]
+    return list(
+        session.scalars(
+            select(Job)
+            .where(Job.id.in_(candidate_ids))
+            .options(joinedload(Job.company), selectinload(Job.sources))
+            .order_by(Job.id)
+        ).unique().all()
+    )
+
+
+def _find_plausible_candidates(session: Session, offer: NormalizedJob) -> list[DeduplicationResult]:
+    results = [match_job(offer, candidate) for candidate in candidate_jobs(session, offer)]
     return [
         result
         for result in results
