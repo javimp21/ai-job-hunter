@@ -18,30 +18,47 @@ $archive = Join-Path $build "source.zip"
 & git @git archive --format=zip -o $archive HEAD
 Expand-Archive -Path $archive -DestinationPath (Join-Path $build "src") -Force
 
+# Never replace the runtime under a scheduled run: it would crash mid-run.
+function Get-StableRun {
+    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "venv-stable" -and $_.CommandLine -match "\srun\s" }
+}
+$waited = 0
+while ((Get-StableRun) -and $waited -lt 60) {
+    if ($waited -eq 0) { Write-Host "A scheduled run is in progress; waiting for it to finish (up to 60 min)..." }
+    Start-Sleep -Seconds 60
+    $waited++
+}
+if (Get-StableRun) { throw "A scheduled run is still in progress; deploy aborted, nothing changed." }
+
 # The bot runs from .venv-stable; Windows cannot replace an executable in use.
 $botTask = Get-ScheduledTask -TaskName "AI Job Hunter Bot" -ErrorAction SilentlyContinue
-$botWasRunning = $botTask -and $botTask.State -eq "Running"
+$botProcesses = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "venv-stable" -and $_.CommandLine -match "\sbot(\s|$)" }
+$botWasRunning = $botTask -and ($botTask.State -eq "Running" -or $botProcesses)
 if ($botWasRunning) {
     Stop-ScheduledTask -TaskName "AI Job Hunter Bot"
-    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "venv-stable" -and $_.CommandLine -match "\sbot(\s|$)" } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    $botProcesses | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 2
 }
 
-$venv = Join-Path $root ".venv-stable"
-if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
-    & (Join-Path $root ".venv\Scripts\python.exe") -m venv $venv
-}
-$python = Join-Path $venv "Scripts\python.exe"
-& $python -m pip install -q --upgrade pip
-& $python -m pip install -q --force-reinstall --no-deps "$(Join-Path $build 'src')"
-& $python -m pip install -q "$(Join-Path $build 'src')[jev,llm]"
-if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
-Remove-Item -Recurse -Force $build
+try {
+    $venv = Join-Path $root ".venv-stable"
+    if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
+        & (Join-Path $root ".venv\Scripts\python.exe") -m venv $venv
+    }
+    $python = Join-Path $venv "Scripts\python.exe"
+    & $python -m pip install -q --upgrade pip
+    & $python -m pip install -q --force-reinstall --no-deps "$(Join-Path $build 'src')"
+    if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
+    & $python -m pip install -q "$(Join-Path $build 'src')[jev,llm]"
+    if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
+    Remove-Item -Recurse -Force $build
 
-"$commit $(Get-Date -Format o)" | Out-File -FilePath (Join-Path $root "data\local\stable-version.txt") -Encoding utf8
-Write-Host "Stable runtime now at commit $commit."
-if ($botWasRunning) {
-    Start-ScheduledTask -TaskName "AI Job Hunter Bot"
-    Write-Host "Bot restarted."
+    "$commit $(Get-Date -Format o)" | Out-File -FilePath (Join-Path $root "data\local\stable-version.txt") -Encoding utf8
+    Write-Host "Stable runtime now at commit $commit."
+} finally {
+    # Bring the bot back even if the install failed, so buttons keep working.
+    if ($botWasRunning) {
+        Start-ScheduledTask -TaskName "AI Job Hunter Bot"
+        Write-Host "Bot restarted."
+    }
 }
