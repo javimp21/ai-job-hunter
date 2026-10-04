@@ -270,3 +270,36 @@ def test_lever_boards_are_polled_at_most_every_two_hours(db_session) -> None:
 
     assert [target.company_name for target in soon] == ["Greenco"]
     assert {target.company_name for target in later} == {"Greenco", "Leverco"}
+
+
+def test_auto_activation_activates_boards_with_relevant_jobs_and_rechecks_weekly(db_session, monkeypatch) -> None:
+    from ai_job_hunter.services import monitored_sources as service
+
+    for name in ("Useful", "Quiet", "Broken"):
+        _company(db_session, name, name.casefold())
+    sync_monitored_sources(db_session)
+    now = datetime(2026, 10, 5, 7, tzinfo=UTC)
+    outcomes = {"useful": {"jobs": 30, "prefilter_pass_or_review": 2}, "quiet": {"jobs": 12, "prefilter_pass_or_review": 0},
+                "broken": {"error": "GreenhouseConnectorError"}}
+    calls = []
+
+    def fake_preview(session, source_id, candidate, *, client=None, now=None, **_):
+        row = session.get(MonitoredSource, source_id)
+        calls.append(row.identifier_key)
+        stats = dict(outcomes[row.identifier_key], previewed_at=now.isoformat(timespec="minutes"))
+        row.preview_stats = stats
+        session.commit()
+        return stats
+
+    monkeypatch.setattr(service, "preview_source", fake_preview)
+
+    results = service.auto_activate_sources(db_session, candidate=None, now=now)
+    again = service.auto_activate_sources(db_session, candidate=None, now=now + timedelta(days=1))
+    weekly = service.auto_activate_sources(db_session, candidate=None, now=now + timedelta(days=8))
+
+    assert {item.company: item.outcome for item in results} == {"Useful": "activated", "Quiet": "kept", "Broken": "error"}
+    assert _source(db_session, "useful").state == MonitoredSourceState.ACTIVE.value
+    assert "2 relevant" in _source(db_session, "useful").state_reason
+    assert _source(db_session, "quiet").state == MonitoredSourceState.REVIEW_SOURCE.value
+    assert again == []  # nothing is re-previewed within a week
+    assert sorted(item.company for item in weekly) == ["Broken", "Quiet"]

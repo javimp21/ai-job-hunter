@@ -68,6 +68,7 @@ from ai_job_hunter.services.cover_letters import CoverLetterError, generate_cove
 from ai_job_hunter.services.job_portals import parse_portal_names
 from ai_job_hunter.services.monitored_sources import (
     MonitoredSourceError,
+    auto_activate_sources,
     list_sources,
     preview_source,
     set_source_state,
@@ -250,6 +251,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     sources_preview.add_argument("source_ids", type=UUID, nargs="*")
     sources_preview.add_argument("--all-review", action="store_true", help="preview every board in REVIEW_SOURCE")
     sources_preview.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+    sources_auto = source_commands.add_parser(
+        "auto-activate",
+        help="preview boards in review and activate those with relevant jobs (re-checks the rest weekly)",
+    )
+    sources_auto.add_argument("--limit", type=int, default=30)
+    sources_auto.add_argument("--min-relevant", type=int, default=1)
+    sources_auto.add_argument("--dry-run", action="store_true", help="preview and report without activating")
+    sources_auto.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
     for name, help_text in (
         ("activate", "start fetching a board"),
         ("pause", "stop fetching a board for now"),
@@ -424,7 +433,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {
         "refresh", "reevaluate", "cover-letter", "prepare-application", "bot", "opportunities", "show", "run"
     } or (
-        args.command == "sources" and args.sources_command == "preview"
+        args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
         and args.notification_command in {"send", "retry-failed", "digest"}
@@ -1172,6 +1181,15 @@ def _run_sources_command(args, session, candidate) -> int:
             )
             for example in stats["examples"]:
                 print(f"    - {example}")
+        return 0
+    if command == "auto-activate":
+        results = auto_activate_sources(
+            session, candidate, limit=args.limit, min_relevant=args.min_relevant, dry_run=args.dry_run
+        )
+        activated = [item for item in results if item.outcome == "activated"]
+        print(f"AUTO-ACTIVATE: checked={len(results)} activated={len(activated)}" + (" (dry run)" if args.dry_run else ""))
+        for item in results:
+            print(f"  {item.outcome:9} | {item.company} | {item.board} | relevant={item.relevant}")
         return 0
     if command == "sync":
         summary = sync_monitored_sources(

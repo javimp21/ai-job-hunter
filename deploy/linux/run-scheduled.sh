@@ -36,6 +36,17 @@ if [ "$code" -eq 3 ]; then
 fi
 
 hour=$(TZ="$TIMEZONE" date +%H)
+today=$(TZ="$TIMEZONE" date +%F)
+marker="$SHARED_DIR/data/local/daily-maintenance.date"
+if [ "$((10#$hour))" -ge 7 ] && [ "$(cat "$marker" 2>/dev/null)" != "$today" ]; then
+    # Once a day: resolve new company leads, record their boards, and activate
+    # boards whose preview has relevant jobs (the rest are re-checked weekly).
+    log "daily maintenance"
+    "$CURRENT_LINK/.venv/bin/python" -m ai_job_hunter.company_leads_cli resolve --limit 100 | tail -12 || true
+    "$exe" sources sync || true
+    "$exe" sources auto-activate --limit 40 || true
+    echo "$today" > "$marker"
+fi
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1

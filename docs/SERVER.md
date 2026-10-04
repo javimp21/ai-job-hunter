@@ -176,6 +176,8 @@ Telegram allows one `getUpdates` poller per bot. Two pollers make both lose taps
 
 Each tick runs `ai-job-hunter run --limit-companies 1000 --max-jobs-per-company 500 --max-jev-jobs 40 --max-notifications 10 --retry-pending` under `flock` (`shared/data/local/run.lock`): a tick that finds a run or a deploy in progress logs and skips. A run is capped at 55 minutes. When the local hour is >= 20 it then runs `ai-job-hunter notify digest` (which itself sends at most one digest per 20 hours). A non-zero exit sends `ai-job-hunter notify system --text …` to Telegram, like `run-scheduled.ps1`.
 
+Once a day, in the first run at or after 07:00, `run-scheduled.sh` also does source maintenance: `company_leads_cli resolve --limit 100` (new company leads), `sources sync` and `sources auto-activate --limit 40`. Auto-activation previews boards in REVIEW_SOURCE and activates those with at least one job the deterministic prefilter does not reject (the reason and numbers are stored on the source); boards without relevant jobs stay in review and are re-checked weekly; rejected or paused boards are never touched. The day is recorded in `shared/data/local/daily-maintenance.date`.
+
 `ai-job-hunter-backup.timer` runs `backup-db.sh` daily at 23:50 (pg_dump `-Fc` into `shared/data/local/backups`, newest 14 kept; a failure sends a Telegram notice). `deploy.sh` also takes a dump before each migration.
 
 **Change the schedule** without editing the repo:

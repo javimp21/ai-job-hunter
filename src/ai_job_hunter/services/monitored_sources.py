@@ -300,6 +300,73 @@ def preview_source(
     return stats
 
 
+AUTO_ACTIVATE_RECHECK = timedelta(days=7)
+
+
+@dataclass(frozen=True, slots=True)
+class AutoActivation:
+    source_id: UUID
+    company: str
+    board: str
+    outcome: str  # "activated", "kept", "error"
+    relevant: int
+
+
+def auto_activate_sources(
+    session: Session,
+    candidate: "CandidateConfig",
+    *,
+    limit: int = 30,
+    min_relevant: int = 1,
+    dry_run: bool = False,
+    client: "httpx.Client | None" = None,
+    now: datetime | None = None,
+) -> list[AutoActivation]:
+    """Preview REVIEW_SOURCE boards and activate those with relevant jobs.
+
+    A board is activated when its preview has at least ``min_relevant`` jobs
+    that the deterministic prefilter does not reject (role family, location,
+    seniority and experience all allow them). Boards without any stay in
+    review and are re-checked after AUTO_ACTIVATE_RECHECK. Rejected or paused
+    boards are never touched. The decision and its numbers are kept on the
+    row (state_reason, preview_stats) so it stays explainable.
+    """
+
+    current = now or datetime.now(UTC)
+    rows = list_sources(session, state=MonitoredSourceState.REVIEW_SOURCE)
+
+    def last_preview(row: MonitoredSource) -> datetime | None:
+        stats = row.preview_stats if isinstance(row.preview_stats, dict) else {}
+        value = stats.get("previewed_at")
+        try:
+            return _as_utc(datetime.fromisoformat(value)) if isinstance(value, str) else None
+        except ValueError:
+            return None
+
+    due = [row for row in rows if (last_preview(row) is None or current - last_preview(row) >= AUTO_ACTIVATE_RECHECK)]
+    due.sort(key=lambda row: last_preview(row) or datetime.min.replace(tzinfo=UTC))
+    results: list[AutoActivation] = []
+    for row in due[:limit]:
+        source_id, company, board = row.id, row.company.name, f"{row.provider}:{row.identifier}"
+        stats = preview_source(session, source_id, candidate, client=client, now=current)
+        if "error" in stats:
+            results.append(AutoActivation(source_id, company, board, "error", 0))
+            continue
+        relevant = int(stats.get("prefilter_pass_or_review") or 0)
+        if relevant >= min_relevant and not dry_run:
+            set_source_state(
+                session,
+                source_id,
+                MonitoredSourceState.ACTIVE,
+                reason=f"auto-activated: {relevant} relevant job(s) of {stats.get('jobs')} in preview",
+                now=current,
+            )
+            results.append(AutoActivation(source_id, company, board, "activated", relevant))
+        else:
+            results.append(AutoActivation(source_id, company, board, "kept", relevant))
+    return results
+
+
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
