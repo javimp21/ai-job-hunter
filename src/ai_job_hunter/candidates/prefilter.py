@@ -547,10 +547,24 @@ def _classify_role_family(title: str) -> RoleFamilyAssessment:
             return potentially_relevant("AI/ML platform engineering", "platform, serving or tooling engineering")
         if "ml" in tokens and not tokens & {"ai", "genai", "llm", "llms"}:
             return potentially_relevant("machine learning engineering", "software-heavy rather than model research")
-        return potentially_relevant("AI engineering", "software around models (APIs, RAG, agents, serving, evaluation)")
+        # The candidate targets AI engineering (software around models: APIs,
+        # RAG, agents, evaluation) as a main family since 2026-10-04.
+        return RoleFamilyAssessment(
+            RoleFamilyFit.TARGET,
+            "AI engineering",
+            "Title names an AI engineering role (software around models).",
+        )
     if tokens & _DATA_TOKENS:
         family = "analytics engineering" if "analytics" in tokens else "data engineering"
         return potentially_relevant(family, "software-heavy (pipelines, data platform, distributed systems)")
+    if {"forward", "deployed"} <= tokens or "fde" in tokens:
+        # Forward deployed engineering is a target family; solutions/field
+        # engineering stays a review case (often pre-sales).
+        return RoleFamilyAssessment(
+            RoleFamilyFit.TARGET,
+            "forward deployed engineering",
+            "Title names a forward deployed engineering role.",
+        )
     if tokens & _CUSTOMER_FACING_ENGINEERING_TOKENS:
         return potentially_relevant("customer-facing engineering", software_focus)
     if "research" in tokens:

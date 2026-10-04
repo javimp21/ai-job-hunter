@@ -490,17 +490,14 @@ def test_unscoped_or_non_engineering_role_families_are_hard_rejected(title: str)
         ("Ingeniero de Datos", "data engineering"),
         ("Data Platform Engineer", "data engineering"),
         ("Analytics Engineer II, Full Stack (Revenue Analytics)", "analytics engineering"),
-        ("AI Engineer", "AI engineering"),
-        ("Applied AI Engineer", "AI engineering"),
-        ("LLM Engineer", "AI engineering"),
-        ("GenAI Engineer", "AI engineering"),
         ("AI Platform Engineer", "AI/ML platform engineering"),
         ("ML Platform Engineer", "AI/ML platform engineering"),
         ("Machine Learning Engineer", "machine learning engineering"),
         ("Applied ML Engineer", "machine learning engineering"),
         ("Computer Vision Engineer", "ML specialist (vision/NLP/deep learning)"),
         ("Research Engineer", "research engineering"),
-        ("Field Engineer / FDE", "customer-facing engineering"),
+        ("Solutions Engineer", "customer-facing engineering"),
+        ("Field Engineer", "customer-facing engineering"),
     ],
 )
 def test_context_dependent_role_families_are_reviewed_not_rejected(title: str, family: str) -> None:
@@ -529,13 +526,13 @@ def test_software_backend_titles_are_target_role_family(title: str) -> None:
     assert result.signals.role_family.fit is RoleFamilyFit.TARGET
 
 
-def test_potentially_relevant_ai_family_never_passes_prefilter_alone() -> None:
+def test_potentially_relevant_ml_family_never_passes_prefilter_alone() -> None:
     candidate = make_config(
         profile={"years_of_experience": 1},
         preferences={"preferred_roles": ["Backend Engineer", "AI Engineer"]},
     )
     description = "1 year of professional experience required. Build APIs with Python."
-    ai = evaluate_job(facts_for(title="AI Engineer", description=description), candidate)
+    ai = evaluate_job(facts_for(title="Machine Learning Engineer", description=description), candidate)
     backend_ai = evaluate_job(
         facts_for(title="Backend Engineer - GenAI", description=description),
         candidate,
@@ -809,3 +806,22 @@ def test_business_developer_is_not_a_software_developer(title: str) -> None:
 
     assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
     assert result.decision is PreFilterDecision.REJECT
+
+
+@pytest.mark.parametrize(
+    ("title", "family"),
+    [
+        ("AI Engineer", "AI engineering"),
+        ("Applied AI Engineer", "AI engineering"),
+        ("LLM Engineer", "AI engineering"),
+        ("GenAI Engineer", "AI engineering"),
+        ("Forward Deployed Engineer", "forward deployed engineering"),
+        ("Founding Forward Deployed Engineer - French Speaking", "forward deployed engineering"),
+        ("Field Engineer / FDE", "forward deployed engineering"),
+    ],
+)
+def test_ai_and_forward_deployed_engineering_are_target_families(title: str, family: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.TARGET
+    assert result.signals.role_family.family == family
