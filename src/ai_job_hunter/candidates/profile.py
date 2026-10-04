@@ -99,6 +99,9 @@ class CandidatePreferences(BaseModel):
     salary_period: SalaryPeriod | None = None
     preferred_locations: list[str] = Field(default_factory=list)
     acceptable_locations: list[str] = Field(default_factory=list)
+    # Acceptable places the candidate would gladly move to (a smaller
+    # relocation penalty than other acceptable locations).
+    relocation_preferred_locations: list[str] = Field(default_factory=list)
     remote_preference: RemotePreference = RemotePreference.ANY
     relocation_willingness: bool = False
     acceptable_employment_types: list[EmploymentType] = Field(default_factory=list)
@@ -123,6 +126,7 @@ class CandidatePreferences(BaseModel):
         "preferred_roles",
         "preferred_locations",
         "acceptable_locations",
+        "relocation_preferred_locations",
         "preferred_technologies",
         "willing_to_learn_technologies",
     )

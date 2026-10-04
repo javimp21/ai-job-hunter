@@ -1053,7 +1053,9 @@ def _location_matches(location: str | None, allowed: Iterable[str]) -> bool:
             return True
     listing_countries = _countries_in((location,))
     allowed_values = {" ".join(value.casefold().split()) for value in allowed}
-    allowed_countries = _countries_in(allowed)
+    # Only a value that IS a country name allows that whole country: scanning
+    # "Santiago de Compostela" for country codes found "de" (Germany).
+    allowed_countries = {_ALIAS_TO_COUNTRY[value] for value in allowed_values if value in _ALIAS_TO_COUNTRY}
     if listing_countries & allowed_countries:
         return True
     if allowed_values & {"eu", "europe", "european union"}:

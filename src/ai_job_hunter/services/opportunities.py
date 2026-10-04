@@ -31,7 +31,7 @@ from ai_job_hunter.candidates import (
     evaluate_job,
 )
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome
-from ai_job_hunter.candidates.prefilter import SignalStatus
+from ai_job_hunter.candidates.prefilter import SignalStatus, _location_matches
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.factory import build_job_connectors
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
@@ -1508,6 +1508,7 @@ def _evaluation_order(item: _PreparedOffer) -> tuple[Any, ...]:
 
 
 RELOCATION_PENALTY = 15
+PREFERRED_RELOCATION_PENALTY = 5
 _REMOTE_LOCATION_TEXT = re.compile(r"\b(?:remote|remoto|remota|anywhere|worldwide)\b", re.IGNORECASE)
 
 
@@ -1567,7 +1568,12 @@ def _relocation_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str]
         return ()
     if offer.remote_policy is None and (not offer.location or _REMOTE_LOCATION_TEXT.search(offer.location)):
         return ()
-    places = ", ".join(context.candidate.preferences.preferred_locations)
+    preferences = context.candidate.preferences
+    if preferences.relocation_preferred_locations and _location_matches(
+        offer.location, preferences.relocation_preferred_locations
+    ):
+        return ((-PREFERRED_RELOCATION_PENALTY, f"mudanza a un destino que te interesa (−{PREFERRED_RELOCATION_PENALTY})"),)
+    places = ", ".join(preferences.preferred_locations)
     return ((-RELOCATION_PENALTY, f"fuera de {places}, requiere mudanza (−{RELOCATION_PENALTY})"),)
 
 

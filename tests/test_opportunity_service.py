@@ -1178,3 +1178,22 @@ def test_priority_weights_stack_and_experience_most() -> None:
     strong_stack = dict(signals, stack_transferability={"value": 1.0})
     strong_career = dict(signals, career_value={"value": 1.0})
     assert opportunities._priority(strong_stack) > opportunities._priority(strong_career)
+
+
+@pytest.mark.parametrize(("location", "points"), [("Luxembourg", -5), ("Vigo", -15), ("Madrid", 0)])
+def test_relocation_to_a_preferred_destination_costs_less(location, points) -> None:
+    candidate = _candidate()
+    preferences = candidate.preferences.model_copy(
+        update={
+            "preferred_locations": ["Madrid"],
+            "acceptable_locations": ["Madrid", "Vigo", "Luxembourg"],
+            "relocation_preferred_locations": ["Luxembourg"],
+        }
+    )
+    candidate = candidate.model_copy(update={"preferences": preferences})
+    offer = NormalizedJob.model_validate(
+        _offer("role-relocation").model_dump() | {"location": location, "remote_policy": "ONSITE"}
+    )
+    prepared = opportunities._prepare_offer(offer, candidate, engine_identity="offline")
+
+    assert sum(value for value, _label in opportunities._relocation_adjustment(prepared.context)) == points
