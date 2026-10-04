@@ -27,10 +27,11 @@ class JobSourceSpec(BaseModel):
             normalized = value.strip().casefold()
             if normalized in {
                 "greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday",
+                "factorial",
             }:
                 return normalized
         raise ValueError(
-            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio, workday"
+            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio, workday, factorial"
         )
 
     @field_validator("identifier")
@@ -55,11 +56,13 @@ class JobSourceSpec(BaseModel):
                 raise ValueError("Workday region must be a data-centre label such as 'wd3'")
             return self
         if self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters", "workable"} and self.region is not None:
-            raise ValueError("region is only supported by Lever, Personio and Workday sources")
+            raise ValueError("region is only supported by Lever, Personio, Factorial and Workday sources")
         if self.provider == "lever" and self.region not in {None, "global", "eu"}:
             raise ValueError("Lever region must be 'global' or 'eu'")
         if self.provider == "personio" and self.region not in {None, "de", "com"}:
             raise ValueError("Personio region must be 'de' or 'com'")
+        if self.provider == "factorial" and self.region not in {None, "com", "es"}:
+            raise ValueError("Factorial region must be 'com' or 'es'")
         return self
 
 

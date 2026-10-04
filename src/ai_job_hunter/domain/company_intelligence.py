@@ -29,6 +29,7 @@ class ATSProvider(StrEnum):
     SMARTRECRUITERS = "SMARTRECRUITERS"
     WORKABLE = "WORKABLE"
     PERSONIO = "PERSONIO"
+    FACTORIAL = "FACTORIAL"
     WORKDAY = "WORKDAY"
     UNKNOWN = "UNKNOWN"
 
@@ -42,6 +43,7 @@ SUPPORTED_ATS_PROVIDERS = frozenset(
         ATSProvider.SMARTRECRUITERS,
         ATSProvider.WORKABLE,
         ATSProvider.PERSONIO,
+        ATSProvider.FACTORIAL,
         ATSProvider.WORKDAY,
     }
 )

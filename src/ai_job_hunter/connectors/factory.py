@@ -11,6 +11,7 @@ from ai_job_hunter.connectors.protocol import JobConnector
 from ai_job_hunter.candidates.prefilter import title_may_be_relevant
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
+from ai_job_hunter.connectors.factorial import FactorialConnector
 from ai_job_hunter.connectors.personio import PersonioConnector
 from ai_job_hunter.connectors.workable import WorkableConnector
 from ai_job_hunter.connectors.workday import WorkdayConnector
@@ -99,6 +100,19 @@ def build_job_connectors(
                     max_jobs=source.max_jobs,
                     timeout=timeout,
                     client=client,
+                )
+            )
+        elif source.provider == "factorial":
+            connectors.append(
+                FactorialConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    region=source.region or "com",
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                    # One detail request per posting: skip clearly non-target titles.
+                    detail_filter=title_may_be_relevant,
                 )
             )
         elif source.provider == "workday":
