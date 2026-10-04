@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Iterable
@@ -1020,13 +1021,35 @@ def _has_transferable_foundation(
     return False
 
 
+def _fold_accents(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return " ".join("".join(char for char in decomposed if not unicodedata.combining(char)).split())
+
+
+# Offices and bank headquarters are often in the metro area, not the city
+# itself: "Madrid" also accepts these Comunidad de Madrid municipalities.
+_METRO_AREAS = {
+    "madrid": re.compile(
+        r"\b(?:alcobendas|san sebastian de los reyes|tres cantos|las rozas|majadahonda|"
+        r"pozuelo(?: de alarcon)?|boadilla(?: del monte)?|alcorcon|mostoles|leganes|getafe|"
+        r"fuenlabrada|rivas[- ]vaciamadrid|coslada|san fernando de henares|torrejon de ardoz|"
+        r"alcala de henares|villaviciosa de odon|villanueva de la canada|colmenar viejo|"
+        r"aravaca|parla|pinto|valdemoro|arganda(?: del rey)?|la moraleja|el plantio)\b"
+    ),
+}
+
+
 def _location_matches(location: str | None, allowed: Iterable[str]) -> bool:
     if not location:
         return False
     folded_location = " ".join(location.casefold().split())
+    plain_location = _fold_accents(location)
     for value in allowed:
         normalized = " ".join(value.casefold().split())
         if normalized and normalized in folded_location:
+            return True
+        metro = _METRO_AREAS.get(_fold_accents(value))
+        if metro is not None and metro.search(plain_location):
             return True
     listing_countries = _countries_in((location,))
     allowed_values = {" ".join(value.casefold().split()) for value in allowed}

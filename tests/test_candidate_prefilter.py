@@ -848,3 +848,14 @@ def test_named_locations_outside_spain_are_not_compatible(location: str) -> None
     )
 
     assert result.signals.geography.status is SignalStatus.INCOMPATIBLE
+
+
+@pytest.mark.parametrize(
+    ("location", "matches"),
+    [("Boadilla del Monte", True), ("Alcorcón, Madrid", True), ("Las Rozas de Madrid", True),
+     ("Getafe", True), ("Barcelona", False), ("Sevilla", False)],
+)
+def test_madrid_includes_its_metro_area(location: str, matches: bool) -> None:
+    from ai_job_hunter.candidates.prefilter import _location_matches
+
+    assert _location_matches(location, ["Madrid"]) is matches
