@@ -31,6 +31,9 @@ from ai_job_hunter.services.company_intelligence import public_board_url
         ("https://apply.workable.com/titanos/j/ABC123/", ATSProvider.WORKABLE, "titanos", None),
         ("https://acme-co.jobs.personio.de/job/123", ATSProvider.PERSONIO, "acme-co", None),
         ("https://acme.jobs.personio.com", ATSProvider.PERSONIO, "acme", "com"),
+        ("https://bbva.wd3.myworkdayjobs.com/BBVA", ATSProvider.WORKDAY, "bbva/BBVA", "wd3"),
+        ("https://ING.wd3.myworkdayjobs.com/en-US/ICSGBLCOR/job/Madrid/X_R1", ATSProvider.WORKDAY, "ing/ICSGBLCOR", "wd3"),
+        ("https://acme.wd103.myworkdayjobs.com/es_ES/Site", ATSProvider.WORKDAY, "acme/Site", "wd103"),
     ],
 )
 def test_discovery_extracts_exact_public_board_identifiers(url, provider, identifier, region):
@@ -68,6 +71,9 @@ def test_discovery_extracts_exact_public_board_identifiers(url, provider, identi
         ("https://a.b.jobs.personio.de/", "does not match"),
         ("https://acme.jobs.personio.de.evil.test/", "does not match"),
         ("https://acme.factorialhr.com/", "does not match"),
+        ("https://acme.myworkdayjobs.com/Site", "does not match"),
+        ("https://acme.wd3.myworkdayjobs.com.evil.test/Site", "does not match"),
+        ("https://a.b.wd3.myworkdayjobs.com/Site", "does not match"),
     ],
 )
 def test_unknown_urls_are_not_guessed(url, evidence_part):
@@ -107,6 +113,7 @@ def test_smartrecruiters_host_without_company_path_is_not_monitorable():
         (ATSProvider.WORKABLE, "idoven", None, "https://apply.workable.com/idoven"),
         (ATSProvider.PERSONIO, "acme", None, "https://acme.jobs.personio.de"),
         (ATSProvider.PERSONIO, "acme", "com", "https://acme.jobs.personio.com"),
+        (ATSProvider.WORKDAY, "bbva/BBVA", "wd3", "https://bbva.wd3.myworkdayjobs.com/BBVA"),
     ],
 )
 def test_public_board_url_for_new_providers(provider, identifier, region, expected):
@@ -146,3 +153,24 @@ def test_observed_job_source_evidence_takes_precedence_over_url_inference():
     assert [item.provider for item in facts.ats_discoveries] == [ATSProvider.GREENHOUSE]
     assert facts.ats_discoveries[0].identifier == "observed-board"
     assert facts.ats_discoveries[0].confidence is ATSDiscoveryConfidence.OBSERVED_JOB_SOURCE
+
+
+@pytest.mark.parametrize(
+    "url", ["https://acme.wd3.myworkdayjobs.com", "https://acme.wd3.myworkdayjobs.com/en-US", "https://acme.wd3.myworkdayjobs.com/wday/cxs/acme/Site/jobs"]
+)
+def test_workday_host_without_site_is_not_supported(url):
+    result = discover_ats_url(url)
+
+    assert result.provider is ATSProvider.WORKDAY
+    assert result.identifier is None
+    assert result.confidence is ATSDiscoveryConfidence.UNKNOWN
+    assert not result.is_supported
+
+
+def test_workday_discovery_round_trips_through_job_sources():
+    from ai_job_hunter.job_sources import JobSourceSpec
+
+    result = discover_ats_url("https://bbva.wd3.myworkdayjobs.com/en-US/BBVA/job/x")
+    spec = JobSourceSpec(provider=result.provider.value.casefold(), identifier=result.identifier, region=result.region)
+
+    assert public_board_url(result.provider, spec.identifier, spec.region) == "https://bbva.wd3.myworkdayjobs.com/BBVA"
