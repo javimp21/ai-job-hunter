@@ -408,6 +408,12 @@ def test_prune_contacts_cli_is_a_dry_run_by_default(tmp_path, monkeypatch, capsy
         ("Staff Engineer at Acme Pay", True), ("CTO, Acme", True), ("Senior Engineer, Platform Team", True),
         ("Head of Engineering - Data", True), ("Engineering Manager", True), ("Software Engineer @ Google", False),
         ("Tech Lead, Chief Technology Officer", True), ("CTO RawTree", False), ("CTO Acme", True), ("CTO", True),
+        # Proton-style team suffixes after a team-level engineering title.
+        ("Director of Engineering, Mail", True), ("Director of Engineering, VPN", True), ("Staff Engineer, Mail", True),
+        ("Engineering Director, Machine Learning & AI", True), ("Backend Engineer - Drive", True),
+        # Executives keep the strict rule; "at"/"@" always names the employer.
+        ("CTO, Meine Erde", False), ("General Manager, VPN", False), ("Founder, SimpleLogin", False),
+        ("Backend Engineer at Globex", False), ("Senior Engineer, Some Very Long Other Company Name", False),
     ],
 )
 def test_role_suffix_naming_another_company_is_rejected(role, belongs):

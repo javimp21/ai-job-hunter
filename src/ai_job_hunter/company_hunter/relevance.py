@@ -189,6 +189,12 @@ def relevance(title: str | None, *, small_known: bool) -> int | None:
 
 _C_ACRONYM = re.compile(r"c[efmoprit]o|ciso", re.IGNORECASE)
 _TAIL_SEPARATOR = re.compile(r"\s(?:at|@)\s+|\s*@\s*|,\s+|\s+[-–—|]\s+", re.IGNORECASE)
+_EXPLICIT_EMPLOYER = re.compile(r"\bat\b|@", re.IGNORECASE)
+_TEAM_LEVEL_KINDS = frozenset(
+    {RoleKind.ENGINEERING_HEAD, RoleKind.ENGINEERING_MANAGER, RoleKind.TECH_LEAD, RoleKind.SENIOR_ENGINEER,
+     RoleKind.ENGINEER}
+)
+MAX_TEAM_TAIL_WORDS = 4
 _TAIL_FILLER = frozenset(
     {"and", "of", "the", "y", "de", "del", "la", "el", "e", "&", "team", "teams", "engineering", "platform", "data",
      "infrastructure", "backend", "frontend", "core", "security", "product", "cloud", "software", "technology",
@@ -231,4 +237,15 @@ def role_belongs_to(role: str | None, company_names: Sequence[str]) -> bool:
     if assess_role(tail) is not None:
         return True
     words = [word for word in re.split(r"[^\w&]+", folded) if word]
-    return bool(words) and all(word in _TAIL_FILLER for word in words)
+    if bool(words) and all(word in _TAIL_FILLER for word in words):
+        return True
+    # "Director of Engineering, Mail" / "Staff Engineer - VPN": after a comma or dash (not
+    # "at"/"@"), a short tail following a team-level engineering title is the team or product.
+    # Testimonials name executives ("CFO, Meine Erde"), so C-level heads stay strict.
+    head = assess_role(text[:match.start()])
+    return (
+        not _EXPLICIT_EMPLOYER.search(match.group(0))
+        and head is not None
+        and head.kind in _TEAM_LEVEL_KINDS
+        and len(words) <= MAX_TEAM_TAIL_WORDS
+    )
