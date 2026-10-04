@@ -114,3 +114,43 @@ def test_missing_external_id_refreshes_unique_provider_job_url_in_place(db_sessi
     assert source is not None
     assert source.external_id is None
     assert source.source_description == "Updated role description"
+
+
+def _offer(provider: str, external_id: str, company: str, **changes) -> NormalizedJob:
+    values = {
+        "provider": provider,
+        "external_id": external_id,
+        "source_url": f"https://{provider}.example.test/jobs/{external_id}",
+        "title": "Backend Engineer",
+        "company_name": company,
+        "discovered_at": datetime(2026, 10, 4, tzinfo=UTC),
+    }
+    values.update(changes)
+    return NormalizedJob(**values)
+
+
+def test_cross_source_candidates_come_from_name_url_and_domain_index(db_session) -> None:
+    shared_url = "https://boards.greenhouse.io/acme/jobs/123"
+    first = ingest_job(db_session, _offer("greenhouse", "123", "Acme", canonical_url=shared_url))
+    other = ingest_job(db_session, _offer("lever", "9", "Unrelated Co"))
+
+    # Same company name, different provider: reviewed as a possible duplicate.
+    by_name = ingest_job(db_session, _offer("himalayas", "h1", "ACME"))
+    # Shared job-specific URL, different company spelling: strong match.
+    by_url = ingest_job(db_session, _offer("himalayas", "h2", "Acme Inc", canonical_url=shared_url))
+
+    assert by_name.status is IngestionStatus.POSSIBLE_MATCH
+    assert {match.candidate_job_id for match in by_name.possible_matches} == {first.job_id}
+    assert by_url.status is IngestionStatus.MATCHED_EXISTING and by_url.job_id == first.job_id
+    assert other.job_id not in {match.candidate_job_id for match in by_name.possible_matches}
+
+
+def test_candidate_index_sees_jobs_created_outside_ingestion(db_session) -> None:
+    ingest_job(db_session, _offer("greenhouse", "1", "Seed Co"))  # builds the index
+    company = Company(name="Late Co")
+    db_session.add(Job(company=company, title="Backend Engineer"))
+    db_session.commit()
+
+    result = ingest_job(db_session, _offer("lever", "2", "Late Co"))
+
+    assert result.status is IngestionStatus.POSSIBLE_MATCH

@@ -63,6 +63,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
             _fill_missing_canonical_fields(job, offer)
             _refresh_source(existing_source, offer, is_new=False)
             session.flush()
+            _remember(session, job, offer)
             return IngestionResult(
                 status=IngestionStatus.ALREADY_KNOWN,
                 job_id=job.id,
@@ -91,6 +92,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
             _refresh_source(source, offer, is_new=True)
             session.add(source)
             session.flush()
+            _remember(session, job, offer, new_sources=1)
             return IngestionResult(
                 status=IngestionStatus.MATCHED_EXISTING,
                 job_id=job.id,
@@ -124,6 +126,7 @@ def ingest_job(session: Session, offer: NormalizedJob) -> IngestionResult:
         _refresh_source(source, offer, is_new=True)
         session.add(job)
         session.flush()
+        _remember(session, job, offer, new_jobs=1, new_sources=1)
         return IngestionResult(
             status=(
                 IngestionStatus.POSSIBLE_MATCH
@@ -219,8 +222,15 @@ def _fill_missing_canonical_fields(job: Job, offer: NormalizedJob) -> None:
 
 
 def _find_plausible_candidates(session: Session, offer: NormalizedJob) -> list[DeduplicationResult]:
+    # match_job can only return MATCH/POSSIBLE_MATCH for a candidate that
+    # shares a job-specific URL, the normalized company name or a company
+    # domain with the offer, so only those jobs are loaded and compared.
+    candidate_ids = _candidate_index(session).candidates(offer)
+    if not candidate_ids:
+        return []
     jobs = session.scalars(
         select(Job)
+        .where(Job.id.in_(candidate_ids))
         .options(joinedload(Job.company), selectinload(Job.sources))
         .order_by(Job.id)
     ).unique().all()
@@ -230,6 +240,105 @@ def _find_plausible_candidates(session: Session, offer: NormalizedJob) -> list[D
         for result in results
         if result.decision is not DeduplicationDecision.NO_MATCH
     ]
+
+
+class _CandidateIndex:
+    """Job ids by normalized job URL, company name and company domain.
+
+    Built once per session (one refresh run) and kept current as ingestion
+    adds sources, so finding dedup candidates no longer loads every job for
+    every new offer.
+    """
+
+    def __init__(self) -> None:
+        self.counts = (0, 0)
+        self.by_url: dict[str, set[UUID]] = {}
+        self.by_name: dict[str, set[UUID]] = {}
+        self.by_domain: dict[str, set[UUID]] = {}
+
+    @classmethod
+    def build(cls, session: Session) -> "_CandidateIndex":
+        index = cls()
+        for job_id, name, website in session.execute(
+            select(Job.id, Company.name, Company.website_url).outerjoin(Company, Company.id == Job.company_id)
+        ):
+            index._add_company(job_id, name, website)
+        for job_id, canonical, original, apply, website in session.execute(
+            select(
+                JobSource.job_id,
+                JobSource.canonical_url,
+                JobSource.original_url,
+                JobSource.apply_url,
+                JobSource.company_website,
+            )
+        ):
+            index._add_urls(job_id, (canonical, original, apply))
+            index._add_domain(job_id, website)
+        return index
+
+    def add(self, job: Job, offer: NormalizedJob) -> None:
+        company = job.company
+        self._add_company(job.id, company.name if company else None, company.website_url if company else None)
+        self._add_urls(job.id, (offer.canonical_url, offer.source_url, offer.apply_url))
+        self._add_domain(job.id, offer.company_website)
+
+    def candidates(self, offer: NormalizedJob) -> set[UUID]:
+        found: set[UUID] = set()
+        for value in (offer.canonical_url, offer.source_url, offer.apply_url):
+            if value and is_job_specific_url(value) and (normalized := normalize_job_url(value)):
+                found |= self.by_url.get(normalized, set())
+        if (name := normalize_company_name(offer.company_name)) is not None:
+            found |= self.by_name.get(name, set())
+        if (domain := extract_company_domain(offer.company_website)) is not None:
+            found |= self.by_domain.get(domain, set())
+        return found
+
+    def _add_company(self, job_id: UUID, name: str | None, website: str | None) -> None:
+        if (key := normalize_company_name(name)) is not None:
+            self.by_name.setdefault(key, set()).add(job_id)
+        self._add_domain(job_id, website)
+
+    def _add_domain(self, job_id: UUID, website: str | None) -> None:
+        if (domain := extract_company_domain(website)) is not None:
+            self.by_domain.setdefault(domain, set()).add(job_id)
+
+    def _add_urls(self, job_id: UUID, values: tuple[str | None, ...]) -> None:
+        for value in values:
+            if value and is_job_specific_url(value) and (normalized := normalize_job_url(value)):
+                self.by_url.setdefault(normalized, set()).add(job_id)
+
+
+_INDEX_KEY = "ai_job_hunter.ingestion.candidate_index"
+
+
+def _row_counts(session: Session) -> tuple[int, int]:
+    return (
+        session.scalar(select(func.count()).select_from(Job)) or 0,
+        session.scalar(select(func.count()).select_from(JobSource)) or 0,
+    )
+
+
+def _candidate_index(session: Session) -> _CandidateIndex:
+    counts = _row_counts(session)
+    index = session.info.get(_INDEX_KEY)
+    # Rebuild when rows were added or removed outside ingest_job (other code,
+    # rolled-back transactions): the index must never miss a candidate.
+    if index is None or index.counts != counts:
+        index = _CandidateIndex.build(session)
+        index.counts = counts
+        session.info[_INDEX_KEY] = index
+    return index
+
+
+def _remember(
+    session: Session, job: Job, offer: NormalizedJob, *, new_jobs: int = 0, new_sources: int = 0
+) -> None:
+    """Keep the session's candidate index current after an ingest."""
+
+    index = session.info.get(_INDEX_KEY)
+    if index is not None:
+        index.add(job, offer)
+        index.counts = (index.counts[0] + new_jobs, index.counts[1] + new_sources)
 
 
 def _find_source(session: Session, offer: NormalizedJob) -> JobSource | None:
