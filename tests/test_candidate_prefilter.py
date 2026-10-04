@@ -825,3 +825,26 @@ def test_ai_and_forward_deployed_engineering_are_target_families(title: str, fam
 
     assert result.signals.role_family.fit is RoleFamilyFit.TARGET
     assert result.signals.role_family.family == family
+
+
+@pytest.mark.parametrize("title", ["Avionics Hardware Engineer", "Camera Engineer", "Drone Field Engineer"])
+def test_hardware_engineering_titles_are_non_target(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
+
+
+def test_hardware_word_with_software_title_stays_target() -> None:
+    result = evaluate_job(facts_for(title="Drone Software Engineer"), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.TARGET
+
+
+@pytest.mark.parametrize("location", ["Belgrade, Serbia", "Heredia, Costa Rica", "Arizona; California; Utah"])
+def test_named_locations_outside_spain_are_not_compatible(location: str) -> None:
+    result = evaluate_job(
+        facts_for(title="Backend Engineer", location=location, remote_policy=None, remote_eligibility="UNKNOWN"),
+        make_config(),
+    )
+
+    assert result.signals.geography.status is SignalStatus.INCOMPATIBLE

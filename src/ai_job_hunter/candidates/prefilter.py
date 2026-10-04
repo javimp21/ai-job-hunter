@@ -176,6 +176,20 @@ _COUNTRIES = (
     _Country("Turkey", ("turkey", "türkiye", "tr")),
     _Country("United Arab Emirates", ("united arab emirates", "uae", "ae")),
     _Country("South Africa", ("south africa", "za")),
+    # Full names only for these: their two-letter codes are common words.
+    _Country("Serbia", ("serbia",)),
+    _Country("Ukraine", ("ukraine",)),
+    _Country("Costa Rica", ("costa rica",)),
+    _Country("Colombia", ("colombia",)),
+    _Country("Chile", ("chile",)),
+    _Country("Peru", ("peru",)),
+    _Country("Uruguay", ("uruguay",)),
+    _Country("Egypt", ("egypt",)),
+    _Country("Nigeria", ("nigeria",)),
+    _Country("Kenya", ("kenya",)),
+    _Country("Morocco", ("morocco",)),
+    _Country("Saudi Arabia", ("saudi arabia",)),
+    _Country("Qatar", ("qatar",)),
 )
 _ALIAS_TO_COUNTRY = {
     alias: country.name
@@ -582,6 +596,7 @@ def _classify_role_family(title: str) -> RoleFamilyAssessment:
     )
 
 
+_HARDWARE_TOKENS = {"hardware", "avionics", "mechanical", "electrical", "camera", "drone", "optical"}
 _BUSINESS_DEVELOPMENT = re.compile(r"\bbusiness\s+develop(?:er|ment)\b", re.IGNORECASE)
 
 
@@ -605,6 +620,11 @@ def _clearly_non_technical_role(title: str) -> str | None:
                 if not _LEGACY_UNRELATED_ROLE.search(title):
                     continue
             return _NON_TECHNICAL_ROLE_MARKERS[marker]
+
+    # Hardware disciplines ("Avionics Hardware Engineer", "Camera Engineer")
+    # are out of scope unless the title also names software work.
+    if tokens & _HARDWARE_TOKENS and not tokens & _CORE_SOFTWARE_TOKENS:
+        return "hardware engineering"
 
     # A technical domain word ("security", "data") does not make a governance,
     # analyst or scientist title an engineering job; an engineering noun does.
@@ -1048,7 +1068,11 @@ _US_CITY = re.compile(
     r"\b(?:san francisco|sf\s+office|new york|nyc|los angeles|seattle|austin|boston|chicago|denver|"
     r"palo alto|mountain view|menlo park|san jose|san diego|washington,?\s+d\.?c\.?|atlanta|miami|"
     r"brooklyn|redmond|cambridge,\s*ma|eastern time|pacific time|central time|mountain time|"
-    r"us time ?zones?|(?:est|pst|cst)\s*(?:time ?zone|hours))\b"
+    r"us time ?zones?|(?:est|pst|cst)\s*(?:time ?zone|hours)|"
+    # Full state names ("Arizona; California; Utah"); Georgia is omitted (a country too).
+    r"arizona|california|utah|texas|florida|colorado|oregon|massachusetts|illinois|"
+    r"new jersey|pennsylvania|north carolina|michigan|minnesota|tennessee|wisconsin|"
+    r"connecticut|maryland|virginia)\b"
 )
 
 
