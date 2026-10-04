@@ -45,6 +45,8 @@ and represent them as discovered contacts.
 
 Prefer authorized providers/connectors over aggressive scraping.
 
+`outreach find-contacts` (Company Hunter) is the only discovery of people. It reads the company's own public pages (team/about, engineering-blog authors, a GitHub org the company's site links to) with robots.txt respected, spacing and page budgets, stores a contact only with a name and a stated role plus source URL and evidence, stores an email only when an official company-domain page links it next to that person, and stores nothing otherwise. See `docs/COMPANY_HUNTER.md`.
+
 ## Leads
 
 Keep discovery, enrichment and final decision logically separate.

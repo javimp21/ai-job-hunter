@@ -34,6 +34,8 @@ The offline suite uses synthetic fixtures and does not require PostgreSQL,
 a live API key, or a real browser session. This does not verify a live
 Telegram delivery, ATS interaction, or PostgreSQL deployment.
 
+Company Hunter tests (`tests/test_company_hunter_*.py`, shared fakes in `tests/company_hunter_support.py`) are fully offline: pages and the GitHub API are served by `httpx.MockTransport`, the model is a scripted fake client, Telegram is a fake provider/bot, and databases are in-memory or temporary SQLite files (including the `0013` upgrade/downgrade).
+
 ## Network boundaries
 
 Offline tests must not unexpectedly perform:
