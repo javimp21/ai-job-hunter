@@ -63,6 +63,17 @@ def test_listing_cards_are_parsed_from_explicit_fields_only():
     assert third.raw_metadata["contractType"] is None and third.raw_metadata["workMode"] is None
 
 
+@pytest.mark.parametrize(("label", "policy"), [("Híbrido", RemotePolicy.HYBRID), ("Presencial", RemotePolicy.ONSITE)])
+def test_spanish_work_mode_labels_are_mapped(label, policy):
+    listing = LISTING.replace(">Hybrid", f">{label}", 1)
+    connector, client = make_connector(routes={"/": (200, listing)}, detail_filter=lambda _title: False)
+    first = connector.fetch_jobs()[0]
+    client.close()
+
+    assert first.remote_policy is policy
+    assert first.raw_metadata["workMode"] == label
+
+
 def test_duplicate_cards_and_open_application_are_skipped():
     connector, client = make_connector(detail_filter=lambda _title: False)
     jobs = connector.fetch_jobs()

@@ -31,15 +31,25 @@ _MAX_DETAIL_BYTES = 1024 * 1024
 _MAX_ROBOTS_BYTES = 100_000
 _MAX_DESCRIPTION_CHARS = 30000
 _JOB_PATH_PREFIX = "/job_posting/"
-# Only explicit English work-mode labels are mapped; anything else stays unknown.
+# Only explicit work-mode labels (English, or Spanish on factorial.es) are mapped;
+# anything else stays unknown.
 _WORK_MODES = {
     "remote": RemotePolicy.REMOTE,
     "hybrid": RemotePolicy.HYBRID,
     "onsite": RemotePolicy.ONSITE,
     "on-site": RemotePolicy.ONSITE,
     "on site": RemotePolicy.ONSITE,
+    "remoto": RemotePolicy.REMOTE,
+    "híbrido": RemotePolicy.HYBRID,
+    "hibrido": RemotePolicy.HYBRID,
+    "presencial": RemotePolicy.ONSITE,
 }
-_SCHEDULES = {"full time": EmploymentType.FULL_TIME, "part time": EmploymentType.PART_TIME}
+_SCHEDULES = {
+    "full time": EmploymentType.FULL_TIME,
+    "part time": EmploymentType.PART_TIME,
+    "jornada completa": EmploymentType.FULL_TIME,
+    "media jornada": EmploymentType.PART_TIME,
+}
 
 
 class FactorialConnectorError(RuntimeError):
