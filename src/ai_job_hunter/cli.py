@@ -258,6 +258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sources_auto.add_argument("--limit", type=int, default=30)
     sources_auto.add_argument("--min-relevant", type=int, default=1)
     sources_auto.add_argument("--dry-run", action="store_true", help="preview and report without activating")
+    sources_auto.add_argument("--force", action="store_true", help="re-preview boards checked in the last week too (e.g. after filter changes)")
     sources_auto.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
     for name, help_text in (
         ("activate", "start fetching a board"),
@@ -1184,7 +1185,7 @@ def _run_sources_command(args, session, candidate) -> int:
         return 0
     if command == "auto-activate":
         results = auto_activate_sources(
-            session, candidate, limit=args.limit, min_relevant=args.min_relevant, dry_run=args.dry_run
+            session, candidate, limit=args.limit, min_relevant=args.min_relevant, dry_run=args.dry_run, force=args.force
         )
         activated = [item for item in results if item.outcome == "activated"]
         print(f"AUTO-ACTIVATE: checked={len(results)} activated={len(activated)}" + (" (dry run)" if args.dry_run else ""))

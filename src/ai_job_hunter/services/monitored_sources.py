@@ -319,6 +319,7 @@ def auto_activate_sources(
     limit: int = 30,
     min_relevant: int = 1,
     dry_run: bool = False,
+    force: bool = False,
     client: "httpx.Client | None" = None,
     now: datetime | None = None,
 ) -> list[AutoActivation]:
@@ -343,7 +344,11 @@ def auto_activate_sources(
         except ValueError:
             return None
 
-    due = [row for row in rows if (last_preview(row) is None or current - last_preview(row) >= AUTO_ACTIVATE_RECHECK)]
+    due = [
+        row
+        for row in rows
+        if force or last_preview(row) is None or current - last_preview(row) >= AUTO_ACTIVATE_RECHECK
+    ]
     due.sort(key=lambda row: last_preview(row) or datetime.min.replace(tzinfo=UTC))
     results: list[AutoActivation] = []
     for row in due[:limit]:
