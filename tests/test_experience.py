@@ -245,7 +245,9 @@ def evidence():
 
 
 @pytest.mark.parametrize("policy", [apply_decision_policy, apply_decision_policy_v2])
-@pytest.mark.parametrize("text,expected", [("3 years of experience", "REVIEW"), ("No numeric requirement.", "REVIEW"), ("3-5 years of experience", "SKIP")])
+# A posting that states no years at all can be APPLY when Jev finds the
+# experience accessible (policy change 2026-10-04); stated unmet years cannot.
+@pytest.mark.parametrize("text,expected", [("3 years of experience", "REVIEW"), ("No numeric requirement.", "APPLY"), ("3-5 years of experience", "SKIP")])
 def test_maximal_jev_cannot_override_explicit_experience(policy, text, expected):
     context = build_decision_contexts([offer(text + "\n" + "Build Java services. " * 100)], candidate())[0]
     assert policy(context, evidence()).final_decision.value == expected

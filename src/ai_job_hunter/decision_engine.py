@@ -36,6 +36,26 @@ POLICY_VERSION_V2 = "job_decision_v2"
 SUPPORTED_POLICY_VERSIONS = (POLICY_VERSION_V1, POLICY_VERSION_V2)
 
 
+def experience_blocks_apply(experience: Any) -> bool:
+    """Whether the explicit experience check prevents APPLY.
+
+    A posting that states no experience-years requirement at all (no
+    mandatory, preferred or ambiguous requirement) does not block APPLY; Jev's
+    experience accessibility gate (>= 0.60) still has to pass. A stated
+    requirement that is unmet, a stretch or ambiguous keeps the job in REVIEW.
+    """
+
+    if experience.outcome is ExperienceOutcome.MEETS:
+        return False
+    states_nothing = (
+        experience.outcome is ExperienceOutcome.UNKNOWN
+        and not experience.mandatory
+        and not experience.preferred
+        and not getattr(experience, "ambiguous", ())
+    )
+    return not states_nothing
+
+
 class FinalDecision(StrEnum):
     APPLY = "APPLY"
     REVIEW = "REVIEW"
@@ -662,7 +682,7 @@ def _decision_result(
     if context.deterministic.decision is PreFilterDecision.REJECT:
         decision = FinalDecision.SKIP
         reasons = context.deterministic.reasons
-    elif decision is FinalDecision.APPLY and experience.outcome is not ExperienceOutcome.MEETS:
+    elif decision is FinalDecision.APPLY and experience_blocks_apply(experience):
         decision = FinalDecision.REVIEW
         reason = StructuredReviewReason(
             code=(ReviewReasonCode.EXPERIENCE_BORDERLINE
@@ -726,6 +746,8 @@ def evaluate_job_decision(
                 # never authority to bypass today's explicit experience gate.
                 experience = context.deterministic.signals.experience
                 decision = cached_result.final_decision
+                # Without replayable Jev evidence the accessibility gate cannot be
+                # re-checked, so only a met requirement keeps APPLY here.
                 if decision is FinalDecision.APPLY and experience.outcome is not ExperienceOutcome.MEETS:
                     decision = FinalDecision.REVIEW
                 return cached_result.model_copy(

@@ -1150,3 +1150,31 @@ def test_review_reason_is_validated_and_stored(db_session) -> None:
         set_review_state(db_session, job.id, HumanReviewStatus.SAVED, reason="location")
     review = set_review_state(db_session, job.id, HumanReviewStatus.SEEN)
     assert review.reason is None
+
+
+@pytest.mark.parametrize(
+    ("description", "points"),
+    [
+        ("We build services in Java and Spring Boot with React on the front.", 5),
+        ("Backend in Python and Go, with a React dashboard.", 0),
+        ("Work with React, TypeScript and Node.js on our web app.", -15),
+        ("Required: 3+ years of experience with React and TypeScript. Node.js is a plus.", -25),
+        ("We value curiosity and ownership.", 0),
+    ],
+)
+def test_stack_adjustment_prefers_java_and_demotes_javascript_roles(description, points) -> None:
+    offer = NormalizedJob.model_validate(_offer("role-stack").model_dump() | {"description": description * 3})
+    prepared = opportunities._prepare_offer(offer, _candidate(), engine_identity="offline")
+
+    adjustments = opportunities._stack_adjustment(prepared.context)
+
+    assert sum(value for value, _label in adjustments) == points
+
+
+def test_priority_weights_stack_and_experience_most() -> None:
+    signals = {name: {"value": 0.5} for name in opportunities.PRIORITY_WEIGHTS}
+    assert opportunities._priority(signals) == 50
+    assert abs(sum(opportunities.PRIORITY_WEIGHTS.values()) - 1.0) < 1e-9
+    strong_stack = dict(signals, stack_transferability={"value": 1.0})
+    strong_career = dict(signals, career_value={"value": 1.0})
+    assert opportunities._priority(strong_stack) > opportunities._priority(strong_career)

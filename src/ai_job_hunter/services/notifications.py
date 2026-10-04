@@ -553,7 +553,11 @@ def _current_opportunities(
                 reason = "already_notified_elsewhere"
             elif identity in batch_identities:
                 reason = "duplicate_in_batch"
-            elif batch_per_company.get(company, 0) >= MAX_ALERTS_PER_COMPANY_PER_RUN:
+            # APPLY (🔥) jobs are never held back by the per-company cap.
+            elif (
+                decision != FinalDecision.APPLY.value
+                and batch_per_company.get(company, 0) >= MAX_ALERTS_PER_COMPANY_PER_RUN
+            ):
                 reason = "company_cap"
             else:
                 batch_identities.add(identity)

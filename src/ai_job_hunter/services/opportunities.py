@@ -108,7 +108,9 @@ from ai_job_hunter.rubric import RUBRIC_SPEC
 
 _ENGINE_NAME = "typesafe-jev"
 _DETERMINISTIC_ENGINE_NAME = "deterministic-prefilter"
-_PREFILTER_VERSION = "candidate-prefilter-v4-role-family"
+# v5 (2026-10-04): FDE/AI target families, metro areas, hardware titles, more
+# countries, and APPLY allowed when a posting states no experience years.
+_PREFILTER_VERSION = "candidate-prefilter-v5-apply-without-years"
 _REASON_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
 _APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
     ApplicationStatus.DRAFT: frozenset({ApplicationStatus.APPLIED, ApplicationStatus.WITHDRAWN}),
@@ -1516,7 +1518,38 @@ SALARY_BONUS_HIGH = 10
 def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
     """Soft preferences that change review order (never eligibility)."""
 
-    return _relocation_adjustment(context) + _salary_adjustment(context)
+    return _relocation_adjustment(context) + _salary_adjustment(context) + _stack_adjustment(context)
+
+
+STACK_CORE = frozenset({"java", "spring", "spring boot", "kotlin"})
+# Backend languages the candidate wants to grow into: neutral, never penalized.
+STACK_ADJACENT = frozenset({"python", "go", "golang", "scala"})
+STACK_FRONTEND = frozenset({"javascript", "typescript", "node.js", "nodejs", "react", "angular", "vue", "vue.js", "next.js"})
+STACK_CORE_BONUS = 5
+STACK_FRONTEND_PENALTY = 15
+STACK_REQUIRED_PENALTY = 10
+
+
+def _stack_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """Favour the candidate's Java/Spring/Kotlin stack; demote JavaScript-centric roles.
+
+    Uses only technologies the posting explicitly names. Python/Go/Scala
+    backend roles are neutral (they fit the AI and forward deployed targets).
+    """
+
+    facts = context.facts
+    mentioned = {name.casefold() for name in (*facts.technologies, *facts.required_technologies)}
+    required = {name.casefold() for name in facts.required_technologies}
+    if not mentioned:
+        return ()
+    if mentioned & STACK_CORE:
+        return ((STACK_CORE_BONUS, f"usa tu stack Java/Spring/Kotlin (+{STACK_CORE_BONUS})"),)
+    if mentioned & STACK_ADJACENT or not mentioned & STACK_FRONTEND:
+        return ()
+    adjustments = [(-STACK_FRONTEND_PENALTY, f"stack JavaScript/TypeScript (−{STACK_FRONTEND_PENALTY})")]
+    if required and not required & (STACK_CORE | STACK_ADJACENT):
+        adjustments.append((-STACK_REQUIRED_PENALTY, f"exige tecnologías que no usas (−{STACK_REQUIRED_PENALTY})"))
+    return tuple(adjustments)
 
 
 def _relocation_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
@@ -1559,26 +1592,31 @@ def _salary_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ..
     return ()
 
 
+# Weights of the Jev fit signals in review priority (sum 1.0). Stack and
+# experience accessibility decide most whether the candidate can get the job;
+# observable role quality is not used (it does not separate SKIP from REVIEW).
+PRIORITY_WEIGHTS = {
+    "stack_transferability": 0.25,
+    "experience_accessibility": 0.20,
+    "role_relevance": 0.15,
+    "backend_relevance": 0.15,
+    "career_value": 0.15,
+    "requirements_flexibility": 0.10,
+}
+
+
 def _priority(signals: dict[str, Any] | None) -> int | None:
-    """Equal-weight mean of six Jev fit signals, scaled to 0..100; never probability."""
+    """Weighted mean of six Jev fit signals, scaled to 0..100; never probability."""
     if not isinstance(signals, dict):
         return None
-    names = (
-        "role_relevance",
-        "backend_relevance",
-        "stack_transferability",
-        "experience_accessibility",
-        "requirements_flexibility",
-        "career_value",
-    )
-    values: list[float] = []
-    for name in names:
+    total = 0.0
+    for name, weight in PRIORITY_WEIGHTS.items():
         signal = signals.get(name)
         value = signal.get("value") if isinstance(signal, dict) else None
         if not isinstance(value, (int, float)) or isinstance(value, bool):
             return None
-        values.append(float(value))
-    return round(sum(values) / len(values) * 100)
+        total += float(value) * weight
+    return round(total * 100)
 
 
 def _signal_value(signals: dict[str, Any] | None, name: str) -> float | None:

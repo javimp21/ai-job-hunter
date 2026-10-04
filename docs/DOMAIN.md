@@ -53,7 +53,13 @@ Adding a family never relaxes APPLY: experience, geography, seniority and the Je
 
 ## Priority
 
-`priority` means review priority.
+`priority` means review priority: a weighted mean of six Jev fit signals scaled to 0–100 (stack transferability 0.25, experience accessibility 0.20, role relevance 0.15, backend relevance 0.15, career value 0.15, requirements flexibility 0.10; observable role quality is not used because it does not separate SKIP from REVIEW), plus soft adjustments that never change eligibility:
+
+- relocation outside the preferred locations −15;
+- a published salary at or above the target +5 (≥ 2× target +10);
+- stack: the posting names Java, Spring or Kotlin +5; Python/Go/Scala backend 0; JavaScript/TypeScript/Node/React without any of those −15, and −10 more when its explicitly required technologies include none of the candidate's or adjacent ones.
+
+APPLY needs the Jev policy gates and an experience check that does not block it: a stated requirement that is met, or a posting that states no experience years at all (no mandatory, preferred or ambiguous requirement; Jev's experience accessibility must still be ≥ 0.60). A stated requirement that is unmet, a stretch or ambiguous keeps the job in REVIEW, and a cached recommendation without replayable Jev evidence keeps the stricter "met requirement only" rule (policy change 2026-10-04; prefilter version v5).
 
 It is not:
 

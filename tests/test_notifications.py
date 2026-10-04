@@ -616,3 +616,15 @@ def test_only_recent_postings_alert(db_session, monkeypatch, published_days_ago,
 
     assert bool(preview_notifications(db_session, _candidate(), max_age_days=3)) is alerts
     assert preview_notifications(db_session, _candidate())  # no age limit unless requested
+
+
+def test_apply_jobs_are_not_held_back_by_the_company_cap(db_session, monkeypatch):
+    rows = []
+    for index, title in enumerate(["Backend Engineer", "Platform Engineer", "Java Developer"]):
+        job, evaluation = _seed_job(db_session, "Example Co", title)
+        rows.append(_opportunity(job.id, FinalDecision.APPLY, 90 - index, fingerprint=evaluation.evaluation_fingerprint, title=title))
+    _install_opportunities(monkeypatch, rows)
+
+    previews = preview_notifications(db_session, _candidate())
+
+    assert [item.title for item in previews] == ["Backend Engineer", "Platform Engineer", "Java Developer"]
