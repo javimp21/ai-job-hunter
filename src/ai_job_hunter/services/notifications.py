@@ -60,6 +60,7 @@ class NotificationProvider(Protocol):
 
 COVER_LETTER_CALLBACK_PREFIX = "cl:"
 COVER_LETTER_SPANISH_CALLBACK_PREFIX = "cles:"
+APPLICATION_PACK_CALLBACK_PREFIX = "pc:"
 
 
 def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
@@ -80,6 +81,12 @@ def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
             [
                 {"text": "👍 Me interesa", "callback_data": f"{FEEDBACK_SAVE_PREFIX}{job_id}"},
                 {"text": "👎 No me interesa", "callback_data": f"{FEEDBACK_DISMISS_PREFIX}{job_id}"},
+            ],
+            [
+                {
+                    "text": "📝 Preparar candidatura",
+                    "callback_data": f"{APPLICATION_PACK_CALLBACK_PREFIX}{job_id}",
+                },
             ],
         ]
     }

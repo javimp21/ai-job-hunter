@@ -19,6 +19,7 @@ from pydantic import SecretStr
 
 from ai_job_hunter.services.cover_letters import CoverLetterDraft, CoverLetterError
 from ai_job_hunter.services.notifications import (
+    APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
     COVER_LETTER_SPANISH_CALLBACK_PREFIX,
     DISMISS_REASON_CODES,
@@ -212,6 +213,8 @@ def handle_update(
     generate: Callable[[UUID, str], CoverLetterDraft],
     generated: dict[tuple[UUID, str], CoverLetterDraft],
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
+    prepare: Callable[[UUID], Any] | None = None,
+    prepared: dict[UUID, Any] | None = None,
 ) -> str:
     """Handle one update and return "ignored", "generated", "failed", "duplicate" or "feedback".
 
@@ -234,6 +237,9 @@ def handle_update(
     feedback = _parse_feedback(callback.get("data"))
     if feedback is not None:
         return _handle_feedback(bot, callback_id, feedback, record_feedback)
+    pack_job = _parse_pack(callback.get("data"))
+    if pack_job is not None:
+        return _handle_pack(bot, callback_id, pack_job, prepare, prepared if prepared is not None else {}, alert_message_id)
     request = _parse_request(callback.get("data"))
     if request is None:
         _answer(bot, callback_id, "Acción no reconocida")
@@ -258,6 +264,65 @@ def handle_update(
     generated[key] = draft
     _send_draft(bot, draft, reply_to=alert_message_id)
     return "generated"
+
+
+def _parse_pack(data: Any) -> UUID | None:
+    if not isinstance(data, str) or not data.startswith(APPLICATION_PACK_CALLBACK_PREFIX):
+        return None
+    try:
+        return UUID(data[len(APPLICATION_PACK_CALLBACK_PREFIX):])
+    except ValueError:
+        return None
+
+
+def _handle_pack(
+    bot: TelegramBotClient,
+    callback_id: str,
+    job_id: UUID,
+    prepare: Callable[[UUID], Any] | None,
+    prepared: dict[UUID, Any],
+    reply_to: int | None,
+) -> str:
+    if prepare is None:
+        _answer(bot, callback_id, "Preparar candidatura no disponible")
+        return "ignored"
+    if job_id in prepared:
+        _answer(bot, callback_id, "Ya la preparé; te la reenvío")
+        _send_pack(bot, prepared[job_id], reply_to)
+        return "duplicate"
+    _answer(bot, callback_id, "Preparando candidatura (CV, carta y respuestas)…")
+    try:
+        pack = prepare(job_id)
+    except CoverLetterError as error:
+        bot.send_text(f"No se pudo preparar la candidatura: {error}", reply_to=reply_to)
+        return "failed"
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        bot.send_text(f"No se pudo preparar la candidatura (error inesperado: {type(error).__name__}).", reply_to=reply_to)
+        return "failed"
+    prepared[job_id] = pack
+    _send_pack(bot, pack, reply_to)
+    return "generated"
+
+
+def _send_pack(bot: TelegramBotClient, pack: Any, reply_to: int | None) -> None:
+    """CV + letter as one grouped reply, then the form answers as text. Nothing is submitted."""
+
+    letter = pack.letter
+    files = [path for path in (pack.cv_docx, pack.cv_pdf, letter.docx_path, letter.pdf_path) if path is not None]
+    cv_line = "CV adaptado a la oferta" if pack.cv_tailored else (pack.cv_note or "CV base")
+    caption = (
+        f"📝 Candidatura — {pack.company} · {pack.title}\n{cv_line} + cover letter.\n"
+        "Revísalo todo antes de usarlo; no se ha enviado nada."
+    )
+    sent = False
+    if files:
+        try:
+            sent = bot.send_document_group(files, caption=caption, reply_to=reply_to)
+        except TelegramBotError:
+            sent = False
+    if not sent:
+        bot.send_text(caption + "\n\n" + letter.text, reply_to=reply_to)
+    bot.send_text("📋 Respuestas para el formulario\n\n" + pack.answers_text.replace("**", ""), reply_to=reply_to)
 
 
 def _parse_feedback(data: Any) -> tuple[str, UUID, str | None] | None:
@@ -363,6 +428,7 @@ def run_bot(
     generate: Callable[[UUID, str], CoverLetterDraft],
     offset_path: Path,
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
+    prepare: Callable[[UUID], Any] | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -371,6 +437,7 @@ def run_bot(
 
     offset = load_offset(offset_path)
     generated: dict[tuple[UUID, str], CoverLetterDraft] = {}
+    prepared: dict[UUID, Any] = {}
     backoff = _BACKOFF_START
     cycles = 0
     while max_cycles is None or cycles < max_cycles:
@@ -386,6 +453,8 @@ def run_bot(
                         generate=generate,
                         generated=generated,
                         record_feedback=record_feedback,
+                        prepare=prepare,
+                        prepared=prepared,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:

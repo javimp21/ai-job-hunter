@@ -23,6 +23,7 @@ from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.models import HumanReviewStatus, OpportunityNotification
 from ai_job_hunter.services.notifications import (
+    APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
     FEEDBACK_DISMISS_PREFIX,
     FEEDBACK_SAVE_PREFIX,
@@ -221,7 +222,7 @@ def format_digest_message(entries: list[DigestEntry]) -> str:
 
 
 def digest_keyboard(entries: list[DigestEntry]) -> dict[str, Any]:
-    """One row per job: cover letter, 👍, 👎 — labelled with its number."""
+    """One row per job: cover letter, 👍, 👎, application pack — labelled with its number."""
 
     rows = []
     for index, entry in enumerate(entries, start=1):
@@ -231,6 +232,7 @@ def digest_keyboard(entries: list[DigestEntry]) -> dict[str, Any]:
                 {"text": f"{index} ✍️", "callback_data": f"{COVER_LETTER_CALLBACK_PREFIX}{job_id}"},
                 {"text": f"{index} 👍", "callback_data": f"{FEEDBACK_SAVE_PREFIX}{job_id}"},
                 {"text": f"{index} 👎", "callback_data": f"{FEEDBACK_DISMISS_PREFIX}{job_id}"},
+                {"text": f"{index} 📝", "callback_data": f"{APPLICATION_PACK_CALLBACK_PREFIX}{job_id}"},
             ]
         )
     return {"inline_keyboard": rows}

@@ -87,6 +87,7 @@ from ai_job_hunter.services.opportunities import (
     set_review_state,
     transition_application,
 )
+from ai_job_hunter.services.application_pack import prepare_application
 from ai_job_hunter.services.digest import preview_digest, send_digest
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -266,6 +267,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     cover_letter.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
+    pack = subparsers.add_parser(
+        "prepare-application",
+        help="tailored CV + cover letter + form answers for one job with Claude (saved locally; never submitted)",
+    )
+    pack.add_argument("job_id", type=UUID)
+    pack.add_argument("--language", choices=("auto", "es", "en"), default="auto")
+    pack.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     bot = subparsers.add_parser(
         "bot",
         help="listen for Telegram cover-letter buttons and reply with drafts (never sent anywhere)",
@@ -407,7 +416,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_local_apply_command(apply_args)
 
     candidate = None
-    if args.command in {"refresh", "reevaluate", "cover-letter", "bot", "opportunities", "show", "run"} or (
+    if args.command in {
+        "refresh", "reevaluate", "cover-letter", "prepare-application", "bot", "opportunities", "show", "run"
+    } or (
         args.command == "sources" and args.sources_command == "preview"
     ) or (
         args.command == "notify"
@@ -451,6 +462,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _print_refresh_summary(summary)
                 return 1 if summary.failures else 0
+            if args.command == "prepare-application":
+                try:
+                    pack_result = prepare_application(
+                        session,
+                        candidate,
+                        args.job_id,
+                        application_facts=load_candidate_application_facts(DEFAULT_APPLICATION_FACTS_PATH),
+                        documents=tuple(load_candidate_documents(Path("candidate_documents.local.json")).documents),
+                        language=args.language,
+                    )
+                except CoverLetterError as error:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                    return 1
+                print(f"APPLICATION PACK — {pack_result.company} — {pack_result.title} (nothing was submitted)")
+                print(f"CV: {pack_result.cv_pdf or pack_result.cv_docx} ({'tailored' if pack_result.cv_tailored else pack_result.cv_note})")
+                print(f"Letter: {pack_result.letter.pdf_path or pack_result.letter.path}")
+                print(f"Answers: {pack_result.answers_path}")
+                print()
+                print(pack_result.answers_text)
+                return 0
             if args.command == "cover-letter":
                 try:
                     draft = generate_cover_letter(
@@ -1076,6 +1107,16 @@ def _run_bot_command(candidate, settings) -> int:
                 language=language,
             )
 
+    def prepare(job_id: UUID):
+        with session_factory() as session:
+            return prepare_application(
+                session,
+                candidate,
+                job_id,
+                application_facts=application_facts,
+                documents=documents,
+            )
+
     def record_feedback(job_id: UUID, state: str, reason: str | None) -> None:
         with session_factory() as feedback_session:
             set_review_state(feedback_session, job_id, HumanReviewStatus(state), reason=reason)
@@ -1089,6 +1130,7 @@ def _run_bot_command(candidate, settings) -> int:
             generate=generate,
             offset_path=BOT_OFFSET_PATH,
             record_feedback=record_feedback,
+            prepare=prepare,
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

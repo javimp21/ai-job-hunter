@@ -45,6 +45,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-bot.ps1
 
 `scripts\run-bot.ps1` keeps the bot running, appends its output to `data\local\logs\bot-YYYY-MM.log` and restarts it 30 seconds after any exit. Drafts (`.md`, `.docx` and `.pdf`, named with the language) are saved under `data/local/cover-letters` and are never sent to anyone; review them before use. The bot only answers the chat configured in `TELEGRAM_CHAT_ID` (callbacks from any other chat are ignored), ignores unknown buttons, and resends the letter and files it already generated for that language (in the same bot session) instead of paying for a new one when a button is tapped again. Taps made while the bot was off are processed when it starts. Each letter costs roughly $0.05 with Claude Opus 5.5. Its update offset is kept in `data/local/telegram-bot-offset.json`, so restarts do not replay old taps. Alerts sent before this feature have no buttons, and alerts sent with the earlier single button keep working (it maps to the auto language).
 
+## Preparar candidatura
+
+Every alert (and every digest line, as `n 📝`) also has "📝 Preparar candidatura". The bot replies to the alert with one grouped message: a CV tailored to the posting and the cover letter, each as Word and PDF, followed by a text message with answers for typical application-form questions and the apply link. Nothing is submitted. `ai-job-hunter prepare-application <job_id> [--language auto|es|en]` does the same from the CLI.
+
+- The CV is tailored by Claude from the candidate's own base CV, `private/cv/CV_base_EN.md` / `CV_base_ES.md` (a small Markdown subset rendered single-column with standard bullets, ATS-friendly). It may retarget the headline and summary, reorder bullets and skills, and lightly rephrase with the posting's vocabulary. A validator rejects any tailored CV that changes the sections, the name or the contact/role/date/education lines, introduces a number that is not in the base CV, or lists a skill or headline technology that is not in it; the base CV is then sent instead, with the reason in the caption.
+- "Why this company / role" answers come from Claude in the candidate's voice; notice period, work authorization and relocation come verbatim from `candidate_application.local.json`, and the salary line shows the candidate's target next to the posting's published range. Missing facts say "(completa tú)".
+- Files are saved under `data/local/applications/<timestamp>-<company>-<title>/`. Each pack costs two Claude calls (letter + CV), roughly $0.10–0.15. A second tap in the same bot session resends the same pack.
+
 ## Periodic local run on Windows
 
 The `run` command refreshes already monitored supported ATS sources through the existing opportunity pipeline, then handles notifications. It does not resolve Company Leads on each run. Configure the notification credentials in `.env` before enabling delivery.

@@ -501,9 +501,10 @@ def test_each_alert_is_sent_with_a_cover_letter_button(db_session, monkeypatch):
 
     assert provider.markups == [cover_letter_keyboard(job.id)]
     row = provider.markups[0]["inline_keyboard"]
-    assert len(row) == 2 and [button["text"] for button in row[0]] == ["✍️ Cover letter", "🇪🇸 En español"]
+    assert len(row) == 3 and [button["text"] for button in row[0]] == ["✍️ Cover letter", "🇪🇸 En español"]
     assert [button["callback_data"] for button in row[0]] == [f"cl:{job.id}", f"cles:{job.id}"]
     assert [button["callback_data"] for button in row[1]] == [f"up:{job.id}", f"dn:{job.id}"]
+    assert [button["callback_data"] for button in row[2]] == [f"pc:{job.id}"]
     assert all(len(button["callback_data"].encode()) <= 64 for buttons in row for button in buttons)
 
 

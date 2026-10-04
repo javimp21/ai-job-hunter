@@ -107,7 +107,7 @@ def test_digest_is_sent_once_with_numbered_buttons_and_never_repeats(db_session,
     message = provider.messages[0]
     assert "<b>1.</b> [60]" in message and "<b>2.</b> [55]" in message
     keyboard = provider.markups[0]["inline_keyboard"]
-    assert [button["text"] for button in keyboard[0]] == ["1 ✍️", "1 👍", "1 👎"]
+    assert [button["text"] for button in keyboard[0]] == ["1 ✍️", "1 👍", "1 👎", "1 📝"]
     assert keyboard[1][0]["callback_data"] == f"cl:{rows[1].job_id}"
     assert all(len(button["callback_data"].encode()) <= 64 for row in keyboard for button in row)
     stored = db_session.scalars(select(OpportunityNotification).where(OpportunityNotification.channel == DIGEST_CHANNEL)).all()
