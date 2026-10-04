@@ -27,6 +27,7 @@ def test_models_import_and_relationships_are_configured() -> None:
         "companies",
         "company_evidence",
         "company_leads",
+        "connection_requests",
         "contacts",
         "job_evaluations",
         "job_reviews",

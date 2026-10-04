@@ -35,6 +35,10 @@ Do not infer values merely to complete a record.
 
 Applications, outreach and other consequential external actions require explicit user authorization.
 
+## D007 — Company Hunter is draft-and-suggest only
+
+Company Hunter ranks companies, stores verifiable public contacts, drafts outreach and queues manual LinkedIn connections, but never sends to companies and never touches LinkedIn: connections are clicked by the candidate and the tool records what they report. Fit scores are review priority, hints earn partial credit, UNKNOWN scores 0. Generated text is limited to the base CV and checked in code (placeholders, unsupported technologies/numbers, 300-character LinkedIn note limit). Details: `docs/COMPANY_HUNTER.md`.
+
 ## D006 — Provenance matters
 
 Company/job intelligence should retain enough source information to explain where claims originated.

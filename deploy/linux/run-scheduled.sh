@@ -47,6 +47,21 @@ if [ "$((10#$hour))" -ge 7 ] && [ "$(cat "$marker" 2>/dev/null)" != "$today" ]; 
     "$exe" sources auto-activate --limit 40 || true
     echo "$today" > "$marker"
 fi
+dow=$(TZ="$TIMEZONE" date +%u)
+hunter_marker="$SHARED_DIR/data/local/company-hunter.date"
+if [ "$dow" -le 5 ] && [ "$((10#$hour))" -ge 9 ] && [ "$(cat "$hunter_marker" 2>/dev/null)" != "$today" ]; then
+    # Weekdays after 09:00, once a day (marker written first so a failure never repeats paid calls
+    # every 15 minutes). Mondays also read top companies' public pages and post the weekly
+    # "Company Hunter" message. Everything goes to your own Telegram chat; nothing is sent to
+    # companies or LinkedIn.
+    echo "$today" > "$hunter_marker"
+    log "company hunter"
+    if [ "$dow" -eq 1 ]; then
+        "$exe" outreach find-contacts --top 15 || true
+        "$exe" outreach weekly --send || true
+    fi
+    "$exe" outreach connections --send || true
+fi
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1
