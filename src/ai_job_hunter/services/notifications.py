@@ -984,6 +984,12 @@ _PORTAL_CREDITS = (
     ("remoteok.com", "Remote OK", "https://remoteok.com"),
     ("remotive.com", "Remotive", "https://remotive.com"),
     ("jobicy.com", "Jobicy", "https://jobicy.com"),
+    ("4dayweek.io", "4dayweek.io", "https://4dayweek.io"),
+    ("arbeitnow.com", "Arbeitnow", "https://www.arbeitnow.com"),
+    ("arbeitnow.co.uk", "Arbeitnow", "https://www.arbeitnow.com"),
+    ("arbeitnow.fr", "Arbeitnow", "https://www.arbeitnow.com"),
+    ("arbeitnow.ch", "Arbeitnow", "https://www.arbeitnow.com"),
+    ("weworkremotely.com", "We Work Remotely", "https://weworkremotely.com"),
 )
 
 
