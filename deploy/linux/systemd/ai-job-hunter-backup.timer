@@ -1,0 +1,10 @@
+[Unit]
+Description=AI Job Hunter daily database backup
+
+[Timer]
+OnCalendar=*-*-* 23:50:00 Europe/Madrid
+Persistent=true
+Unit=ai-job-hunter-backup.service
+
+[Install]
+WantedBy=timers.target
