@@ -374,7 +374,7 @@ def test_client_posts_expected_requests_and_chunks_plain_text():
 
     method, data = requests[0]
     assert method == "getUpdates" and data["offset"] == ["7"]
-    assert json.loads(data["allowed_updates"][0]) == ["callback_query"]
+    assert json.loads(data["allowed_updates"][0]) == ["callback_query", "message"]
     assert requests[1][0] == "answerCallbackQuery" and requests[1][1]["callback_query_id"] == ["cb"]
     sends = requests[2:]
     assert len(sends) == 2 and all(m == "sendMessage" for m, _ in sends)

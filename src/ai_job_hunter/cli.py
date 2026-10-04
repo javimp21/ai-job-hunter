@@ -17,6 +17,8 @@ from ai_job_hunter.candidates import (
     CandidateConfigError,
     load_candidate_config,
 )
+from ai_job_hunter.company_hunter import cli as company_hunter
+from ai_job_hunter.company_hunter.bot import build_handlers as build_hunter_handlers
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.decision_engine import FinalDecision
@@ -381,6 +383,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     outreach_approve.add_argument("outreach_id", type=UUID)
     outreach_approve.add_argument("--note")
 
+    company_hunter.add_parsers(outreach_commands)
+
     for command_parser in outreach_commands.choices.values():
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
 
@@ -417,6 +421,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         and args.limit < 1
     ):
         parser.error("--limit must be positive")
+    if args.command == "outreach" and args.outreach_command in company_hunter.HUNTER_COMMANDS:
+        company_hunter.validate(args, parser)
 
     if args.command == "apply":
         try:
@@ -609,6 +615,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _print_opportunity(item, show_company_facts=True)
                 _print_application_history(session, args.job_id)
                 return 0
+            if args.command == "outreach" and args.outreach_command in company_hunter.HUNTER_COMMANDS:
+                return company_hunter.run(args, session, settings)
             if args.command == "outreach":
                 return _run_outreach_command(args, session, candidate)
             if args.command in {"seen", "save", "dismiss"}:
@@ -1148,6 +1156,7 @@ def _run_bot_command(candidate, settings) -> int:
             offset_path=BOT_OFFSET_PATH,
             record_feedback=record_feedback,
             prepare=prepare,
+            hunter=build_hunter_handlers(session_factory),
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

@@ -10,6 +10,7 @@ import json
 import os
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -17,6 +18,12 @@ from uuid import UUID
 import httpx
 from pydantic import SecretStr
 
+from ai_job_hunter.company_hunter.notify import (
+    CONNECTION_ACCEPTED_PREFIX,
+    CONNECTION_SENT_PREFIX,
+    CONNECTION_SKIP_PREFIX,
+    HUNTER_DRAFT_PREFIX,
+)
 from ai_job_hunter.services.cover_letters import CoverLetterDraft, CoverLetterError
 from ai_job_hunter.services.notifications import (
     APPLICATION_PACK_CALLBACK_PREFIX,
@@ -65,7 +72,7 @@ class TelegramBotClient:
     def get_updates(self, offset: int | None, timeout_seconds: int = 50) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "timeout": timeout_seconds,
-            "allowed_updates": json.dumps(["callback_query"]),
+            "allowed_updates": json.dumps(["callback_query", "message"]),
         }
         if offset is not None:
             payload["offset"] = offset
@@ -188,6 +195,114 @@ def split_text(text: str, limit: int = MAX_MESSAGE_CHARS) -> list[str]:
     return chunks or [""]
 
 
+@dataclass(frozen=True, slots=True)
+class HunterHandlers:
+    """Company Hunter callbacks; each returns plain text for the candidate and sends nothing outside the chat."""
+
+    # company id -> text with the email and LinkedIn DM drafts
+    draft_company: Callable[[UUID], str]
+    # ("sent" | "accepted" | "skip", request id) -> (button answer, optional reply text)
+    connection_action: Callable[[str, UUID], tuple[str, str | None]]
+    # (id of the message the candidate replied to, pasted text) -> reply text, or None when not ours
+    post_reply: Callable[[int, str], str | None]
+
+
+_CONNECTION_ACTIONS = {
+    CONNECTION_SENT_PREFIX: "sent",
+    CONNECTION_ACCEPTED_PREFIX: "accepted",
+    CONNECTION_SKIP_PREFIX: "skip",
+}
+
+
+def _parse_hunter(data: Any) -> tuple[str, UUID] | None:
+    """("draft" | "sent" | "accepted" | "skip", id) for a Company Hunter button, else None."""
+
+    if not isinstance(data, str):
+        return None
+    for prefix, action in ((HUNTER_DRAFT_PREFIX, "draft"), *_CONNECTION_ACTIONS.items()):
+        if data.startswith(prefix):
+            try:
+                return action, UUID(data[len(prefix):])
+            except ValueError:
+                return None
+    return None
+
+
+def _handle_hunter(
+    bot: TelegramBotClient,
+    callback_id: str,
+    action: tuple[str, UUID],
+    hunter: HunterHandlers | None,
+    reply_to: int | None,
+) -> str:
+    kind, identifier = action
+    if hunter is None:
+        _answer(bot, callback_id, "Company Hunter no disponible")
+        return "ignored"
+    if kind == "draft":
+        _answer(bot, callback_id, "Preparando borradores…")
+        try:
+            text = hunter.draft_company(identifier)
+        except CoverLetterError as error:
+            bot.send_text(f"No se pudieron preparar los borradores: {error}", reply_to=reply_to)
+            return "failed"
+        except Exception as error:  # noqa: BLE001 - the bot must keep running
+            bot.send_text(
+                f"No se pudieron preparar los borradores (error inesperado: {type(error).__name__}).",
+                reply_to=reply_to,
+            )
+            return "failed"
+        bot.send_text(text, reply_to=reply_to)
+        return "generated"
+    try:
+        answer, follow_up = hunter.connection_action(kind, identifier)
+    except CoverLetterError as error:
+        _answer(bot, callback_id, "Hecho, pero no se pudo redactar el mensaje")
+        bot.send_text(f"No se pudo redactar el mensaje de seguimiento: {error}", reply_to=reply_to)
+        return "failed"
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        _answer(bot, callback_id, f"No se pudo guardar ({type(error).__name__})")
+        return "failed"
+    _answer(bot, callback_id, answer)
+    if follow_up:
+        bot.send_text(follow_up, reply_to=reply_to)
+    return "connection"
+
+
+def _handle_message(
+    message: dict[str, Any], chat_id: str, bot: TelegramBotClient, hunter: HunterHandlers | None
+) -> str:
+    """A text reply to one of our LinkedIn-queue messages regenerates that person's note."""
+
+    chat = message.get("chat")
+    origin = chat.get("id") if isinstance(chat, dict) else None
+    if hunter is None or origin is None or str(origin) != str(chat_id).strip():
+        return "ignored"
+    text = message.get("text")
+    reply = message.get("reply_to_message")
+    replied_id = reply.get("message_id") if isinstance(reply, dict) else None
+    own_id = message.get("message_id")
+    if (
+        not isinstance(text, str)
+        or not text.strip()
+        or not isinstance(replied_id, int)
+        or isinstance(replied_id, bool)
+    ):
+        return "ignored"
+    try:
+        answer = hunter.post_reply(replied_id, text)
+    except CoverLetterError as error:
+        bot.send_text(f"No se pudo regenerar la nota: {error}", reply_to=own_id if isinstance(own_id, int) else None)
+        return "failed"
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        bot.send_text(f"No se pudo regenerar la nota (error inesperado: {type(error).__name__}).")
+        return "failed"
+    if answer is None:
+        return "ignored"
+    bot.send_text(answer, reply_to=own_id if isinstance(own_id, int) else None)
+    return "regenerated"
+
+
 def _parse_request(data: Any) -> tuple[UUID, str] | None:
     """Return (job_id, language) for a cover-letter callback, else None."""
 
@@ -215,8 +330,10 @@ def handle_update(
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
     prepare: Callable[[UUID], Any] | None = None,
     prepared: dict[UUID, Any] | None = None,
+    hunter: HunterHandlers | None = None,
 ) -> str:
-    """Handle one update and return "ignored", "generated", "failed", "duplicate" or "feedback".
+    """Handle one update and return "ignored", "generated", "failed", "duplicate", "feedback",
+    "connection" or "regenerated".
 
     Updates are handled one at a time, so a second tap on the same button
     arrives after the first letter is done; ``generated`` makes it resend that
@@ -225,6 +342,9 @@ def handle_update(
 
     callback = update.get("callback_query")
     if not isinstance(callback, dict):
+        message_update = update.get("message")
+        if isinstance(message_update, dict):
+            return _handle_message(message_update, chat_id, bot, hunter)
         return "ignored"
     message = callback.get("message")
     chat = message.get("chat") if isinstance(message, dict) else None
@@ -237,6 +357,9 @@ def handle_update(
     feedback = _parse_feedback(callback.get("data"))
     if feedback is not None:
         return _handle_feedback(bot, callback_id, feedback, record_feedback)
+    hunter_action = _parse_hunter(callback.get("data"))
+    if hunter_action is not None:
+        return _handle_hunter(bot, callback_id, hunter_action, hunter, alert_message_id)
     pack_job = _parse_pack(callback.get("data"))
     if pack_job is not None:
         return _handle_pack(bot, callback_id, pack_job, prepare, prepared if prepared is not None else {}, alert_message_id)
@@ -429,6 +552,7 @@ def run_bot(
     offset_path: Path,
     record_feedback: Callable[[UUID, str, str | None], None] | None = None,
     prepare: Callable[[UUID], Any] | None = None,
+    hunter: HunterHandlers | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -455,6 +579,7 @@ def run_bot(
                         record_feedback=record_feedback,
                         prepare=prepare,
                         prepared=prepared,
+                        hunter=hunter,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:
