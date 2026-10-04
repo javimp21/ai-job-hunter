@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
     # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy. Adzuna needs the keys below.
-    job_portals: str = "himalayas,manfred,remoteok,remotive,jobicy"
+    # remoteok is off by default: applying through Remote OK requires a paid plan.
+    job_portals: str = "himalayas,manfred,remotive,jobicy,adzuna"
     # Optional Adzuna credentials (https://developer.adzuna.com); the adzuna portal is skipped without them.
     adzuna_app_id: SecretStr | None = None
     adzuna_app_key: SecretStr | None = None

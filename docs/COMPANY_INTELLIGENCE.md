@@ -75,7 +75,7 @@ Manfred (getmanfred.com, Spanish tech jobs) is read from the public JSON its own
 
 ### Additional portals
 
-Enable them with `JOB_PORTALS` (comma-separated); the default is `himalayas,manfred,remoteok,remotive,jobicy` (add `adzuna` once its keys are set). Each is throttled through `data/local/portal-state.json` and shows a visible credit and link in alerts and digests (`portal_credit` in `services/notifications.py`).
+Enable them with `JOB_PORTALS` (comma-separated); the default is `himalayas,manfred,remotive,jobicy,adzuna` (`adzuna` is skipped until its keys are set; `remoteok` is off because applying through it requires a paid plan) (add `adzuna` once its keys are set). Each is throttled through `data/local/portal-state.json` and shows a visible credit and link in alerts and digests (`portal_credit` in `services/notifications.py`).
 
 | Portal | Interval | Notes |
 | --- | --- | --- |
