@@ -43,7 +43,12 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
     region: str | None = None
     evidence: str | None = None
     identifier: str | None = None
-    if host in {"boards.greenhouse.io", "job-boards.greenhouse.io", "boards.eu.greenhouse.io"}:
+    if host in {
+        "boards.greenhouse.io",
+        "job-boards.greenhouse.io",
+        "boards.eu.greenhouse.io",
+        "job-boards.eu.greenhouse.io",
+    }:
         provider = ATSProvider.GREENHOUSE
         evidence = f"Exact Greenhouse board hostname '{host}' matched; the first path segment is the board token."
     elif host in {"jobs.lever.co", "jobs.eu.lever.co"}:

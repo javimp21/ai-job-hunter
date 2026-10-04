@@ -568,6 +568,9 @@ def _classify_role_family(title: str) -> RoleFamilyAssessment:
     )
 
 
+_BUSINESS_DEVELOPMENT = re.compile(r"\bbusiness\s+develop(?:er|ment)\b", re.IGNORECASE)
+
+
 def _clearly_non_technical_role(title: str) -> str | None:
     """Classify explicit non-technical title families using normalized title tokens."""
 
@@ -608,7 +611,8 @@ def _clearly_non_technical_role(title: str) -> str | None:
     # Product management is its own family; "product engineer" remains technical.
     if {"product", "manager"} <= tokens:
         return "product management"
-    if "business" in tokens and ({"development", "developer"} & tokens):
+    # Role tokens fold "developer" into "engineer", so match the raw title.
+    if _BUSINESS_DEVELOPMENT.search(title):
         return "business development"
     if "account" in tokens and ({"executive", "manager"} & tokens):
         return "sales"

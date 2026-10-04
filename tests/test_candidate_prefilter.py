@@ -801,3 +801,11 @@ def test_executive_titles_are_above_mid_seniority(title: str) -> None:
     result = evaluate_job(facts_for(title=title), make_config(preferences={"maximum_seniority": "MID"}))
 
     assert result.signals.seniority.status is SignalStatus.INCOMPATIBLE
+
+
+@pytest.mark.parametrize("title", ["Business Developer", "Senior Business Developer - Madrid", "Business Development Manager"])
+def test_business_developer_is_not_a_software_developer(title: str) -> None:
+    result = evaluate_job(facts_for(title=title), make_config())
+
+    assert result.signals.role_family.fit is RoleFamilyFit.NON_TARGET
+    assert result.decision is PreFilterDecision.REJECT

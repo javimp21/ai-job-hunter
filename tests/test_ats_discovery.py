@@ -19,6 +19,7 @@ from ai_job_hunter.services.company_intelligence import public_board_url
     [
         ("https://boards.greenhouse.io/acme/jobs/123", ATSProvider.GREENHOUSE, "acme", None),
         ("https://job-boards.greenhouse.io/acme-platform", ATSProvider.GREENHOUSE, "acme-platform", None),
+        ("https://job-boards.eu.greenhouse.io/submer/jobs/123", ATSProvider.GREENHOUSE, "submer", None),
         ("https://jobs.lever.co/acme/abc", ATSProvider.LEVER, "acme", "global"),
         ("https://jobs.eu.lever.co/acme-eu/abc", ATSProvider.LEVER, "acme-eu", "eu"),
         ("https://jobs.ashbyhq.com/acme-company/abc", ATSProvider.ASHBY, "acme-company", None),

@@ -9,6 +9,7 @@ import socket
 from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -261,7 +262,8 @@ def resolve_company_leads(
         session.scalars(
             select(CompanyLead)
             .where(CompanyLead.status.in_(statuses))
-            .order_by(CompanyLead.created_at, CompanyLead.company_name)
+            # Least recently checked first, so repeated rechecks walk every lead.
+            .order_by(CompanyLead.updated_at, CompanyLead.created_at, CompanyLead.company_name)
             .limit(limit)
         ).all()
     )
@@ -277,6 +279,8 @@ def resolve_company_leads(
             try:
                 outcome = _resolve_one(lead, http_client, resolver)
                 with session.begin_nested():
+                    # Mark it checked even when nothing changed (recheck order).
+                    lead.updated_at = datetime.now(UTC)
                     lead.status = outcome.status.value
                     lead.careers_url = outcome.careers_url or lead.careers_url
                     lead.resolution_note = outcome.note
@@ -313,6 +317,7 @@ def resolve_company_leads(
                 )
             except (CareerPageDiscoveryError, httpx.RequestError) as error:
                 with session.begin_nested():
+                    lead.updated_at = datetime.now(UTC)
                     lead.status = CompanyLeadStatus.FAILED.value
                     lead.resolution_note = str(error)[:1000]
                     lead.ats_provider = None

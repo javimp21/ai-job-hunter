@@ -452,3 +452,23 @@ def test_directories_become_leads_without_linkedin_careers_pages():
     assert "90000" in leads["TopCo"].hiring_hint
     assert leads["SalaryCo"].careers_url == "https://jobs.lever.co/salaryco"
     assert leads["SalaryCo"].source_type == "curated_directory"
+
+
+def test_repeated_rechecks_rotate_through_unchanged_leads(db_session):
+    pages = {
+        "https://a.test/careers": "<p>Open roles by email</p>",
+        "https://b.test/careers": "<p>Open roles by email</p>",
+    }
+    for name, host in (("A Co", "a.test"), ("B Co", "b.test")):
+        lead = _import_one(db_session, _input(name=name, website=f"https://{host}", careers=f"https://{host}/careers"))
+        lead.status = CompanyLeadStatus.RESOLVED.value
+    db_session.commit()
+
+    checked = [
+        resolve_company_leads(
+            db_session, client=_client(pages), host_resolver=PUBLIC_DNS, recheck_unsupported=True, limit=1
+        ).results[0].company_name
+        for _ in range(2)
+    ]
+
+    assert sorted(checked) == ["A Co", "B Co"]
