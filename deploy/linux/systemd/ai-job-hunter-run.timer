@@ -1,10 +1,17 @@
 [Unit]
-Description=AI Job Hunter run: every 15 min 07:00-23:45 and hourly 00:00-06:00 (Europe/Madrid)
+Description=AI Job Hunter run schedule (Europe/Madrid): every 15 min on weekday days, hourly on weekends, every 2 h at night
 
 [Timer]
-# Daytime: :00 :15 :30 :45 from 07 to 23. Night: on the hour from 00 to 06.
-OnCalendar=*-*-* 07..23:00,15,30,45:00 Europe/Madrid
-OnCalendar=*-*-* 00..06:00:00 Europe/Madrid
+# Weekdays 06:45-00:45 every 15 minutes (the 00:xx runs fall on the next calendar day).
+OnCalendar=Mon..Fri *-*-* 06:45:00 Europe/Madrid
+OnCalendar=Mon..Fri *-*-* 07..23:00/15:00 Europe/Madrid
+OnCalendar=Tue..Sat *-*-* 00:00/15:00 Europe/Madrid
+# Weekends 08:00-00:00 hourly (Sun/Mon 00:00 close Saturday and Sunday evenings).
+OnCalendar=Sat,Sun *-*-* 08..23:00:00 Europe/Madrid
+OnCalendar=Sun,Mon *-*-* 00:00:00 Europe/Madrid
+# Nights every 2 hours; weekend mornings until 08:00.
+OnCalendar=*-*-* 01,03,05:00:00 Europe/Madrid
+OnCalendar=Sat,Sun *-*-* 07:00:00 Europe/Madrid
 Persistent=true
 Unit=ai-job-hunter-run.service
 

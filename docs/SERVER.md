@@ -170,8 +170,9 @@ Telegram allows one `getUpdates` poller per bot. Two pollers make both lose taps
 
 | Window | Frequency |
 |---|---|
-| 07:00-23:45 | every 15 minutes (`:00 :15 :30 :45`) |
-| 00:00-06:00 | hourly on the hour |
+| Monday-Friday 06:45-01:00 | every 15 minutes |
+| Saturday-Sunday 08:00-00:00 | hourly |
+| Nights (01:00-06:45 weekdays, 01:00-08:00 weekends) | every 2 hours (01, 03, 05, and 07 on weekends) |
 
 Each tick runs `ai-job-hunter run --limit-companies 1000 --max-jobs-per-company 500 --max-jev-jobs 40 --max-notifications 10 --retry-pending` under `flock` (`shared/data/local/run.lock`): a tick that finds a run or a deploy in progress logs and skips. A run is capped at 55 minutes. When the local hour is >= 20 it then runs `ai-job-hunter notify digest` (which itself sends at most one digest per 20 hours). A non-zero exit sends `ai-job-hunter notify system --text …` to Telegram, like `run-scheduled.ps1`.
 
