@@ -472,3 +472,17 @@ def test_repeated_rechecks_rotate_through_unchanged_leads(db_session):
     ]
 
     assert sorted(checked) == ["A Co", "B Co"]
+
+
+def test_reimport_with_a_new_careers_url_queues_the_lead_again(db_session):
+    lead = _import_one(db_session, _input(name="Bank Co", website="https://bank.test"))
+    lead.status = CompanyLeadStatus.NO_CAREERS_PAGE.value
+    db_session.commit()
+
+    import_company_leads(
+        db_session,
+        CompanyLeadsConfig(leads=[_input(name="Bank Co", website="https://bank.test", careers="https://job-boards.greenhouse.io/bankco")]),
+    )
+
+    assert lead.careers_url == "https://job-boards.greenhouse.io/bankco"
+    assert lead.status == CompanyLeadStatus.NEW.value

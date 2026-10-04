@@ -211,6 +211,9 @@ def import_company_leads(
                 if current is None and incoming is not None:
                     setattr(lead, field_name, incoming)
                     changed = True
+                    if field_name == "careers_url" and lead.status != CompanyLeadStatus.SUPPORTED_ATS.value:
+                        # A newly supplied careers page deserves a fresh resolution.
+                        lead.status = CompanyLeadStatus.NEW.value
             if changed:
                 updated += 1
             else:

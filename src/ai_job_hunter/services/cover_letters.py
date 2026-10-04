@@ -57,7 +57,8 @@ Hard rules:
 - Write in the language of the job posting (Spanish posting -> Spanish letter; otherwise English).
 - 180-260 words, 3-5 short paragraphs, plain text. No subject line, no placeholders, no address block, no date.
 - When explaining why the company interests the candidate, use general, verifiable aspects: the sector, the product and its users or clients, the technologies they use, the team size or stage, the engineering culture. Do not single out narrow internal details of one team (e.g. what a specific sub-team delivers to a specific partner); nobody is genuinely drawn by those.
-- Never state the candidate's number of years of experience, even if the posting asks for more. If the posting asks for a technology the candidate lacks, do not hide it and do not apologise at length: one honest sentence pairing the gap with the closest real experience and the intent to learn.
+- Sell the candidate well: lead with what they bring and why it fits. Never state their number of years of experience, even if the posting asks for more. Never volunteer gaps or write sentences like "I haven't worked with X" or "I don't have experience in Y"; if the posting asks for something missing from the inputs, leave it out and instead stress the closest real experience. Still never claim anything the inputs do not support.
+- Follow a natural chronological order: the opening paragraph says who the candidate is, including what they studied and where, and their current role; then what they do there; then why this company and role; then availability/closing.
 - Motivations must come from the style guide's confirmed situation/motivations section, the CV, or the posting; do not infer new ones.
 - Follow the candidate's style guide below exactly; it overrides generic cover-letter conventions. Avoid every phrase it lists as AI-sounding.
 - Sign with the sign-off name from the style guide if it gives one, otherwise the candidate's first name.
