@@ -67,9 +67,11 @@ Supported ATS providers (public, keyless connectors): Greenhouse, Lever, Ashby, 
 
 ## Job portals
 
-Besides ACTIVE company boards, `refresh`/`run` query the job portals listed in `JOB_PORTALS` (default `himalayas`; set it empty in `.env` to disable). Portals are searched with filters (country Spain, backend/software/platform/Java keywords), not crawled, and each one is queried at most once per polling interval (Himalayas: 20 h, state in `data/local/portal-state.json`; `--dry-run` never advances it).
+Besides ACTIVE company boards, `refresh`/`run` query the job portals listed in `JOB_PORTALS` (default `himalayas,manfred`; set it empty in `.env` to disable). Portals are searched with filters (country Spain, backend/software/platform/Java keywords), not crawled, and each one is queried at most once per polling interval (Himalayas: 20 h, state in `data/local/portal-state.json`; `--dry-run` never advances it).
 
 Himalayas gives each remote job's allowed countries: an empty list is worldwide, `Spain` alone is Spain-only, and any other list is country-restricted, so a list without Spain is a deterministic geography SKIP. Salary ranges are kept when published. Its terms require a visible credit, so alerts from it show "Fuente: Himalayas". Portal jobs go through the normal ingestion, deduplication, prefilter, Jev and notification pipeline.
+
+Manfred (getmanfred.com, Spanish tech jobs) is read from the public JSON its own site uses (`/api/v2/public/offers`, undocumented, so any shape change fails the portal with a clear error and the refresh continues). The listing holds every offer ever published; only `ACTIVE` ones are kept (about 20 at a time) and each one's detail supplies the description, technologies and `lastStatusChange`, used as the publication date (when the offer last became active; `updatedAt` is only the last edit). `remotePercentage` maps 100 to remote, 0 to on-site and anything between to hybrid; salaries are gross annual and kept only with a known currency. Polled at most hourly; alerts show "Fuente: Manfred".
 
 ## Closed postings
 

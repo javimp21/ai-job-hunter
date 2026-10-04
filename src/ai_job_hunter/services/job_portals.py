@@ -18,6 +18,7 @@ from pathlib import Path
 import httpx
 
 from ai_job_hunter.connectors.himalayas import HimalayasConnector, HimalayasConnectorError
+from ai_job_hunter.connectors.manfred import ManfredConnector, ManfredConnectorError
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 
 DEFAULT_STATE_PATH = Path("data/local/portal-state.json")
@@ -37,6 +38,12 @@ PORTALS: dict[str, PortalSpec] = {
         min_interval=timedelta(hours=20),
         build=lambda client: HimalayasConnector(client=client),
         errors=(HimalayasConnectorError,),
+    ),
+    "manfred": PortalSpec(
+        name="manfred",
+        min_interval=timedelta(hours=1),
+        build=lambda client: ManfredConnector(client=client),
+        errors=(ManfredConnectorError,),
     ),
 }
 

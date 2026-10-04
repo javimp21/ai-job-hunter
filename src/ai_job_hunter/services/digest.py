@@ -214,6 +214,8 @@ def format_digest_message(entries: list[DigestEntry]) -> str:
         )
     if any((_host(entry.item.url) or "").endswith("himalayas.app") for entry in entries):
         lines.extend(["", '📡 Algunas vía <a href="https://himalayas.app">Himalayas</a>'])
+    if any((_host(entry.item.url) or "").endswith("getmanfred.com") for entry in entries):
+        lines.extend(["", '📡 Algunas vía <a href="https://www.getmanfred.com">Manfred</a>'])
     lines.append("<i>[n] = prioridad de revisión, no probabilidad.</i>")
     return "\n".join(lines)
 

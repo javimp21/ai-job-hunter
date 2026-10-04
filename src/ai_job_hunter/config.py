@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
-    job_portals: str = "himalayas"
+    job_portals: str = "himalayas,manfred"
 
 
 def get_settings() -> Settings:
