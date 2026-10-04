@@ -88,6 +88,28 @@ Enable them with `JOB_PORTALS` (comma-separated); the default is `himalayas,manf
 
 Response shapes were written from each provider's public documentation; they were not verified against live responses from the development sandbox (network policy blocked these hosts), so run `refresh --dry-run` once with the portal enabled and check the first results.
 
+### Regional portals evaluated and not integrated (checked 2026-10-04)
+
+Luxembourg, Switzerland, the Netherlands, Ireland and EU-wide portals were checked with read-only `robots.txt`/homepage requests. None offers a documented public feed or API for third parties, so none is a portal here; reaching them would mean scraping listings.
+
+| Portal | Result |
+| --- | --- |
+| jobs.lu | No feed or API found; `robots.txt` redirects to `en.jobs.lu`, which returned an error page. |
+| moovijob.com | No RSS/API (`/rss` is the homepage); `robots.txt` blocks offer-detail paths. A sitemap exists but is for search engines. |
+| ADEM (adem.public.lu) | No postings feed; its open-data set on data.public.lu is only skills statistics. `robots.txt` blocks query URLs. |
+| jobs.ch / jobup.ch | No public API; `robots.txt` disallows `/api/` and vacancy detail pages. |
+| job-room.ch (SECO) | `robots.txt` asks crawlers not to read job adverts. |
+| swissdevjobs.ch | Cloudflare challenge (403) for non-browser clients; not bypassed. |
+| werk.nl | No public vacancy API found; the site answers non-browser requests with a session redirect. |
+| nationalevacaturebank.nl, werkzoeken.nl | Web application firewall returns 403 to non-browser clients; not bypassed. |
+| irishjobs.ie / jobs.ie | No feed or API found; `robots.txt` restricts search/filter URLs and `/jobs/permanent` for general crawlers and disallows everything for several named bots. |
+| EURES | No documented third-party API. The portal's search endpoint is an undocumented frontend API (the published specs are community reverse-engineering); the legal notice allows reuse with acknowledgement of ELA but says nothing about automated access. Needs an explicit decision before use. |
+| germantechjobs.de | Not one of the four target countries; its JSON endpoint is undocumented. |
+
+Adzuna covers some of these countries through its documented API and is already supported; extending its searches beyond Spain needs `ADZUNA_APP_ID`/`ADZUNA_APP_KEY`, which were not available to verify.
+
+Employers in these countries are covered through their ATS boards instead: see `config/leads/high-pay-europe-2026-10.json`.
+
 ## Closed postings
 
 Every ingest updates a job source's `last_seen_at` and clears `closed_at`. After a refresh, a posting of an ACTIVE company board is marked closed (`closed_at`) when that board was fetched successfully and completely but no longer lists it. Boards that failed, returned nothing, or hit `--max-jobs-per-company` (a truncated listing) never close anything, and portal results (search-based) never do either. A job whose sources are all closed leaves the feed and cannot alert; if it is listed again it reopens automatically.
