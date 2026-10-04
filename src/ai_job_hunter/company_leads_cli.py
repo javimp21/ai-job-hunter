@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
+import httpx
 from sqlalchemy.exc import SQLAlchemyError
 
 from ai_job_hunter.company_leads import (
@@ -22,10 +24,21 @@ from ai_job_hunter.company_leads import (
 from ai_job_hunter.company_sources import (
     MANFRED_PUBLIC_SALARY,
     SPANISH_TOP_TECH,
+    CompanySourceError,
     refresh_company_source_snapshots,
 )
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.hn_hiring import HNHiringError, fetch_latest_thread, leads_from_thread
+from ai_job_hunter.lead_refresh import (
+    DEFAULT_STATE_PATH,
+    directories_check_due,
+    directory_needs_import,
+    hn_thread_needs_import,
+    load_state,
+    record_directory,
+    record_hn_thread,
+    save_state,
+)
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.models import CompanyLeadStatus
 
@@ -50,11 +63,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="all",
         help="import one directory at a time (Spanish Top Tech has no usable careers URLs yet)",
     )
+    directories_parser.add_argument(
+        "--if-due",
+        action="store_true",
+        help="scheduled mode: look at most weekly and import only a directory whose content changed "
+        "or that was last imported 30+ days ago",
+    )
     hn_parser = subparsers.add_parser(
         "import-hn", help="import companies from the latest Hacker News 'Who is hiring?' thread"
     )
     hn_parser.add_argument(
         "--all", action="store_true", help="keep every posting, not only remote roles open to Europe/global/Spain"
+    )
+    hn_parser.add_argument(
+        "--new-only",
+        action="store_true",
+        help="scheduled mode: skip a thread that was already imported once it had settled (7+ days old)",
     )
     list_parser = subparsers.add_parser("list", help="list imported company leads")
     list_parser.add_argument("--status", choices=tuple(item.value for item in CompanyLeadStatus))
@@ -72,6 +96,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for command_parser in (import_parser, directories_parser, hn_parser, list_parser, resolve_parser, show_parser):
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
+    for command_parser in (directories_parser, hn_parser):
+        command_parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_PATH, help=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
     if args.command == "import":
@@ -82,17 +108,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
     elif args.command == "import-hn":
         try:
-            config = leads_from_thread(fetch_latest_thread(), reachable_only=not args.all)
+            state = load_state(args.state_file)
+            thread = fetch_latest_thread(
+                needs_import=(lambda thread_id, posted_at: hn_thread_needs_import(thread_id, posted_at, state))
+                if args.new_only
+                else None
+            )
+            if thread is None:
+                print("HN WHO IS HIRING: latest thread already imported; nothing to do")
+                return 0
+            config = leads_from_thread(thread, reachable_only=not args.all)
         except (HNHiringError, CompanyLeadsConfigError) as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 2
     elif args.command == "import-directories":
-        batches, skipped = refresh_company_source_snapshots(offline=args.offline)
+        try:
+            state = load_state(args.state_file)
+            if args.if_due and not directories_check_due(_wanted_providers(args.directory), state):
+                print("COMPANY DIRECTORIES: checked recently; nothing to do")
+                return 0
+            batches, skipped = refresh_company_source_snapshots(offline=args.offline)
+        except (httpx.HTTPError, CompanySourceError) as error:
+            print(f"ERROR: directory refresh failed ({type(error).__name__}).", file=sys.stderr)
+            return 2
         wanted = {"manfred": MANFRED_PUBLIC_SALARY, "spanish-top-tech": SPANISH_TOP_TECH}.get(args.directory)
         if wanted is not None:
             batches = tuple(batch for batch in batches if batch.provider == wanted)
         for item in skipped:
             print(f"Skipped directory {item.provider}: {item.reason}", file=sys.stderr)
+        checked_batches = batches
+        if args.if_due:
+            batches = tuple(
+                batch for batch in batches if directory_needs_import(batch.provider, batch.body_sha256, state)
+            )
+            if not batches:
+                for batch in checked_batches:
+                    record_directory(state, batch.provider, batch.body_sha256, imported=False)
+                save_state(state, args.state_file)
+                print("COMPANY DIRECTORIES: unchanged and imported within 30 days; nothing to do")
+                return 0
         try:
             config = leads_from_company_directories(batches)
         except CompanyLeadsConfigError as error:
@@ -119,6 +173,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"CREATED {summary.created} | DUPLICATES {summary.duplicates} | "
                     f"UPDATED {summary.updated} | UNCHANGED {summary.unchanged} | INVALID 0"
                 )
+                # Remember only after the commit, so a failed import is retried next day.
+                if args.command == "import-hn":
+                    record_hn_thread(state, str(thread.get("id")), now=datetime.now(UTC))
+                    save_state(state, args.state_file)
+                elif args.command == "import-directories":
+                    imported_names = {batch.provider for batch in batches}
+                    for batch in checked_batches:
+                        record_directory(
+                            state, batch.provider, batch.body_sha256, imported=batch.provider in imported_names
+                        )
+                    save_state(state, args.state_file)
                 return 0
             if args.command == "list":
                 rows = list_company_leads(
@@ -178,6 +243,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         engine.dispose()
     return 2
+
+
+def _wanted_providers(directory: str) -> list[str]:
+    chosen = {"manfred": [MANFRED_PUBLIC_SALARY], "spanish-top-tech": [SPANISH_TOP_TECH]}
+    return chosen.get(directory, [MANFRED_PUBLIC_SALARY, SPANISH_TOP_TECH])
 
 
 def _print_lead(lead) -> None:

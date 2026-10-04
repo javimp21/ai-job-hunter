@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import html
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -42,8 +43,15 @@ class HNHiringError(RuntimeError):
     """A safe, user-readable failure fetching or parsing the thread."""
 
 
-def fetch_latest_thread(client: httpx.Client | None = None) -> Mapping[str, Any]:
-    """Return the newest "Ask HN: Who is hiring?" thread with its comments."""
+def fetch_latest_thread(
+    client: httpx.Client | None = None, *, needs_import: Callable[[str, datetime | None], bool] | None = None
+) -> Mapping[str, Any] | None:
+    """Return the newest "Ask HN: Who is hiring?" thread with its comments.
+
+    With ``needs_import`` the thread body is only downloaded when that callback
+    (thread id, posting time) says so; otherwise ``None`` is returned after a
+    single search request.
+    """
 
     owns = client is None
     active = client or httpx.Client(timeout=30.0, headers={"User-Agent": "AI-Job-Hunter/0.1"})
@@ -54,10 +62,20 @@ def fetch_latest_thread(client: httpx.Client | None = None) -> Mapping[str, Any]
         hits = [hit for hit in search.get("hits") or [] if str(hit.get("title", "")).startswith("Ask HN: Who is hiring?")]
         if not hits:
             raise HNHiringError("No 'Who is hiring?' thread was found.")
-        return _get_json(active, ITEM_URL.format(id=hits[0]["objectID"]), None)
+        newest = hits[0]
+        if needs_import is not None and not needs_import(str(newest["objectID"]), _posted_at(newest)):
+            return None
+        return _get_json(active, ITEM_URL.format(id=newest["objectID"]), None)
     finally:
         if owns:
             active.close()
+
+
+def _posted_at(item: Mapping[str, Any]) -> datetime | None:
+    stamp = item.get("created_at_i")
+    if isinstance(stamp, bool) or not isinstance(stamp, int):
+        return None
+    return datetime.fromtimestamp(stamp, UTC)
 
 
 def leads_from_thread(thread: Mapping[str, Any], *, reachable_only: bool = True) -> CompanyLeadsConfig:
