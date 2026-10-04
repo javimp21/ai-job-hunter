@@ -38,6 +38,7 @@ from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
+from ai_job_hunter.connectors.factorial import FactorialConnectorError
 from ai_job_hunter.connectors.personio import PersonioConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnectorError
 from ai_job_hunter.connectors.workday import WorkdayConnectorError
@@ -1073,6 +1074,7 @@ def _fetch_targets(
                 TeamtailorConnectorError,
                 WorkableConnectorError,
                 PersonioConnectorError,
+                FactorialConnectorError,
                 WorkdayConnectorError,
             ) as error:
                 failures.append(

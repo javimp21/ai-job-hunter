@@ -13,11 +13,14 @@ from ai_job_hunter.connectors.smartrecruiters import (
     SmartRecruitersConnectorError,
 )
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector, TeamtailorConnectorError
+from ai_job_hunter.connectors.factorial import FactorialConnector, FactorialConnectorError
 from ai_job_hunter.connectors.personio import PersonioConnector, PersonioConnectorError
 from ai_job_hunter.connectors.workday import WorkdayConnector, WorkdayConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnector, WorkableConnectorError
 
 __all__ = [
+    "FactorialConnector",
+    "FactorialConnectorError",
     "WorkdayConnector",
     "WorkdayConnectorError",
     "PersonioConnector",

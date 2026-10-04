@@ -1,7 +1,8 @@
-"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable, Personio and Workday job boards.
+"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable, Personio, Workday and Factorial HR job boards.
 
 Teamtailor is detected only on ``{company}.teamtailor.com`` and Personio only on
-``{company}.jobs.personio.de|com``; Workday only on
+``{company}.jobs.personio.de|com``; Factorial HR only on
+``{company}.factorialhr.com`` (region ``com``) and ``{company}.factorial.es`` (region ``es``); Workday only on
 ``{tenant}.wdN.myworkdayjobs.com/[locale/]{site}``; custom career domains are not guessed."""
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ _WORKDAY_HOST = re.compile(r"^([a-z0-9][a-z0-9-]{0,62})\.(wd[0-9]{1,3})\.myworkd
 _WORKDAY_LOCALE = re.compile(r"^[A-Za-z]{2}([-_][A-Za-z]{2})?$")
 # Path segments that are Workday internals, not a career site name.
 _WORKDAY_NON_SITES = {"wday", "job", "jobs", "login", "introduceyourself", "userhome"}
+# Factorial HR product/marketing hosts that are not a company careers site.
+_FACTORIAL_NON_SITES = {"www", "app", "api", "help", "blog", "support", "assets"}
 
 
 def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
@@ -95,10 +98,15 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
             identifier = label
             region = "com" if parent.endswith(".com") else None
             evidence = f"Personio career-site subdomain '{host}' matched; the subdomain is the company identifier."
+        elif parent in {"factorialhr.com", "factorial.es"} and label not in _FACTORIAL_NON_SITES:
+            provider = ATSProvider.FACTORIAL
+            identifier = label
+            region = "com" if parent == "factorialhr.com" else "es"
+            evidence = f"Factorial HR careers subdomain '{host}' matched; the subdomain is the company identifier."
 
     if provider is None:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
-    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO, ATSProvider.WORKDAY}:
+    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO, ATSProvider.FACTORIAL, ATSProvider.WORKDAY}:
         identifier = segments[0] if segments else None
     if identifier is None or (provider is not ATSProvider.WORKDAY and not _BOARD_IDENTIFIER.fullmatch(identifier)):
         return ATSDiscoveryResult(
