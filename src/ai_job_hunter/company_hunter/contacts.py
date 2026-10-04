@@ -20,6 +20,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai_job_hunter.company_hunter.fetching import FetchRefused, PoliteFetcher
+from ai_job_hunter.company_hunter.ranking import SizeEstimate, company_size
+from ai_job_hunter.company_hunter.relevance import assess_role, is_target, relevance, role_belongs_to
 from ai_job_hunter.company_hunter.people import (
     ParsedPage,
     PersonCandidate,
@@ -29,25 +31,17 @@ from ai_job_hunter.company_hunter.people import (
 )
 from ai_job_hunter.contact_discovery.matching import canonical_linkedin_profile_url
 from ai_job_hunter.deduplication.normalization import extract_company_domain
-from ai_job_hunter.models import Company, CompanyLead
-from ai_job_hunter.models.contact import ContactType
+from ai_job_hunter.models import Company, CompanyLead, ConnectionRequest, Contact, Outreach
 from ai_job_hunter.services.outreach_persistence import OutreachPersistenceError, create_contact
 
 GITHUB_API_HOST = "api.github.com"
 MAX_GITHUB_MEMBERS = 6
 MAX_TEAM_PAGES = 3
 MAX_BLOG_POSTS = 2
-_KEPT_TYPES = frozenset(
-    {
-        ContactType.ENGINEER,
-        ContactType.ENGINEERING_MANAGER,
-        ContactType.FOUNDER,
-        ContactType.TALENT,
-        ContactType.RECRUITER,
-    }
-)
+MAX_STORED_PER_COMPANY = 12
 _TEAM_LINK = re.compile(
-    r"team|equipo|people|leadership|about|nosotros|quienes|qui[eé]nes|who.?we.?are|company|empresa|engineering",
+    r"team|equipo|people|leadership|management|about|acerca|nosotros|quienes|qui[eé]nes|who.?we.?are|company"
+    r"|empresa|engineering|[uü]ber.?uns|[àa].?propos",
     re.IGNORECASE,
 )
 _NOT_TEAM_LINK = re.compile(r"career|jobs?\b|empleo|trabaja|privacy|terms|legal|cookies|press|login|signin|pricing", re.IGNORECASE)
@@ -65,6 +59,11 @@ class ContactDiscoveryResult:
     created: int = 0
     existing: int = 0
     refused: list[tuple[str, str]] = field(default_factory=list)
+    # People read from public pages but not stored: (name, role, why).
+    skipped: list[tuple[str, str, str]] = field(default_factory=list)
+    stored: list[tuple[str, str | None, str]] = field(default_factory=list)  # (name, role, source)
+    size: SizeEstimate | None = None
+    fetched: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -130,8 +129,6 @@ def discover_contacts(
     languages: dict[str, str | None] = {}
     for page in pages:
         for person in page.people:
-            if person.contact_type not in _KEPT_TYPES:
-                continue
             key = person.name.casefold()
             existing = candidates.get(key)
             if existing is None or (existing.linkedin_url is None and person.linkedin_url):
@@ -150,7 +147,34 @@ def discover_contacts(
 
     result.pages_fetched = fetcher.pages_fetched
     result.api_calls = fetcher.api_calls
+    result.fetched = list(fetcher.fetched)
     result.found = len(candidates)
+    result.size = company_size(session, company_id)
+    small_known = result.size.known_small
+    names = [company.name, domain.split(".")[0]]
+    for key in list(candidates):
+        person = candidates[key]
+        assessment = assess_role(person.role)
+        reason: str | None = None
+        if not role_belongs_to(person.role, names):
+            reason = "the role names another company (e.g. a customer testimonial)"
+        elif not is_target(assessment, small_known=small_known):
+            reason = (
+                "non-engineering executive; stored only for companies known (evidence) to have <= 50 employees "
+                f"(size: {result.size.detail})"
+                if assessment is not None
+                else "role is not an engineering/recruiting target"
+            )
+        if reason is not None:
+            del candidates[key]
+            result.skipped.append((person.name, person.role or "", reason))
+    ranked_keys = sorted(
+        candidates,
+        key=lambda k: (-(relevance(candidates[k].role, small_known=small_known) or 0), candidates[k].name.casefold()),
+    )
+    for key in ranked_keys[MAX_STORED_PER_COMPANY:]:
+        person = candidates.pop(key)
+        result.skipped.append((person.name, person.role or "", f"beyond the {MAX_STORED_PER_COMPANY} most relevant people kept per company"))
     if not candidates:
         result.notes.append("no verifiable people with a stated role were found; nothing stored")
         return result
@@ -188,6 +212,7 @@ def discover_contacts(
             continue
         if created.created:
             result.created += 1
+            result.stored.append((person.name, person.role, person.source_url))
         else:
             result.existing += 1
     session.flush()
@@ -272,7 +297,7 @@ def _github_people(org: str, fetcher: PoliteFetcher, result: ContactDiscoveryRes
             continue
         bio = " ".join(bio.split())
         contact_type = classify_role(bio)
-        if contact_type not in _KEPT_TYPES:
+        if contact_type is None:
             continue
         blog = profile.get("blog")
         linkedin = canonical_linkedin_profile_url(blog) if isinstance(blog, str) else None
@@ -289,3 +314,54 @@ def _github_people(org: str, fetcher: PoliteFetcher, result: ContactDiscoveryRes
             )
         )
     return people
+
+
+@dataclass(slots=True)
+class PruneResult:
+    checked: int = 0
+    invalid: list[tuple[Contact, str]] = field(default_factory=list)  # (contact, why)
+    deleted: int = 0
+    kept_referenced: list[Contact] = field(default_factory=list)
+
+
+def prune_contacts(session: Session, *, apply: bool = False) -> PruneResult:
+    """Re-validate contacts stored by Company Hunter with the current rules.
+
+    A contact is invalid when its name no longer looks like a person, its role is not a
+    target, or it is a non-engineering executive of a company not known to be small. With
+    ``apply`` they are deleted, except those an outreach or connection request refers to.
+    Contacts from other sources (manual entries) are never touched.
+    """
+
+    result = PruneResult()
+    sizes: dict[UUID, bool] = {}
+    rows = session.scalars(
+        select(Contact).where(Contact.source_provider.in_(("company_site", "github_org"))).order_by(Contact.created_at)
+    ).all()
+    for contact in rows:
+        result.checked += 1
+        if contact.company_id not in sizes:
+            sizes[contact.company_id] = company_size(session, contact.company_id).known_small
+        assessment = assess_role(contact.title)
+        if not looks_like_name(contact.name):
+            why = "name does not look like a person"
+        elif not role_belongs_to(contact.title, [contact.company.name]):
+            why = "the role names another company"
+        elif assessment is None:
+            why = "role is not an engineering/recruiting target"
+        elif not is_target(assessment, small_known=sizes[contact.company_id]):
+            why = "non-engineering executive at a company not known to be small"
+        else:
+            continue
+        result.invalid.append((contact, why))
+        referenced = session.scalar(select(Outreach.id).where(Outreach.contact_id == contact.id).limit(1)) or session.scalar(
+            select(ConnectionRequest.id).where(ConnectionRequest.contact_id == contact.id).limit(1)
+        )
+        if referenced is not None:
+            result.kept_referenced.append(contact)
+        elif apply:
+            session.delete(contact)
+            result.deleted += 1
+    if apply:
+        session.flush()
+    return result

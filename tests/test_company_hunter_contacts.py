@@ -2,7 +2,7 @@ import json
 
 import httpx
 import pytest
-from company_hunter_support import add_company
+from company_hunter_support import add_company, make_fetcher
 
 from ai_job_hunter.company_hunter.contacts import discover_contacts
 from ai_job_hunter.company_hunter.fetching import FetchRefused, PoliteFetcher
@@ -28,33 +28,6 @@ POST_INDEX = '<html><body><a href="/blog/kafka-at-acme">Kafka at Acme</a></body>
 POST = """<html><head><title>Kafka at Acme</title>
 <script type="application/ld+json">{"@type":"BlogPosting","headline":"Kafka at Acme",
 "author":{"@type":"Person","name":"John Smith"}}</script></head><body>text</body></html>"""
-
-GLOBAL = lambda host, port: ("93.184.216.34",)  # noqa: E731 - public address for the SSRF guard
-
-
-def make_fetcher(routes, *, robots="", slept=None, **kwargs):
-    seen: list[str] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(str(request.url))
-        if request.url.path == "/robots.txt":
-            if isinstance(robots, int):
-                return httpx.Response(robots)
-            return httpx.Response(200, text=robots)
-        route = routes.get((request.url.host, request.url.path))
-        if route is None:
-            return httpx.Response(404)
-        if isinstance(route, tuple):
-            return httpx.Response(200, json=route[0]) if route[1] == "json" else httpx.Response(route[0])
-        return httpx.Response(200, text=route, headers={"content-type": "text/html; charset=utf-8"})
-
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    fetcher = PoliteFetcher(
-        client=client, host_resolver=GLOBAL, sleep=(slept.append if slept is not None else lambda s: None),
-        clock=lambda: 0.0, **kwargs,
-    )
-    return fetcher, seen
-
 
 # ---- fetcher -------------------------------------------------------------------------
 
@@ -135,14 +108,13 @@ def test_team_page_pairs_names_with_roles_and_links_only_what_is_published():
     page = parse_page("https://acme.example.test/team", TEAM, company_domain="acme.example.test")
     people = {person.name: person for person in page.people}
 
-    assert set(people) == {"Jane Doe", "John Smith", "Ana López", "Pedro Ruiz"}
+    assert set(people) == {"Jane Doe", "John Smith", "Pedro Ruiz"}  # a marketing role is not a card we read
     jane = people["Jane Doe"]
     assert jane.linkedin_url == "https://linkedin.com/in/jane-doe-123"
     assert jane.email == "jane@acme.example.test"
     assert people["John Smith"].email is None  # mailto on a foreign domain is not the company's
     assert people["John Smith"].linkedin_url is None
     assert people["Pedro Ruiz"].contact_type is ContactType.ENGINEERING_MANAGER
-    assert people["Ana López"].contact_type is ContactType.OTHER
     assert page.language == "es"
 
 
@@ -158,7 +130,7 @@ def test_image_only_neighbour_links_are_not_attributed():
     assert people["John Smith"].linkedin_url is None
 
 
-def test_bare_linkedin_label_before_the_next_name_is_not_given_to_the_previous_person():
+def test_links_belong_to_the_card_that_contains_them_not_to_the_neighbour():
     html = """<html><body>
     <div><h3>Jane Doe</h3><p>Engineering Manager</p></div>
     <div><a href="https://www.linkedin.com/in/john-smith-99">LinkedIn</a><h3>John Smith</h3><p>Backend Engineer</p></div>
@@ -166,8 +138,8 @@ def test_bare_linkedin_label_before_the_next_name_is_not_given_to_the_previous_p
 
     people = {p.name: p for p in parse_page("https://acme.example.test/team", html).people}
 
-    assert people["Jane Doe"].linkedin_url is None  # slug names someone else
-    assert people["John Smith"].linkedin_url is None  # conservative: the link precedes his card
+    assert people["Jane Doe"].linkedin_url is None
+    assert people["John Smith"].linkedin_url == "https://linkedin.com/in/john-smith-99"
 
 
 def test_json_ld_person_and_article_author():

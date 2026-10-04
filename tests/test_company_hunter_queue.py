@@ -16,7 +16,7 @@ from ai_job_hunter.company_hunter.queue import (
     mark_skipped,
     regenerate_note_from_post,
     requests_today,
-    role_priority,
+    contact_relevance,
     suggest_connections,
 )
 from ai_job_hunter.company_hunter.ranking import rank_companies
@@ -70,7 +70,7 @@ def test_suggestions_follow_rank_role_priority_and_limits(db_session, tmp_path):
     assert [r.contact_id for r in result.new] == [manager.id, lead.id]  # 2 per company per day; founder/talent never
     assert engineer.id not in [r.contact_id for r in result.new]
     assert all(len(r.note) <= 300 and r.status == "SUGGESTED" for r in result.new)
-    assert role_priority(manager) == 0 and role_priority(lead) == 1 and role_priority(engineer) == 2
+    assert [contact_relevance(c, small_known=False) for c in (manager, lead, engineer)] == [85, 80, 60]
 
 
 def test_never_more_than_five_per_day_and_second_call_is_idempotent(db_session, tmp_path):

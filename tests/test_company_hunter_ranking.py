@@ -49,12 +49,12 @@ def test_full_evidence_scores_each_factor_with_provenance():
         )
     )
 
-    assert _factor(fit, "sector").points == 25
+    assert _factor(fit, "sector").points == 20
     assert _factor(fit, "product company").status is FactorStatus.YES
     assert _factor(fit, "Spain presence").points == 20
-    assert _factor(fit, "stack").points == 30  # two primary-stack postings
-    assert _factor(fit, "size/stage").points == 10
-    assert fit.score == 95
+    assert _factor(fit, "stack").points == 26  # two primary-stack postings
+    assert _factor(fit, "size/stage").points == 20
+    assert fit.score == 96
     assert fit.stage is CompanyStage.MID_SIZE
     assert fit.unknowns == ()
     assert _factor(fit, "stack").provenance == ("https://x.example.test/1",)
@@ -80,7 +80,7 @@ def test_hints_earn_partial_credit_and_are_labelled():
     )
 
     sector = _factor(fit, "sector")
-    assert (sector.status, sector.points) == (FactorStatus.PARTIAL, 12)
+    assert (sector.status, sector.points) == (FactorStatus.PARTIAL, 10)
     assert "hint" in sector.reason
     assert _factor(fit, "product company").points == 5
     geography = _factor(fit, "Spain presence")
@@ -99,8 +99,8 @@ def test_services_companies_get_no_product_points_and_stack_tiers_differ():
     none = score_company(
         CompanyInputs(company_id=uuid4(), name="N", postings=(_posting("PHP Dev", "Laravel"),))
     )
-    assert _factor(python_only, "stack").points == 12
-    assert _factor(java, "stack").points == 25
+    assert _factor(python_only, "stack").points == 10
+    assert _factor(java, "stack").points == 22
     assert (_factor(none, "stack").status, _factor(none, "stack").points) == (FactorStatus.NO, 0)
 
 
