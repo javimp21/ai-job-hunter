@@ -40,6 +40,7 @@ from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorErr
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.connectors.personio import PersonioConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnectorError
+from ai_job_hunter.connectors.workday import WorkdayConnectorError
 from ai_job_hunter.decision_engine import (
     POLICY_VERSION_V2,
     RUBRIC_VERSION,
@@ -1078,6 +1079,7 @@ def _fetch_targets(
                 TeamtailorConnectorError,
                 WorkableConnectorError,
                 PersonioConnectorError,
+                WorkdayConnectorError,
             ) as error:
                 failures.append(
                     SourceFailure(target.company_name, spec.provider.upper(), type(error).__name__)

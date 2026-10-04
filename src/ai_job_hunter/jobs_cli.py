@@ -25,6 +25,7 @@ from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorErr
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.connectors.personio import PersonioConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnectorError
+from ai_job_hunter.connectors.workday import WorkdayConnectorError
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.domain.normalized_job import NormalizedJob, SalaryPeriod
 from ai_job_hunter.job_sources import JobSourcesConfigError, load_job_sources
@@ -41,7 +42,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Fetch or replay public job board listings and run the deterministic pre-filter."
     )
     inputs = parser.add_mutually_exclusive_group(required=True)
-    inputs.add_argument("--sources", metavar="PATH", help="local JSON list of Greenhouse/Lever/Ashby/Teamtailor/SmartRecruiters/Workable/Personio boards")
+    inputs.add_argument("--sources", metavar="PATH", help="local JSON list of Greenhouse/Lever/Ashby/Teamtailor/SmartRecruiters/Workable/Personio/Workday boards")
     inputs.add_argument("--snapshot", metavar="PATH", help="offline normalized snapshot to replay")
     parser.add_argument("--candidate-config", metavar="PATH", help="local candidate config for pre-filtering")
     parser.add_argument("--save-snapshot", metavar="PATH", help="save fetched normalized offers")
@@ -103,6 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     TeamtailorConnectorError,
                     WorkableConnectorError,
                     PersonioConnectorError,
+                    WorkdayConnectorError,
                 ) as error:
                     source_errors += 1
                     LOGGER.error("Failed source %s (%s): %s", source.provider, source.identifier, error)

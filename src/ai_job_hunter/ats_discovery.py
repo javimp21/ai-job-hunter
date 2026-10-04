@@ -1,7 +1,8 @@
-"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable and Personio job boards.
+"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable, Personio and Workday job boards.
 
 Teamtailor is detected only on ``{company}.teamtailor.com`` and Personio only on
-``{company}.jobs.personio.de|com``; custom career domains are not guessed."""
+``{company}.jobs.personio.de|com``; Workday only on
+``{tenant}.wdN.myworkdayjobs.com/[locale/]{site}``; custom career domains are not guessed."""
 
 from __future__ import annotations
 
@@ -15,6 +16,10 @@ from ai_job_hunter.domain.company_intelligence import (
 )
 
 _BOARD_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+_WORKDAY_HOST = re.compile(r"^([a-z0-9][a-z0-9-]{0,62})\.(wd[0-9]{1,3})\.myworkdayjobs\.com$")
+_WORKDAY_LOCALE = re.compile(r"^[A-Za-z]{2}([-_][A-Za-z]{2})?$")
+# Path segments that are Workday internals, not a career site name.
+_WORKDAY_NON_SITES = {"wday", "job", "jobs", "login", "introduceyourself", "userhome"}
 
 
 def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
@@ -68,7 +73,20 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
             evidence = "Exact Workable hostname 'apply.workable.com' matched; the first path segment is the account slug."
     else:
         label, _, parent = host.partition(".")
-        if parent == "teamtailor.com" and label not in {"www", "app", "api"}:
+        workday = _WORKDAY_HOST.fullmatch(host)
+        if workday:
+            tenant, region = workday.groups()
+            site_segments = segments[1:] if segments and _WORKDAY_LOCALE.fullmatch(segments[0]) else segments
+            provider = ATSProvider.WORKDAY
+            evidence = (
+                f"Workday career-site hostname '{host}' matched; the tenant is the subdomain, '{region}' the "
+                "data centre and the first non-locale path segment the site."
+            )
+            if site_segments and site_segments[0].casefold() not in _WORKDAY_NON_SITES:
+                site = site_segments[0]
+                if _BOARD_IDENTIFIER.fullmatch(site) and len(site) <= 101:
+                    identifier = f"{tenant}/{site}"
+        elif parent == "teamtailor.com" and label not in {"www", "app", "api"}:
             provider = ATSProvider.TEAMTAILOR
             identifier = label
             evidence = f"Teamtailor career-site subdomain '{host}' matched; the subdomain is the company identifier."
@@ -80,9 +98,9 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
 
     if provider is None:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
-    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO}:
+    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO, ATSProvider.WORKDAY}:
         identifier = segments[0] if segments else None
-    if identifier is None or not _BOARD_IDENTIFIER.fullmatch(identifier):
+    if identifier is None or (provider is not ATSProvider.WORKDAY and not _BOARD_IDENTIFIER.fullmatch(identifier)):
         return ATSDiscoveryResult(
             provider=provider,
             identifier=None,

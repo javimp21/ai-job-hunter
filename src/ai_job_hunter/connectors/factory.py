@@ -13,6 +13,7 @@ from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
 from ai_job_hunter.connectors.personio import PersonioConnector
 from ai_job_hunter.connectors.workable import WorkableConnector
+from ai_job_hunter.connectors.workday import WorkdayConnector
 from ai_job_hunter.job_sources import JobSourcesConfig
 
 
@@ -98,6 +99,20 @@ def build_job_connectors(
                     max_jobs=source.max_jobs,
                     timeout=timeout,
                     client=client,
+                )
+            )
+        elif source.provider == "workday":
+            assert source.region is not None  # enforced by JobSourceSpec
+            connectors.append(
+                WorkdayConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    region=source.region,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                    # One detail request per posting: skip clearly non-target titles.
+                    detail_filter=title_may_be_relevant,
                 )
             )
         else:  # Defensive: the config model already restricts this to supported providers.
