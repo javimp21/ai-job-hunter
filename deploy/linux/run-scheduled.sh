@@ -3,7 +3,7 @@
 # ai-job-hunter-run.service. Output goes to journald. Never overlaps: a second
 # invocation (or a deploy in progress) skips the run.
 # Tunables (set via `systemctl edit ai-job-hunter-run.service`, [Service] Environment=):
-#   MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
+#   COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -49,7 +49,9 @@ if [ "$((10#$hour))" -ge 7 ] && [ "$(cat "$marker" 2>/dev/null)" != "$today" ]; 
 fi
 dow=$(TZ="$TIMEZONE" date +%u)
 hunter_marker="$SHARED_DIR/data/local/company-hunter.date"
-if [ "$dow" -le 5 ] && [ "$((10#$hour))" -ge 9 ] && [ "$(cat "$hunter_marker" 2>/dev/null)" != "$today" ]; then
+# Off until contact extraction is reliable (2026-10-04: menu items were stored as people).
+# Enable with COMPANY_HUNTER_ENABLED=1 (systemctl edit ai-job-hunter-run.service).
+if [ "${COMPANY_HUNTER_ENABLED:-0}" = 1 ] && [ "$dow" -le 5 ] && [ "$((10#$hour))" -ge 9 ] && [ "$(cat "$hunter_marker" 2>/dev/null)" != "$today" ]; then
     # Weekdays after 09:00, once a day (marker written first so a failure never repeats paid calls
     # every 15 minutes). Mondays also read top companies' public pages and post the weekly
     # "Company Hunter" message. Everything goes to your own Telegram chat; nothing is sent to
