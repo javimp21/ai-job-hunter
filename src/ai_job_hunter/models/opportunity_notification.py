@@ -45,7 +45,9 @@ class OpportunityNotification(TimestampMixin, Base):
             "decision IN ('APPLY', 'REVIEW', 'SKIP')",
             name="ck_opportunity_notifications_decision",
         ),
-        CheckConstraint("channel IN ('TELEGRAM')", name="ck_opportunity_notifications_channel"),
+        CheckConstraint(
+            "channel IN ('TELEGRAM', 'TELEGRAM_DIGEST')", name="ck_opportunity_notifications_channel"
+        ),
         CheckConstraint("attempt_count >= 0", name="ck_opportunity_notifications_attempt_count"),
         Index("ix_opportunity_notifications_status_created", "status", "created_at"),
     )

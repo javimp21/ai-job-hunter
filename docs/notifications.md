@@ -17,11 +17,22 @@ ai-job-hunter notify history --limit 20
 ai-job-hunter notify retry-failed --limit 20
 ```
 
-Alerts are Telegram HTML messages in Spanish: decision and priority, title, company, location and work mode, salary band (or "Salario no publicado"), the public experience requirement, technologies, Jev strengths (signals ≥ 0.75), review concerns, and a link. All job text is escaped. A named city with no stated work mode outside your preferred locations gets a ⚠️ warning (interim until a daily digest exists).
+Alerts are Telegram HTML messages in Spanish: decision and priority, title, company, location and work mode, salary band (or "Salario no publicado"), the public experience requirement, technologies, Jev strengths (signals ≥ 0.75), review concerns, and a link. All job text is escaped. A named city with no stated work mode outside your preferred locations gets a ⚠️ warning; such a REVIEW does not alert (`uncertain_location`) and goes to the daily digest instead, while an APPLY still alerts with the warning.
 
 Public experience-years requirements are checked against the current candidate policy before selection; incompatible experience cannot alert from an old saved APPLY/REVIEW. Alerts show the public floor/range and a generic stretch/UNKNOWN label, never candidate years or a numerical personal shortfall. See [experience rules](DOMAIN.md#explicit-experience-requirements). STALE evaluations are not eligible; this change does not globally suppress non-stale UNKNOWN reviews.
 
 Each job alerts at most once per channel: a later evaluation of an already-notified job (new description, new prefilter version, new config) is suppressed as `already_notified`, unless the decision upgrades from REVIEW to APPLY, which alerts once more. Jobs you dismissed or have an application for are suppressed (`dismissed`, `already_applied`). Fully on-site roles alert only when they are APPLY or reach priority 85 (`onsite_not_exceptional`). The same posting seen through two sources (e.g. Himalayas and the company's ATS, which deduplication keeps as separate jobs without a shared URL) alerts once: same company + normalized title + seniority is `already_notified_elsewhere` or, within one run, `duplicate_in_batch`. Each run sends at most two alerts per company (`company_cap`); the rest follow in later runs. The scheduled script sends at most 10 alerts per run. Suppressed rows stay in the ledger for audit. `retry-failed` resumes safe retries left pending by an interrupted retry. A retry only applies where the stored delivery failure is safe; an uncertain network outcome must not be blindly resent because Telegram does not provide an idempotency key for `sendMessage`.
+
+## Daily digest
+
+Second-tier opportunities are listed once in an evening Telegram digest instead of alerting one by one: a REVIEW from priority 50 up to the alert threshold, on-site roles from priority 70 that did not reach the on-site alert bar, REVIEWs with an uncertain location, and alert-worthy jobs that were first seen too late to alert (`older_than_max_age`). Jobs older than 7 days, dismissed or applied jobs, jobs already alerted, and jobs held back only by the per-company cap are left out. At most 12 jobs, best first; each line shows the review priority, linked title, company, location and work mode, and the message carries one row of buttons per job (`n ✍️`, `n 👍`, `n 👎`) that work like the alert buttons. Each job appears in at most one digest (rows with channel `TELEGRAM_DIGEST` in the notification ledger, which never count as alerts), and at most one digest is sent per 20 hours. If delivery fails nothing is recorded.
+
+```powershell
+ai-job-hunter notify digest --dry-run
+ai-job-hunter notify digest
+```
+
+`scripts\run-scheduled.ps1` runs it after the 20:00 and 22:00 runs, so the digest arrives with the first of them that runs.
 
 ## Cover letters from alerts
 

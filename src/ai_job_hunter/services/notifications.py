@@ -528,6 +528,7 @@ def _current_opportunities(
         if eligible:
             reason = (
                 _onsite_suppression(item, decision)
+                or _uncertain_location_suppression(item, decision)
                 or _human_state_suppression(item)
                 or _repeat_suppression(decision, sent_decisions.get(item.job_id, {}), fingerprint)
             )
@@ -584,6 +585,14 @@ def _onsite_suppression(item: Opportunity, decision: str) -> str | None:
     if item.priority is not None and item.priority >= ONSITE_MIN_PRIORITY:
         return None
     return "onsite_not_exceptional"
+
+
+def _uncertain_location_suppression(item: Opportunity, decision: str) -> str | None:
+    """A REVIEW in a city outside your locations with no stated work mode goes to the daily digest."""
+
+    if decision == FinalDecision.APPLY.value or _location_warning(item) is None:
+        return None
+    return "uncertain_location"
 
 
 def _human_state_suppression(item: Opportunity) -> str | None:

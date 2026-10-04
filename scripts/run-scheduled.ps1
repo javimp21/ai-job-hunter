@@ -42,6 +42,11 @@ if (-not (Test-Path $exe)) { $exe = Join-Path $root ".venv\Scripts\ai-job-hunter
     Out-File -FilePath $log -Append -Encoding utf8
 $code = $LASTEXITCODE
 "exit=$code" | Out-File -FilePath $log -Append -Encoding utf8
+if (-not $DryRun -and -not $NoNotifications -and (Get-Date).Hour -ge 20) {
+    # Evening digest of second-tier jobs; the command itself sends at most one per 20 hours.
+    & $exe notify digest 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath $log -Append -Encoding utf8
+    if ($LASTEXITCODE -ne 0) { $code = 1 }
+}
 if (-not $DryRun -and (Get-Date).Hour -ge 22) {
     # Last run of the day: keep a database backup (newest 14 kept).
     try {

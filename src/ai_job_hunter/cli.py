@@ -87,6 +87,7 @@ from ai_job_hunter.services.opportunities import (
     set_review_state,
     transition_application,
 )
+from ai_job_hunter.services.digest import preview_digest, send_digest
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
@@ -140,6 +141,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
         "retry-failed", help="retry notifications whose delivery is safe to retry"
     )
     retry.add_argument("--limit", type=int, default=20)
+    digest = notification_commands.add_parser(
+        "digest", help="send the once-a-day summary of second-tier opportunities"
+    )
+    digest.add_argument("--dry-run", action="store_true", help="show the digest without sending or recording it")
+    digest.add_argument("--force", action="store_true", help="send even if a digest went out in the last 20 hours")
     system = notification_commands.add_parser(
         "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
     )
@@ -405,7 +411,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.command == "sources" and args.sources_command == "preview"
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed"}
+        and args.notification_command in {"send", "retry-failed", "digest"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -1159,6 +1165,33 @@ def _run_sources_command(args, session, candidate) -> int:
     return 0
 
 
+def _run_digest_command(args, session, candidate, settings) -> int:
+    options = {
+        "review_threshold": settings.notify_review_min_priority,
+        "max_age_days": settings.notify_max_age_days,
+    }
+    if args.dry_run:
+        result = preview_digest(session, candidate, **options)
+    else:
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; digest not sent.", file=sys.stderr)
+            return 1
+        result = send_digest(session, candidate, provider, force=args.force, **options)
+    labels = {
+        "empty": "Digest: nothing new to list",
+        "too_soon": "Digest: already sent in the last 20 hours",
+        "failed": "Digest: delivery failed; nothing recorded",
+        "sent": "Digest sent",
+        "preview": "Digest preview (not sent)",
+    }
+    print(f"{labels[result.status]}: {len(result.entries)} job(s)")
+    for index, entry in enumerate(result.entries, start=1):
+        item = entry.item
+        print(f"  {index}. [{item.priority}] {item.title} — {item.company} ({entry.reason}) {item.job_id}")
+    return 1 if result.status == "failed" else 0
+
+
 def _run_notification_command(args, session, candidate, settings) -> int:
     command = args.notification_command
     if command == "pending":
@@ -1171,6 +1204,8 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         print(f"NOTIFICATION HISTORY: {len(rows)}")
         _print_notification_rows(rows)
         return 0
+    if command == "digest":
+        return _run_digest_command(args, session, candidate, settings)
     if command == "system":
         provider = _configured_telegram_provider(settings)
         if provider is None:
