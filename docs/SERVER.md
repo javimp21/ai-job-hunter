@@ -174,7 +174,7 @@ Telegram allows one `getUpdates` poller per bot. Two pollers make both lose taps
 | Saturday-Sunday 08:00-00:00 | hourly |
 | Nights (01:00-06:45 weekdays, 01:00-08:00 weekends) | every 2 hours (01, 03, 05, and 07 on weekends) |
 
-Each tick runs `ai-job-hunter run --limit-companies 1000 --max-jobs-per-company 500 --max-jev-jobs 40 --max-notifications 10 --retry-pending` under `flock` (`shared/data/local/run.lock`): a tick that finds a run or a deploy in progress logs and skips. A run is capped at 55 minutes. When the local hour is >= 20 it then runs `ai-job-hunter notify digest` (which itself sends at most one digest per 20 hours). A non-zero exit sends `ai-job-hunter notify system --text …` to Telegram, like `run-scheduled.ps1`.
+Each tick runs `ai-job-hunter run --limit-companies 1000 --max-jobs-per-company 500 --max-jev-jobs 40 --max-notifications 10 --retry-pending` under `flock` (`shared/data/local/run.lock`): a tick that finds a run or a deploy in progress logs and skips. A run is capped at 55 minutes. When the local hour is >= 20 it then runs `ai-job-hunter notify digest` (which itself sends at most one digest per 20 hours). On Sundays at or after `WEEKLY_FROM_HOUR` (default 20, Europe/Madrid) it also runs `ai-job-hunter notify weekly`, the weekly Telegram report, which itself sends at most one per 6 days (marker in the `report_deliveries` table; `--force` overrides, `--dry-run` previews). A non-zero exit sends `ai-job-hunter notify system --text …` to Telegram, like `run-scheduled.ps1`.
 
 Once a day, in the first run at or after 07:00, `run-scheduled.sh` also does source maintenance: `company_leads_cli resolve --limit 100` (new company leads), `sources sync` and `sources auto-activate --limit 40`. Auto-activation previews boards in REVIEW_SOURCE and activates those with at least one job the deterministic prefilter does not reject (the reason and numbers are stored on the source); boards without relevant jobs stay in review and are re-checked weekly; rejected or paused boards are never touched. The day is recorded in `shared/data/local/daily-maintenance.date`.
 
@@ -190,7 +190,7 @@ sudo systemctl edit ai-job-hunter-run.timer
 OnCalendar=
 OnCalendar=*-*-* 08..22:00:00 Europe/Madrid
 ```
-Check with `systemd-analyze calendar "<expr>" --iterations=5`. Run limits and digest hour are environment variables of the run service (`sudo systemctl edit ai-job-hunter-run.service`, `[Service]` then `Environment=MAX_JEV_JOBS=20 MAX_NOTIFICATIONS=10 DIGEST_FROM_HOUR=20 RUN_TIMEOUT=55m`). Note that 15-minute runs multiply Jev and Telegram usage versus the old 2-hour cadence; `--max-jev-jobs` is per run.
+Check with `systemd-analyze calendar "<expr>" --iterations=5`. Run limits and digest and weekly-report hours are environment variables of the run service (`sudo systemctl edit ai-job-hunter-run.service`, `[Service]` then `Environment=MAX_JEV_JOBS=20 MAX_NOTIFICATIONS=10 DIGEST_FROM_HOUR=20 WEEKLY_FROM_HOUR=20 RUN_TIMEOUT=55m`). Note that 15-minute runs multiply Jev and Telegram usage versus the old 2-hour cadence; `--max-jev-jobs` is per run.
 
 ## Deploying changes
 

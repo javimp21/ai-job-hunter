@@ -91,6 +91,7 @@ from ai_job_hunter.services.opportunities import (
 from ai_job_hunter.services.application_pack import prepare_application
 from ai_job_hunter.services.interview_prep import prepare_interview
 from ai_job_hunter.services.digest import preview_digest, send_digest
+from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
@@ -149,6 +150,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     digest.add_argument("--dry-run", action="store_true", help="show the digest without sending or recording it")
     digest.add_argument("--force", action="store_true", help="send even if a digest went out in the last 20 hours")
+    weekly = notification_commands.add_parser(
+        "weekly", help="send the weekly Telegram report (last 7 days; at most once per 6 days)"
+    )
+    weekly.add_argument("--dry-run", action="store_true", help="show the report without sending or recording it")
+    weekly.add_argument("--force", action="store_true", help="send even if a weekly report went out in the last 6 days")
     system = notification_commands.add_parser(
         "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
     )
@@ -446,7 +452,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed", "digest"}
+        and args.notification_command in {"send", "retry-failed", "digest", "weekly"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -1289,6 +1295,27 @@ def _run_digest_command(args, session, candidate, settings) -> int:
     return 1 if result.status == "failed" else 0
 
 
+def _run_weekly_command(args, session, candidate, settings) -> int:
+    if args.dry_run:
+        result = preview_weekly(session, candidate)
+    else:
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; weekly report not sent.", file=sys.stderr)
+            return 1
+        result = send_weekly(session, candidate, provider, force=args.force)
+    labels = {
+        "too_soon": "Weekly report: already sent in the last 6 days",
+        "failed": "Weekly report: delivery failed; nothing recorded",
+        "sent": "Weekly report sent",
+        "preview": "Weekly report preview (not sent)",
+    }
+    print(labels[result.status])
+    if result.status == "preview" and result.message:
+        print(result.message)
+    return 1 if result.status == "failed" else 0
+
+
 def _run_notification_command(args, session, candidate, settings) -> int:
     command = args.notification_command
     if command == "pending":
@@ -1303,6 +1330,8 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         return 0
     if command == "digest":
         return _run_digest_command(args, session, candidate, settings)
+    if command == "weekly":
+        return _run_weekly_command(args, session, candidate, settings)
     if command == "system":
         provider = _configured_telegram_provider(settings)
         if provider is None:
