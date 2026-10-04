@@ -61,6 +61,7 @@ class NotificationProvider(Protocol):
 COVER_LETTER_CALLBACK_PREFIX = "cl:"
 COVER_LETTER_SPANISH_CALLBACK_PREFIX = "cles:"
 APPLICATION_PACK_CALLBACK_PREFIX = "pc:"
+INTERVIEW_PREP_CALLBACK_PREFIX = "ip:"
 
 
 def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
@@ -123,7 +124,10 @@ def feedback_reason_keyboard(job_id: UUID, *, saved: bool) -> dict[str, Any]:
 
     codes, prefix = (SAVE_REASON_CODES, "ur:") if saved else (DISMISS_REASON_CODES, "dr:")
     buttons = [{"text": label, "callback_data": f"{prefix}{code}:{job_id}"} for code, (_r, label) in codes.items()]
-    return {"inline_keyboard": [buttons[index:index + 3] for index in range(0, len(buttons), 3)]}
+    rows = [buttons[index:index + 3] for index in range(0, len(buttons), 3)]
+    if saved:
+        rows.append([{"text": "🎯 Preparar entrevista", "callback_data": f"{INTERVIEW_PREP_CALLBACK_PREFIX}{job_id}"}])
+    return {"inline_keyboard": rows}
 
 
 class TelegramRejectedError(RuntimeError):

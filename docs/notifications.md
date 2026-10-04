@@ -53,6 +53,14 @@ Every alert (and every digest line, as `n 📝`) also has "📝 Preparar candida
 - "Why this company / role" answers come from Claude in the candidate's voice; notice period, work authorization and relocation come verbatim from `candidate_application.local.json`, and the salary line shows the candidate's target next to the posting's published range. Missing facts say "(completa tú)".
 - Files are saved under `data/local/applications/<timestamp>-<company>-<title>/`. Each pack costs two Claude calls (letter + CV), roughly $0.10–0.15. A second tap in the same bot session resends the same pack.
 
+## Preparar entrevista
+
+After tapping 👍 on an alert, the follow-up "¿Qué te gusta de esta oferta?" message also has "🎯 Preparar entrevista" (callback `ip:<job_id>`). The bot replies to the alert with the brief as one grouped Word + PDF message; nothing is sent anywhere. `ai-job-hunter interview-prep <job_id> [--language auto|es|en]` does the same from the CLI.
+
+- Language follows the posting (`auto`) or is forced; the base CV `private/cv/CV_base_<ES|EN>.md` of that language is required.
+- The brief has: what the company does (only from the posting text and the stored website URL, which is never fetched; "no consta" when unknown), what the role involves, 8-12 likely questions (technical ones tied to the posting's stack, plus behavioural) each with the real CV experience to use, honest gaps with a positive but truthful framing, and 4-5 questions to ask. Claude is instructed never to add experience that is not in the base CV; there is no automatic validator as for tailored CVs, so contrast the company facts and the CV references before the interview.
+- Files are saved under `data/local/interviews/<timestamp>-<company>-<title>/` as `entrevista_<LANG>.md/.docx/.pdf`. One Claude call per brief; a second tap in the same bot session resends it. Without Word/PDF the text is sent instead.
+
 ## Periodic local run on Windows
 
 The `run` command refreshes already monitored supported ATS sources through the existing opportunity pipeline, then handles notifications. It does not resolve Company Leads on each run. Configure the notification credentials in `.env` before enabling delivery.
