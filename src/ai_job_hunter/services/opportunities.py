@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 from uuid import UUID
 
 import httpx
@@ -319,33 +319,29 @@ def refresh_opportunities(
         raise OpportunityServiceError(f"Cannot initialize Jev engine ({type(error).__name__}).") from error
 
     prepared_by_job: dict[UUID, dict[str, _PreparedOffer]] = {}
-    baseline_jobs = session.scalars(
-        select(Job)
-        .options(joinedload(Job.company), selectinload(Job.sources))
-        .order_by(Job.id)
-    ).unique().all()
-    jobs_existing_before_refresh = {job.id for job in baseline_jobs}
-    prior_fingerprints: dict[UUID, set[str]] = {
-        job.id: {
-            item.fingerprint
-            for item in _source_context_fingerprints(job, candidate, engine_identity)
-        }
-        for job in baseline_jobs
-    }
+    # Only ids: loading every job (and its sources) into the session made each
+    # per-offer rollback expire thousands of objects.
+    jobs_existing_before_refresh = set(session.scalars(select(Job.id)).all())
+    # Pre-refresh fingerprints, only for the existing jobs this refresh touches
+    # (taken from the read-only precheck before ingestion changes their sources).
+    prior_fingerprints: dict[UUID, set[str]] = {}
     session.rollback()
     created_ids: set[UUID] = set()
     touched_ids: set[UUID] = set()
     seen_source_ids: set[UUID] = set()
 
     for offer, _target in offers:
-        old_match_id, _old_fingerprints = _find_existing_match_fingerprints(
+        old_match_id, old_fingerprints = _find_existing_match_fingerprints(
             session,
             offer,
             candidate,
             engine_identity,
+            with_fingerprints=lambda job_id: job_id not in prior_fingerprints,
         )
         if old_match_id is not None and old_match_id not in jobs_existing_before_refresh:
             old_match_id = None
+        elif old_match_id is not None:
+            prior_fingerprints.setdefault(old_match_id, old_fingerprints)
         session.rollback()
         try:
             ingested = ingest_job(session, offer)
@@ -1101,8 +1097,14 @@ def _find_existing_match_fingerprints(
     offer: NormalizedJob,
     candidate: CandidateConfig,
     engine_identity: str,
+    *,
+    with_fingerprints: Callable[[UUID], bool] = lambda _job_id: True,
 ) -> tuple[UUID | None, set[str]]:
-    """Find the existing canonical job and semantic contexts before ingestion."""
+    """Find the existing canonical job and semantic contexts before ingestion.
+
+    ``with_fingerprints`` can skip the (costly) fingerprint computation for a
+    job whose pre-refresh fingerprints are already known.
+    """
 
     exact_source = None
     if offer.external_id is not None:
@@ -1128,6 +1130,8 @@ def _find_existing_match_fingerprints(
         job = next((item for item in jobs if item.id == matches[0].candidate_job_id), None)
         if job is None:
             return None, set()
+    if not with_fingerprints(job.id):
+        return job.id, set()
     return job.id, {
         item.fingerprint
         for source in sorted(job.sources, key=_source_order)
