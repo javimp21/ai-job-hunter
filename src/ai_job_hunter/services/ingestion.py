@@ -1,6 +1,7 @@
 """Transactional persistence for normalized job offers."""
 
 from dataclasses import dataclass, replace
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from uuid import UUID
 
@@ -429,6 +430,17 @@ def _refresh_source(source: JobSource, offer: NormalizedJob, *, is_new: bool) ->
     source.closed_at = None  # listed again, so not (or no longer) closed
 
 
+def _amount_key(value: object) -> str | None:
+    """Scale-independent amount: the database stores 45000.00 for an offer's 45000."""
+
+    if value is None:
+        return None
+    try:
+        return format(Decimal(str(value)).normalize(), "f")
+    except (InvalidOperation, ValueError):
+        return str(value)
+
+
 def _offer_material_inputs(offer: NormalizedJob) -> tuple[object, ...]:
     """Return only provider-supplied facts that can change deterministic/Jev input."""
 
@@ -438,8 +450,8 @@ def _offer_material_inputs(offer: NormalizedJob) -> tuple[object, ...]:
         offer.location,
         offer.remote_policy.value if offer.remote_policy else None,
         offer.remote_eligibility.value,
-        str(offer.salary_min) if offer.salary_min is not None else None,
-        str(offer.salary_max) if offer.salary_max is not None else None,
+        _amount_key(offer.salary_min),
+        _amount_key(offer.salary_max),
         offer.currency,
         offer.salary_period.value if offer.salary_period else None,
         offer.employment_type.value if offer.employment_type else None,
@@ -455,8 +467,8 @@ def _source_material_inputs(source: JobSource) -> tuple[object, ...]:
         source.source_location,
         source.remote_policy,
         source.remote_eligibility,
-        str(source.salary_min) if source.salary_min is not None else None,
-        str(source.salary_max) if source.salary_max is not None else None,
+        _amount_key(source.salary_min),
+        _amount_key(source.salary_max),
         source.salary_currency,
         source.salary_period,
         source.employment_type,

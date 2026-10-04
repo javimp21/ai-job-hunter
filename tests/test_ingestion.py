@@ -154,3 +154,16 @@ def test_candidate_index_sees_jobs_created_outside_ingestion(db_session) -> None
     result = ingest_job(db_session, _offer("lever", "2", "Late Co"))
 
     assert result.status is IngestionStatus.POSSIBLE_MATCH
+
+
+def test_unchanged_offer_with_salary_is_not_materially_changed(db_session) -> None:
+    from decimal import Decimal
+
+    offer = _offer("greenhouse", "77", "Salary Co", salary_min=Decimal("45000"), salary_max=Decimal("55000"), currency="EUR")
+    ingest_job(db_session, offer)
+    db_session.expire_all()  # reload the stored Numeric(14, 2) values: 45000.00
+
+    again = ingest_job(db_session, offer)
+
+    assert again.status is IngestionStatus.ALREADY_KNOWN
+    assert again.materially_changed is False
