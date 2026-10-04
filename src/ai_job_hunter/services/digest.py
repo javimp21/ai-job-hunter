@@ -46,6 +46,10 @@ DIGEST_MIN_PRIORITY = 50
 DIGEST_ONSITE_MIN_PRIORITY = 70
 DIGEST_MAX_ITEMS = 12
 DIGEST_MAX_AGE_DAYS = 7
+# Postings published long ago but discovered only now (a newly monitored
+# company) are still news to the candidate, up to this hard limit.
+DIGEST_NEWLY_SEEN_HOURS = 48
+DIGEST_HARD_MAX_AGE_DAYS = 30
 DIGEST_MIN_INTERVAL = timedelta(hours=20)
 # Suppression reasons that mean "worth a look, but not an alert". Jobs held
 # back by the per-company cap or still pending alert later, so they are left out.
@@ -95,7 +99,7 @@ def select_digest_entries(
             continue
         if item.application_status is not None or item.review_state is HumanReviewStatus.DISMISSED:
             continue
-        if item.job_id in already_listed or _older_than(item, DIGEST_MAX_AGE_DAYS):
+        if item.job_id in already_listed or _too_old(item):
             continue
         priority = item.priority or 0
         if decision == FinalDecision.REVIEW.value and priority < DIGEST_MIN_PRIORITY:
@@ -259,6 +263,16 @@ def _jobs_with_rows(session: Session, job_ids: set[UUID]) -> set[UUID]:
             ).all()
         )
     return found
+
+
+def _too_old(item: Opportunity) -> bool:
+    if not _older_than(item, DIGEST_MAX_AGE_DAYS):
+        return False
+    published = item.published_at
+    if published is not None and _aware(published) <= datetime.now(UTC) - timedelta(days=DIGEST_HARD_MAX_AGE_DAYS):
+        return True
+    first_seen = item.first_seen_at
+    return first_seen is None or _aware(first_seen) < datetime.now(UTC) - timedelta(hours=DIGEST_NEWLY_SEEN_HOURS)
 
 
 def _aware(moment: datetime) -> datetime:

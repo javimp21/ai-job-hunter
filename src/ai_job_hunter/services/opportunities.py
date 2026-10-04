@@ -322,26 +322,25 @@ def refresh_opportunities(
     # Only ids: loading every job (and its sources) into the session made each
     # per-offer rollback expire thousands of objects.
     jobs_existing_before_refresh = set(session.scalars(select(Job.id)).all())
-    # Pre-refresh fingerprints, only for the existing jobs this refresh touches
-    # (taken from the read-only precheck before ingestion changes their sources).
-    prior_fingerprints: dict[UUID, set[str]] = {}
+    # Existing jobs whose source content changed in this refresh (summary stat).
+    changed_existing: set[UUID] = set()
     session.rollback()
     created_ids: set[UUID] = set()
     touched_ids: set[UUID] = set()
     seen_source_ids: set[UUID] = set()
 
     for offer, _target in offers:
-        old_match_id, old_fingerprints = _find_existing_match_fingerprints(
+        old_match_id, _old_fingerprints = _find_existing_match_fingerprints(
             session,
             offer,
             candidate,
             engine_identity,
-            with_fingerprints=lambda job_id: job_id not in prior_fingerprints,
+            # Only the identity is needed here; fingerprints would re-analyse
+            # every known offer a second time.
+            with_fingerprints=lambda _job_id: False,
         )
         if old_match_id is not None and old_match_id not in jobs_existing_before_refresh:
             old_match_id = None
-        elif old_match_id is not None:
-            prior_fingerprints.setdefault(old_match_id, old_fingerprints)
         session.rollback()
         try:
             ingested = ingest_job(session, offer)
@@ -357,6 +356,8 @@ def refresh_opportunities(
 
         job_id = ingested.job_id
         touched_ids.add(job_id)
+        if ingested.materially_changed and job_id in jobs_existing_before_refresh:
+            changed_existing.add(job_id)
         if ingested.job_source_id is not None:
             seen_source_ids.add(ingested.job_source_id)
         if ingested.status in {IngestionStatus.CREATED, IngestionStatus.POSSIBLE_MATCH}:
@@ -399,12 +400,7 @@ def refresh_opportunities(
         )
     summary.new_jobs = len(created_ids)
     summary.known_jobs = len(touched_ids - created_ids)
-    summary.changed_jobs = sum(
-        1
-        for job_id, snapshots in prepared_by_job.items()
-        if job_id in jobs_existing_before_refresh
-        and any(fingerprint not in prior_fingerprints.get(job_id, set()) for fingerprint in snapshots)
-    )
+    summary.changed_jobs = len(changed_existing)
 
     _evaluate_prepared(
         session,

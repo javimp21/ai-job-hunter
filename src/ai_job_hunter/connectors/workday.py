@@ -256,7 +256,7 @@ def _normalize_job(
         remote_policy=remote_policy,
         employment_type=_EMPLOYMENT_TYPES.get(time_type.casefold()) if time_type else None,
         # The list only has relative text ("Posted 3 Days Ago"); "startDate" is the
-        # role start, not the publication date. "30+ Days" is a lower bound.
+        # role start, not the publication date. "30+ Days" counts as 31.
         published_at=_posted_on(raw.get("postedOn"), discovered_at),
         raw_metadata={
             "req_id": req_id,
@@ -325,6 +325,8 @@ def _posted_on(value: Any, now: datetime) -> datetime | None:
         return None
     word = match.group(1).casefold()
     days = 0 if word == "today" else 1 if word == "yesterday" else int(match.group(2))
+    if "+" in match.group(0):
+        days += 1  # "30+ Days Ago" means more than 30 days
     day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return day - timedelta(days=days)
 

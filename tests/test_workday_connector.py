@@ -285,7 +285,7 @@ def test_spain_only_falls_back_to_spanish_locations_and_skips_sites_without_spai
 
 @pytest.mark.parametrize(
     ("text", "days"),
-    [("Posted Today", 0), ("Posted Yesterday", 1), ("Posted 3 Days Ago", 3), ("Posted 30+ Days Ago", 30), ("soon", None)],
+    [("Posted Today", 0), ("Posted Yesterday", 1), ("Posted 3 Days Ago", 3), ("Posted 30+ Days Ago", 31), ("soon", None)],
 )
 def test_posted_on_text_becomes_an_approximate_publication_date(text, days):
     from datetime import UTC, datetime, timedelta
