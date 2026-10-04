@@ -21,7 +21,7 @@ from ai_job_hunter.company_leads import _resolve_host, _validate_public_url, Car
 
 HUNTER_USER_AGENT = "AI-Job-Hunter/0.1 (personal job search; reads public team pages politely)"
 ROBOTS_PRODUCT_TOKEN = "AI-Job-Hunter"
-MAX_PAGE_BYTES = 1_500_000
+MAX_PAGE_BYTES = 3_000_000
 MAX_REDIRECTS = 3
 DEFAULT_MIN_DELAY_SECONDS = 1.5
 MAX_CRAWL_DELAY_SECONDS = 10.0
@@ -50,6 +50,7 @@ class PoliteFetcher:
     clock: Callable[[], float] = time.monotonic
     host_resolver: Callable[[str, int], Iterable[str]] = _resolve_host
     pages_fetched: int = 0
+    fetched: list[str] = field(default_factory=list)  # final URLs, for the run report
     api_calls: int = 0
     _robots: dict[str, _Robots] = field(default_factory=dict)
     _last_request: dict[str, float] = field(default_factory=dict)
@@ -63,6 +64,7 @@ class PoliteFetcher:
             raise FetchRefused("page budget for this company is used up")
         final_url, body = self._get(url, accept="text/html,application/xhtml+xml;q=0.9", kind="html")
         self.pages_fetched += 1
+        self.fetched.append(final_url)
         return final_url, body
 
     def get_public_json(self, url: str, *, allowed_hosts: frozenset[str]) -> object:

@@ -240,12 +240,14 @@ def test_context_has_stack_from_postings_and_hints_are_labelled(db_session):
     assert "stack" in " ".join(context.facts.fit_reasons)
 
 
-def test_best_contact_prefers_by_stage(db_session):
+def test_best_contact_prefers_the_most_relevant_person_and_never_a_large_companys_ceo(db_session):
     company = add_company(db_session)
-    founder = add_contact(db_session, company, "Fay Founder", "Co-Founder", "FOUNDER")
+    ceo = add_contact(db_session, company, "Fay Founder", "Chief Executive Officer", "FOUNDER")
+    cto = add_contact(db_session, company, "Cto Person", "CTO", "ENGINEERING_MANAGER")
     manager = add_contact(db_session, company, "Eve Manager", "Engineering Manager", "ENGINEERING_MANAGER")
     engineer = add_contact(db_session, company, "Eng Ineer", "Backend Engineer", "ENGINEER")
 
-    assert best_contact((engineer, manager, founder), CompanyStage.EARLY_STAGE).id == founder.id
-    assert best_contact((engineer, manager, founder), CompanyStage.MID_SIZE).id == manager.id
-    assert best_contact((), CompanyStage.MID_SIZE) is None
+    assert best_contact((engineer, manager, cto, ceo)).id == manager.id  # a CTO is top only at small companies
+    assert best_contact((engineer, manager, cto, ceo), small_known=True).id == cto.id
+    assert best_contact((ceo,)) is None and best_contact((ceo,), small_known=True).id == ceo.id
+    assert best_contact(()) is None

@@ -18,7 +18,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ai_job_hunter.company_hunter.contacts import discover_contacts
+from ai_job_hunter.company_hunter.contacts import discover_contacts, prune_contacts
 from ai_job_hunter.company_hunter.fetching import PoliteFetcher
 from ai_job_hunter.company_hunter.notify import (
     format_drafts,
@@ -43,7 +43,7 @@ from ai_job_hunter.models import Company, ConnectionRequest, Contact
 from ai_job_hunter.services.cover_letters import CoverLetterError
 
 HUNTER_COMMANDS = frozenset(
-    {"companies", "find-contacts", "company-draft", "weekly", "connections", "connection"}
+    {"companies", "find-contacts", "prune-contacts", "company-draft", "weekly", "connections", "connection"}
 )
 NOTHING_SENT = "Nothing was sent to any company or to LinkedIn."
 
@@ -62,6 +62,12 @@ def add_parsers(outreach_commands: Any) -> None:
     find.add_argument("company", nargs="?", help="company id or name")
     find.add_argument("--top", type=int, default=0, help="run for the N top-ranked companies instead")
     find.add_argument("--max-pages", type=int, default=8)
+
+    prune = outreach_commands.add_parser(
+        "prune-contacts",
+        help="re-check stored Company Hunter contacts with the current rules (--apply deletes the invalid ones)",
+    )
+    prune.add_argument("--apply", action="store_true")
 
     draft = outreach_commands.add_parser(
         "company-draft", help="draft an email and a LinkedIn DM for one company with Claude (never sent)"
@@ -118,6 +124,8 @@ def run(args: argparse.Namespace, session: Session, settings: Any) -> int:
             return _companies(args, session)
         if command == "find-contacts":
             return _find_contacts(args, session)
+        if command == "prune-contacts":
+            return _prune(args, session)
         if command == "company-draft":
             return _company_draft(args, session)
         if command == "weekly":
@@ -187,11 +195,29 @@ def _find_contacts(args: argparse.Namespace, session: Session) -> int:
             f"{name}: pages={result.pages_fetched} api_calls={result.api_calls} found={result.found} "
             f"stored={result.created} existing={result.existing}"
         )
+        if result.size is not None:
+            print(f"  size: {result.size.size_class.value} ({result.size.basis.value}) — {result.size.detail}")
+        for person, role, source in result.stored:
+            print(f"  stored: {person} — {role or 'UNKNOWN ROLE'} — {source}")
+        for person, role, why in result.skipped:
+            print(f"  not stored: {person} — {role} — {why}")
         for note in result.notes:
             print(f"  note: {note}")
         for target, reason in result.refused:
             print(f"  not fetched: {target} — {reason}")
     print("Only public pages published by the company were read (robots.txt respected). LinkedIn was not contacted.")
+    return 0
+
+
+def _prune(args: argparse.Namespace, session: Session) -> int:
+    result = prune_contacts(session, apply=args.apply)
+    session.commit()
+    print(f"CONTACTS CHECKED: {result.checked} | INVALID: {len(result.invalid)}")
+    for contact, why in result.invalid:
+        print(f"  invalid: {contact.name} — {contact.title or 'UNKNOWN ROLE'} @ {contact.company.name} — {why}")
+    for contact in result.kept_referenced:
+        print(f"  kept (referenced by an outreach or connection request): {contact.name}")
+    print(f"deleted: {result.deleted}" if args.apply else "(dry run; add --apply to delete the invalid, unreferenced ones)")
     return 0
 
 
@@ -211,7 +237,7 @@ def _best_contacts(session: Session, fits: list[CompanyFit]) -> dict[UUID, Conta
         contacts = tuple(
             session.scalars(select(Contact).where(Contact.company_id == fit.company_id).order_by(Contact.created_at)).all()
         )
-        out[fit.company_id] = best_contact(contacts, fit.stage)
+        out[fit.company_id] = best_contact(contacts, small_known=fit.size.known_small if fit.size else False)
     return out
 
 

@@ -38,13 +38,13 @@ from ai_job_hunter.models import (
 from ai_job_hunter.models.job_review import HumanReviewStatus
 
 MAX_SCORE = 100
-SECTOR_POINTS = 25
-SECTOR_HINT_POINTS = 12
+SECTOR_POINTS = 20
+SECTOR_HINT_POINTS = 10
 PRODUCT_POINTS = 10
 PRODUCT_HINT_POINTS = 5
 GEOGRAPHY_POINTS = 20
-STACK_POINTS = 35
-SIZE_POINTS = 10
+STACK_POINTS = 30
+SIZE_POINTS = 20
 
 # Stack tiers requested by the candidate: Java/Spring/Kotlin first, then Python/Go.
 PRIMARY_STACK = frozenset({"java", "spring", "spring boot", "kotlin"})
@@ -131,6 +131,8 @@ class CompanyInputs:
     employee_count: int | None = None
     size_bucket: str | None = None
     size_provenance: str | None = None
+    # Largest posting count seen on one of the company's monitored boards (a weak size proxy).
+    board_job_count: int | None = None
     sector_evidence: tuple[str, ...] = ()
     postings: tuple[PostingEvidence, ...] = ()
 
@@ -146,6 +148,7 @@ class CompanyFit:
     unknowns: tuple[str, ...]
     posting_count: int
     lead_sources: tuple[str, ...] = ()
+    size: SizeEstimate | None = None
 
     def explanation(self) -> str:
         return "; ".join(
@@ -191,10 +194,11 @@ def score_company(inputs: CompanyInputs) -> CompanyFit:
     )
     unknowns = tuple(factor.name for factor in factors if factor.status is FactorStatus.UNKNOWN)
     return CompanyFit(
+        size=estimate_size(inputs),
         company_id=inputs.company_id,
         name=inputs.name,
         website_url=inputs.website_url,
-        score=min(MAX_SCORE, sum(factor.points for factor in factors)),
+        score=max(0, min(MAX_SCORE, sum(factor.points for factor in factors))),
         stage=company_stage(inputs.employee_count, inputs.size_bucket),
         factors=factors,
         unknowns=unknowns,
@@ -302,14 +306,14 @@ def _stack_factor(inputs: CompanyInputs) -> FitFactor:
     primary, secondary = stack_matches(inputs)
     total = len(inputs.postings)
     if primary:
-        points = min(STACK_POINTS, 25 + 5 * (len(primary) - 1))
+        points = min(STACK_POINTS, 22 + 4 * (len(primary) - 1))
         return FitFactor(
             "stack", FactorStatus.YES, points, STACK_POINTS,
             f"Java/Spring/Kotlin in {len(primary)} of {total} stored postings",
             tuple(dict.fromkeys(p.url for p in primary if p.url))[:3] or ("stored postings",),
         )
     if secondary:
-        points = min(20, 12 + 4 * (len(secondary) - 1))
+        points = min(16, 10 + 3 * (len(secondary) - 1))
         return FitFactor(
             "stack", FactorStatus.YES, points, STACK_POINTS,
             f"Python/Go in {len(secondary)} of {total} stored postings (no Java/Spring/Kotlin)",
@@ -321,21 +325,152 @@ def _stack_factor(inputs: CompanyInputs) -> FitFactor:
     )
 
 
-def _size_factor(inputs: CompanyInputs) -> FitFactor:
-    source = (inputs.size_provenance or "company evidence",)
+class SizeClass(StrEnum):
+    SMALL = "SMALL"  # up to 50 people: founders and engineering leaders are reachable
+    MID = "MID"  # startup/scale-up range
+    LARGE = "LARGE"
+    UNKNOWN = "UNKNOWN"
+
+
+class SizeBasis(StrEnum):
+    EVIDENCE = "evidence"  # recorded employee count / size bucket (a fact with provenance)
+    HINT = "hint"  # curated-list text; never treated as known
+    JOB_COUNT = "job-count proxy"  # postings on the company's boards; weak
+    NONE = "none"
+
+
+@dataclass(frozen=True, slots=True)
+class SizeEstimate:
+    size_class: SizeClass
+    basis: SizeBasis
+    detail: str
+    employee_count: int | None = None
+    provenance: str | None = None
+
+    @property
+    def known_small(self) -> bool:
+        """At most 50 people according to *evidence* (hints and proxies never count)."""
+
+        return self.size_class is SizeClass.SMALL and self.basis is SizeBasis.EVIDENCE
+
+
+SMALL_MAX_EMPLOYEES = 50
+LARGE_MIN_EMPLOYEES = 1000
+LARGE_BOARD_POSTINGS = 300  # a board with this many postings is a large company
+MID_BOARD_POSTINGS = 100
+
+_HINT_EMPLOYEES = re.compile(
+    r"(\d{1,3}(?:[.,]\d{3})+|\d+)\s*\+?\s*(?:employees|empleados|staff|people|mitarbeiter)", re.IGNORECASE
+)
+_HINT_RANGE = re.compile(r"(\d+)\s*[-–]\s*(\d+)\s*(?:employees|empleados|staff|people)", re.IGNORECASE)
+_HINT_SMALL = re.compile(r"\bstart-?ups?\b|\bpre-?seed\b|\bseed\b|\bseries a\b|\bearly[- ]stage\b", re.IGNORECASE)
+_HINT_MID = re.compile(r"\bscale-?ups?\b|\bseries [b-d]\b|\bgrowth[- ]stage\b", re.IGNORECASE)
+_HINT_LARGE = re.compile(
+    r"\bunicorn\b|\benterprise\b|\bfortune 500\b|\bmultinational\b|\bpublicly traded\b|\bglobal bank\b"
+    r"|\bgrande empresa\b|\bcotizada\b|\bibex\b",
+    re.IGNORECASE,
+)
+_LARGE_BUCKETS = frozenset({"large", "enterprise", "corporate", "big", "public"})
+_MID_BUCKETS = frozenset({"mid", "mid_size", "midsize", "medium", "scaleup", "scale_up", "scale-up", "growth"})
+
+
+def _class_for_count(count: int) -> SizeClass:
+    if count <= SMALL_MAX_EMPLOYEES:
+        return SizeClass.SMALL
+    return SizeClass.LARGE if count > LARGE_MIN_EMPLOYEES else SizeClass.MID
+
+
+def _hint_size(texts: Sequence[str]) -> tuple[SizeClass, str] | None:
+    for text in texts:
+        range_match = _HINT_RANGE.search(text)
+        if range_match:
+            upper = int(range_match.group(2))
+            return _class_for_count(upper), f"curated-list note says {range_match.group(0)}"
+        match = _HINT_EMPLOYEES.search(text)
+        if match:
+            count = int(match.group(1).replace(".", "").replace(",", ""))
+            return _class_for_count(count), f"curated-list note says {match.group(0)}"
+    joined = " ".join(texts)
+    for pattern, size_class in ((_HINT_LARGE, SizeClass.LARGE), (_HINT_SMALL, SizeClass.SMALL), (_HINT_MID, SizeClass.MID)):
+        match = pattern.search(joined)
+        if match:
+            return size_class, f"curated-list note mentions '{match.group(0)}'"
+    return None
+
+
+def estimate_size(inputs: CompanyInputs) -> SizeEstimate:
+    """Best available size read: evidence, then curated-list hints, then board job count (weak).
+
+    A board with 300+ postings is large and overrides a startup hint (the two
+    contradict); a lone small board is only a weak "not huge" signal.
+    """
+
+    source = inputs.size_provenance or "company evidence"
     if inputs.employee_count is not None and inputs.employee_count > 0:
         count = inputs.employee_count
-        if 20 <= count <= 1000:
-            return FitFactor("size/stage", FactorStatus.YES, SIZE_POINTS, SIZE_POINTS, f"about {count} employees", source)
-        if count < 20 or count <= 5000:
-            return FitFactor("size/stage", FactorStatus.PARTIAL, 5, SIZE_POINTS, f"about {count} employees", source)
-        return FitFactor("size/stage", FactorStatus.NO, 0, SIZE_POINTS, f"about {count} employees (very large)", source)
-    stage = company_stage(None, inputs.size_bucket)
-    if stage is not CompanyStage.UNKNOWN:
-        return FitFactor(
-            "size/stage", FactorStatus.PARTIAL, 5, SIZE_POINTS, f"recorded size bucket {inputs.size_bucket}", source
+        return SizeEstimate(
+            _class_for_count(count), SizeBasis.EVIDENCE, f"about {count} employees", count, source
         )
-    return FitFactor("size/stage", FactorStatus.UNKNOWN, 0, SIZE_POINTS, "size not recorded (UNKNOWN)")
+    bucket = (inputs.size_bucket or "").strip().casefold().replace("-", "_").replace(" ", "_")
+    if bucket:
+        stage = company_stage(None, inputs.size_bucket)
+        if stage is CompanyStage.EARLY_STAGE:
+            return SizeEstimate(SizeClass.SMALL, SizeBasis.EVIDENCE, f"recorded size bucket {inputs.size_bucket}", None, source)
+        if bucket in _LARGE_BUCKETS:
+            return SizeEstimate(SizeClass.LARGE, SizeBasis.EVIDENCE, f"recorded size bucket {inputs.size_bucket}", None, source)
+        if stage is CompanyStage.MID_SIZE or bucket in _MID_BUCKETS:
+            return SizeEstimate(SizeClass.MID, SizeBasis.EVIDENCE, f"recorded size bucket {inputs.size_bucket}", None, source)
+    postings = max(inputs.board_job_count or 0, len(inputs.postings))
+    if postings >= LARGE_BOARD_POSTINGS:
+        return SizeEstimate(
+            SizeClass.LARGE, SizeBasis.JOB_COUNT, f"{postings} postings on its boards (weak proxy: 300+ means large)",
+            None, "monitored sources / stored postings",
+        )
+    hint = _hint_size(inputs.lead_notes)
+    if hint is not None:
+        return SizeEstimate(hint[0], SizeBasis.HINT, hint[1] + " (hint)", None, "curated-list note (hint)")
+    if postings >= MID_BOARD_POSTINGS:
+        return SizeEstimate(
+            SizeClass.MID, SizeBasis.JOB_COUNT, f"{postings} postings on its boards (weak proxy: mid/large)",
+            None, "monitored sources / stored postings",
+        )
+    if postings > 0:
+        return SizeEstimate(
+            SizeClass.UNKNOWN, SizeBasis.JOB_COUNT, f"only {postings} postings on its boards (weak proxy: not huge)",
+            None, "monitored sources / stored postings",
+        )
+    return SizeEstimate(SizeClass.UNKNOWN, SizeBasis.NONE, "size not recorded (UNKNOWN)")
+
+
+def _size_factor(inputs: CompanyInputs) -> FitFactor:
+    """Favour startups/scale-ups for cold outreach; known-large companies are penalised.
+
+    Evidence earns full points, a curated-list hint half, a job-count proxy at most 6.
+    """
+
+    estimate = estimate_size(inputs)
+    provenance = (estimate.provenance,) if estimate.provenance else ()
+    max_points = SIZE_POINTS
+    if estimate.basis is SizeBasis.NONE:
+        return FitFactor("size/stage", FactorStatus.UNKNOWN, 0, max_points, estimate.detail)
+    if estimate.basis is SizeBasis.JOB_COUNT:
+        if estimate.size_class is SizeClass.LARGE:
+            return FitFactor("size/stage", FactorStatus.NO, -6, max_points, estimate.detail, provenance)
+        if estimate.size_class is SizeClass.MID:
+            return FitFactor("size/stage", FactorStatus.PARTIAL, 0, max_points, estimate.detail, provenance)
+        return FitFactor("size/stage", FactorStatus.PARTIAL, 6, max_points, estimate.detail, provenance)
+    count = estimate.employee_count
+    if estimate.size_class is SizeClass.SMALL:
+        full = 14 if count is not None and count < 10 else 20  # a handful of people have few engineers
+    elif estimate.size_class is SizeClass.MID:
+        full = 20 if count is None or count <= 200 else 14 if count <= 500 else 8
+    else:
+        full = -10 if count is not None and count > 5000 else -4
+    if estimate.basis is SizeBasis.HINT:
+        points = full // 2 if full > 0 else max(full // 2, -4)
+        return FitFactor("size/stage", FactorStatus.PARTIAL, points, max_points, estimate.detail, provenance)
+    status = FactorStatus.YES if full >= 14 else FactorStatus.PARTIAL if full > 0 else FactorStatus.NO
+    return FitFactor("size/stage", status, full, max_points, estimate.detail, provenance)
 
 
 # --------------------------------------------------------------------------------------
@@ -378,13 +513,18 @@ def rank_companies(
         .where(Company.id.in_(wanted))
     ).all()
     blocked = _blocked_companies(session, wanted)
+    board_counts = _board_job_counts(session, wanted)
     ranked: list[CompanyFit] = []
     excluded: list[ExcludedCompany] = []
     for company in companies:
         if company.id in blocked:
             excluded.append(ExcludedCompany(company.id, company.name, blocked[company.id]))
             continue
-        ranked.append(score_company(company_inputs(company, lead_by_company.get(company.id, []))))
+        ranked.append(
+            score_company(
+                company_inputs(company, lead_by_company.get(company.id, []), board_counts.get(company.id))
+            )
+        )
     ranked.sort(key=lambda fit: (-fit.score, -fit.posting_count, fit.name.casefold()))
     excluded.sort(key=lambda item: item.name.casefold())
     positive = tuple(fit for fit in ranked if fit.score > 0)
@@ -395,7 +535,9 @@ def rank_companies(
     )
 
 
-def company_inputs(company: Company, leads: Sequence[CompanyLead]) -> CompanyInputs:
+def company_inputs(
+    company: Company, leads: Sequence[CompanyLead], board_job_count: int | None = None
+) -> CompanyInputs:
     facts = company_facts(company)
     employee_count: int | None = None
     size_bucket: str | None = None
@@ -450,12 +592,39 @@ def company_inputs(company: Company, leads: Sequence[CompanyLead]) -> CompanyInp
         employee_count=employee_count,
         size_bucket=size_bucket,
         size_provenance=size_provenance,
+        board_job_count=board_job_count,
         sector_evidence=tuple(sector_evidence),
         postings=postings,
     )
 
 
 _DISMISS_COMPANY_REASONS = frozenset({"company", "not_interesting"})
+
+
+def _board_job_counts(session: Session, company_ids: set[UUID]) -> dict[UUID, int]:
+    counts: dict[UUID, int] = {}
+    for company_id, last_count in session.execute(
+        select(MonitoredSource.company_id, MonitoredSource.last_job_count).where(
+            MonitoredSource.company_id.in_(company_ids), MonitoredSource.last_job_count.is_not(None)
+        )
+    ).all():
+        counts[company_id] = max(counts.get(company_id, 0), int(last_count))
+    return counts
+
+
+def company_size(session: Session, company_id: UUID) -> SizeEstimate:
+    """The size estimate used for contact storage and the LinkedIn queue."""
+
+    company = session.scalar(
+        select(Company)
+        .options(selectinload(Company.evidence_items), selectinload(Company.jobs).selectinload(Job.sources))
+        .where(Company.id == company_id)
+        .execution_options(populate_existing=True)
+    )
+    if company is None:
+        return SizeEstimate(SizeClass.UNKNOWN, SizeBasis.NONE, "company not found")
+    leads = session.scalars(select(CompanyLead).where(CompanyLead.company_id == company_id)).all()
+    return estimate_size(company_inputs(company, leads, _board_job_counts(session, {company_id}).get(company_id)))
 
 
 def _blocked_companies(session: Session, company_ids: set[UUID]) -> dict[UUID, str]:

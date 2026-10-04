@@ -17,9 +17,11 @@ from ai_job_hunter.candidates.technologies import extract_job_technologies
 from ai_job_hunter.company_hunter.ranking import (
     CompanyFit,
     CompanyStage,
+    _board_job_counts,
     company_inputs,
     score_company,
 )
+from ai_job_hunter.company_hunter.relevance import relevance
 from ai_job_hunter.company_hunter.writing import (
     DEFAULT_CV_DIR,
     CompanyFacts,
@@ -34,7 +36,6 @@ from ai_job_hunter.models import (
     Company,
     CompanyLead,
     Contact,
-    ContactType,
     Job,
     Outreach,
     OutreachChannel,
@@ -48,20 +49,6 @@ from ai_job_hunter.services.outreach_persistence import (
     find_active_duplicate,
     transition_outreach,
 )
-
-# Who to address first, by company stage.
-_CONTACT_ORDER = {
-    CompanyStage.EARLY_STAGE: (
-        ContactType.FOUNDER, ContactType.ENGINEERING_MANAGER, ContactType.ENGINEER,
-    ),
-    CompanyStage.MID_SIZE: (
-        ContactType.ENGINEERING_MANAGER, ContactType.ENGINEER, ContactType.TALENT, ContactType.RECRUITER,
-    ),
-    CompanyStage.UNKNOWN: (
-        ContactType.ENGINEERING_MANAGER, ContactType.FOUNDER, ContactType.ENGINEER,
-    ),
-}
-
 
 @dataclass(frozen=True, slots=True)
 class CompanyContext:
@@ -95,7 +82,7 @@ def company_context(session: Session, company_id: UUID) -> CompanyContext:
     if company is None:
         raise HunterWritingError(f"Unknown company id: {company_id}.")
     leads = session.scalars(select(CompanyLead).where(CompanyLead.company_id == company_id)).all()
-    inputs = company_inputs(company, leads)
+    inputs = company_inputs(company, leads, _board_job_counts(session, {company_id}).get(company_id))
     fit = score_company(inputs)
     stack: list[str] = []
     for posting in inputs.postings:
@@ -122,11 +109,17 @@ def company_context(session: Session, company_id: UUID) -> CompanyContext:
     return CompanyContext(company=company, fit=fit, facts=facts, contacts=contacts)
 
 
-def best_contact(contacts: tuple[Contact, ...], stage: CompanyStage) -> Contact | None:
-    order = _CONTACT_ORDER[stage]
-    candidates = [contact for contact in contacts if contact.contact_type in {t.value for t in order}]
-    candidates.sort(key=lambda contact: [t.value for t in order].index(contact.contact_type))
-    return candidates[0] if candidates else None
+def best_contact(contacts: tuple[Contact, ...], *, small_known: bool = False) -> Contact | None:
+    """The most relevant stored person for a junior backend candidate (see ``relevance``)."""
+
+    scored = [
+        (score, contact)
+        for contact in contacts
+        if (score := relevance(contact.title, small_known=small_known)) is not None
+    ]
+    if not scored:
+        return None
+    return max(scored, key=lambda item: item[0])[1]
 
 
 def person_facts(contact: Contact) -> PersonFacts:
@@ -160,7 +153,7 @@ def draft_for_company(
 
     context = company_context(session, company_id)
     company, fit = context.company, context.fit
-    contact = best_contact(context.contacts, fit.stage)
+    contact = best_contact(context.contacts, small_known=fit.size.known_small if fit.size else False)
     contact_id = contact.id if contact else None
 
     existing = {

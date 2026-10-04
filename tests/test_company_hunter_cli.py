@@ -117,7 +117,7 @@ def test_companies_command_prints_an_explained_ranking(populated, capsys):
     out = capsys.readouterr().out
     assert "COMPANY HUNTER RANKING: 1" in out and "Acme Pay" in out and company_id in out
     assert "review priority, not probability" in out
-    assert "sector: YES" in out and "stack: YES" in out and "size/stage: UNKNOWN" in out
+    assert "sector: YES" in out and "stack: YES" in out and "size/stage: PARTIAL" in out
 
 
 def test_weekly_prints_without_sending_by_default(populated, capsys):

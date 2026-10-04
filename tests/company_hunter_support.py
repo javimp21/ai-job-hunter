@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+import httpx
 from types import SimpleNamespace
 
+from ai_job_hunter.company_hunter.fetching import PoliteFetcher
 from ai_job_hunter.models import Company, CompanyLead, Contact, Job, JobSource
 
 BASE_CV = """# Alex Example
@@ -131,3 +134,30 @@ def add_contact(
     session.add(contact)
     session.flush()
     return contact
+
+
+GLOBAL = lambda host, port: ("93.184.216.34",)  # noqa: E731 - public address for the SSRF guard
+
+
+def make_fetcher(routes, *, robots="", slept=None, **kwargs):
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            if isinstance(robots, int):
+                return httpx.Response(robots)
+            return httpx.Response(200, text=robots)
+        route = routes.get((request.url.host, request.url.path))
+        if route is None:
+            return httpx.Response(404)
+        if isinstance(route, tuple):
+            return httpx.Response(200, json=route[0]) if route[1] == "json" else httpx.Response(route[0])
+        return httpx.Response(200, text=route, headers={"content-type": "text/html; charset=utf-8"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    fetcher = PoliteFetcher(
+        client=client, host_resolver=GLOBAL, sleep=(slept.append if slept is not None else lambda s: None),
+        clock=lambda: 0.0, **kwargs,
+    )
+    return fetcher, seen

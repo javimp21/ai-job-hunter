@@ -9,7 +9,6 @@ fetches, scrapes or logs in to linkedin.com.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -21,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai_job_hunter.company_hunter.ranking import CompanyFit
+from ai_job_hunter.company_hunter.relevance import relevance
 from ai_job_hunter.company_hunter.service import (
     CompanyContext,
     company_context,
@@ -37,7 +37,7 @@ from ai_job_hunter.company_hunter.writing import (
     load_style_guide,
     resolve_language,
 )
-from ai_job_hunter.models import ConnectionRequest, ConnectionRequestStatus, Contact, ContactType
+from ai_job_hunter.models import ConnectionRequest, ConnectionRequestStatus, Contact
 from ai_job_hunter.services.cover_letters import DEFAULT_STYLE_GUIDE_PATH, MessagesClient
 
 DAILY_LIMIT = 5
@@ -48,7 +48,6 @@ MAX_CONTACTED_PER_COMPANY = 2
 MAX_PER_COMPANY_PER_DAY = 2
 SCHEDULE_TZ = ZoneInfo("Europe/Madrid")
 
-_TECH_LEAD = re.compile(r"\btech(?:nical)? lead\b|\blead (?:engineer|developer|backend|software)\b|\bstaff\b|\bprincipal\b|\barchitect\b", re.IGNORECASE)
 _OPEN_STATES = (
     ConnectionRequestStatus.SENT.value,
     ConnectionRequestStatus.ACCEPTED.value,
@@ -79,16 +78,15 @@ def is_weekday(now: datetime) -> bool:
     return _utc(now).astimezone(SCHEDULE_TZ).weekday() < 5
 
 
-def role_priority(contact: Contact) -> int | None:
-    """0 engineering manager, 1 tech lead, 2 engineer; None when the role is not eligible."""
+def contact_relevance(contact: Contact, *, small_known: bool) -> int | None:
+    """Relevance of this stored person for a junior backend candidate; None means never suggest.
 
-    kind = contact.contact_type
-    title = contact.title or ""
-    if kind in {ContactType.ENGINEERING_MANAGER.value, ContactType.HIRING_MANAGER.value}:
-        return 0
-    if kind == ContactType.ENGINEER.value:
-        return 1 if _TECH_LEAD.search(title) else 2
-    return None
+    Engineering leaders, tech leads, engineers and tech recruiters qualify. A non-engineering
+    C-level person (CEO, CFO, COO, CRO, founders...) qualifies only when the company is known,
+    from evidence, to have at most 50 people; for larger or unknown-size companies never.
+    """
+
+    return relevance(contact.title, small_known=small_known)
 
 
 def requests_today(session: Session, now: datetime) -> list[ConnectionRequest]:
@@ -130,7 +128,7 @@ def _blocked_contacts(session: Session, now: datetime) -> set[UUID]:
 def eligible_contacts(
     session: Session, ranked: Sequence[CompanyFit], now: datetime
 ) -> list[tuple[CompanyFit, Contact, int]]:
-    """Verified contacts at ranked companies, best company and role first."""
+    """Verified contacts at ranked companies, best company first, then most relevant role."""
 
     blocked = _blocked_contacts(session, now)
     contacted = contacted_counts(session)
@@ -141,12 +139,13 @@ def eligible_contacts(
         contacts = session.scalars(
             select(Contact).where(Contact.company_id == fit.company_id).order_by(Contact.created_at, Contact.id)
         ).all()
+        small_known = fit.size.known_small if fit.size is not None else False
         scored = [
             (priority, contact)
             for contact in contacts
-            if contact.id not in blocked and (priority := role_priority(contact)) is not None
+            if contact.id not in blocked and (priority := contact_relevance(contact, small_known=small_known)) is not None
         ]
-        scored.sort(key=lambda item: item[0])
+        scored.sort(key=lambda item: -item[0])
         out.extend((fit, contact, priority) for priority, contact in scored)
     return out
 
