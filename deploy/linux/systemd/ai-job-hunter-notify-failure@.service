@@ -1,0 +1,10 @@
+[Unit]
+Description=Tell Telegram that %i failed
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/ai-job-hunter/shared
+EnvironmentFile=/opt/ai-job-hunter/shared/.env
+ExecStart=/opt/ai-job-hunter/current/deploy/linux/notify-failure.sh %i

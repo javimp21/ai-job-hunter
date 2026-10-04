@@ -1,0 +1,19 @@
+[Unit]
+Description=AI Job Hunter scheduled run (refresh, evaluate, notify)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/ai-job-hunter/shared
+EnvironmentFile=/opt/ai-job-hunter/shared/.env
+# flock inside the script prevents overlap; this is only a backstop (the script's own timeout is 55m).
+TimeoutStartSec=70min
+Nice=5
+ExecStart=/opt/ai-job-hunter/current/deploy/linux/run-scheduled.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

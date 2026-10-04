@@ -1,0 +1,25 @@
+[Unit]
+Description=AI Job Hunter Telegram bot (long polling)
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Never give up restarting; RestartSec below is the back-off.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+# The app reads .env, candidate*.local.json, private/ and data/local/ relative to the cwd.
+WorkingDirectory=/opt/ai-job-hunter/shared
+EnvironmentFile=/opt/ai-job-hunter/shared/.env
+Environment=PYTHONUNBUFFERED=1 PYTHONIOENCODING=utf-8
+ExecStart=/opt/ai-job-hunter/current/.venv/bin/ai-job-hunter bot
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
