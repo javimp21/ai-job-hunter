@@ -9,6 +9,7 @@ terms (Himalayas: data refreshes daily).
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -17,10 +18,15 @@ from pathlib import Path
 
 import httpx
 
+from ai_job_hunter.connectors.adzuna import AdzunaConnector, AdzunaConnectorError
 from ai_job_hunter.connectors.himalayas import HimalayasConnector, HimalayasConnectorError
+from ai_job_hunter.connectors.jobicy import JobicyConnector, JobicyConnectorError
+from ai_job_hunter.connectors.remoteok import RemoteOKConnector, RemoteOKConnectorError
+from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 
 DEFAULT_STATE_PATH = Path("data/local/portal-state.json")
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,12 +37,48 @@ class PortalSpec:
     errors: tuple[type[Exception], ...]
 
 
+class _RemotiveSoftwareDev:
+    """One Remotive request for the software-dev category (Remotive asks for few calls a day)."""
+
+    def __init__(self, client: httpx.Client | None) -> None:
+        self._client = client
+
+    def fetch_jobs(self) -> list[NormalizedJob]:
+        with RemotiveConnector(category="software-dev", client=self._client) as connector:
+            return connector.fetch_jobs()
+
+
 PORTALS: dict[str, PortalSpec] = {
     "himalayas": PortalSpec(
         name="himalayas",
         min_interval=timedelta(hours=20),
         build=lambda client: HimalayasConnector(client=client),
         errors=(HimalayasConnectorError,),
+    ),
+    # Adzuna: free tier is ~250 calls/day and each run makes up to 16; needs ADZUNA_APP_ID/KEY.
+    "adzuna": PortalSpec(
+        name="adzuna",
+        min_interval=timedelta(hours=12),
+        build=lambda client: AdzunaConnector.from_settings(client),
+        errors=(AdzunaConnectorError,),
+    ),
+    "remoteok": PortalSpec(
+        name="remoteok",
+        min_interval=timedelta(hours=4),
+        build=lambda client: RemoteOKConnector(client=client),
+        errors=(RemoteOKConnectorError,),
+    ),
+    "remotive": PortalSpec(
+        name="remotive",
+        min_interval=timedelta(hours=6),
+        build=lambda client: _RemotiveSoftwareDev(client),
+        errors=(RemotiveConnectorError,),
+    ),
+    "jobicy": PortalSpec(
+        name="jobicy",
+        min_interval=timedelta(hours=4),
+        build=lambda client: JobicyConnector(client=client),
+        errors=(JobicyConnectorError,),
     ),
 }
 
@@ -90,6 +132,8 @@ def fetch_portals(
         try:
             fetched = spec.build(client).fetch_jobs()  # type: ignore[attr-defined]
         except spec.errors as error:
+            # Portal error messages are safe by construction (status/type only, no credentials).
+            LOGGER.warning("Portal %s skipped: %s", name, error)
             failures.append(PortalFailure(name, type(error).__name__))
             continue
         offers.extend(fetched)

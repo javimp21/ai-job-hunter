@@ -71,6 +71,19 @@ Besides ACTIVE company boards, `refresh`/`run` query the job portals listed in `
 
 Himalayas gives each remote job's allowed countries: an empty list is worldwide, `Spain` alone is Spain-only, and any other list is country-restricted, so a list without Spain is a deterministic geography SKIP. Salary ranges are kept when published. Its terms require a visible credit, so alerts from it show "Fuente: Himalayas". Portal jobs go through the normal ingestion, deduplication, prefilter, Jev and notification pipeline.
 
+### Additional portals
+
+Enable them with `JOB_PORTALS` (comma-separated); the default stays `himalayas`. All five: `JOB_PORTALS=himalayas,adzuna,remoteok,remotive,jobicy`. Each is throttled through `data/local/portal-state.json` and shows a visible credit and link in alerts and digests (`portal_credit` in `services/notifications.py`).
+
+| Portal | Interval | Notes |
+| --- | --- | --- |
+| `adzuna` | 12 h | Adzuna API Spain. Needs `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` (secrets, blank in `.env.example`); without them the portal is skipped with a warning and nothing is recorded. 8 searches (backend / Java / Python / AI engineer in Madrid, and the same with "remoto" nationwide) x up to 2 pages of 50 = at most 16 calls per run, far under the ~250/day free tier. Salary is kept only when `salary_is_predicted` is not set (predicted salaries are estimates). It has no work-mode or eligibility field, so both stay unknown; descriptions are truncated snippets. Credit: "Jobs by Adzuna". |
+| `remoteok` | 4 h | `https://remoteok.com/api`; the legal-notice element is skipped. The apply link is the Remote OK listing (terms require linking back). Only an explicit "worldwide" location sets eligibility; other text stays in `location`. Salary is yearly USD when non-zero. |
+| `remotive` | 6 h | Reuses `RemotiveConnector` with one request for category `software-dev`. |
+| `jobicy` | 4 h | `https://jobicy.com/api/v2/remote-jobs?count=50&geo=spain`; the listing URL (which leads to the original posting) is the apply link. "Anywhere" is worldwide and exactly "Spain" is Spain-only; any other `jobGeo` (e.g. "Europe") stays in `location` as unknown for the geography check. |
+
+Response shapes were written from each provider's public documentation; they were not verified against live responses from the development sandbox (network policy blocked these hosts), so run `refresh --dry-run` once with the portal enabled and check the first results.
+
 ## Closed postings
 
 Every ingest updates a job source's `last_seen_at` and clears `closed_at`. After a refresh, a posting of an ACTIVE company board is marked closed (`closed_at`) when that board was fetched successfully and completely but no longer lists it. Boards that failed, returned nothing, or hit `--max-jobs-per-company` (a truncated listing) never close anything, and portal results (search-based) never do either. A job whose sources are all closed leaves the feed and cannot alert; if it is listed again it reopens automatically.

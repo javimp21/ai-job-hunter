@@ -13,7 +13,6 @@ import html
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.parse import urlsplit
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -36,6 +35,7 @@ from ai_job_hunter.services.notifications import (
     _safe_public_url,
     _sent_job_identities,
     _WORK_MODE_LABELS,
+    portal_credit,
 )
 from ai_job_hunter.services.opportunities import Opportunity
 
@@ -212,8 +212,10 @@ def format_digest_message(entries: list[DigestEntry]) -> str:
                 f"🏢 {_html(item.company, 80)} · " + " · ".join(details),
             ]
         )
-    if any((_host(entry.item.url) or "").endswith("himalayas.app") for entry in entries):
-        lines.extend(["", '📡 Algunas vía <a href="https://himalayas.app">Himalayas</a>'])
+    credits = dict.fromkeys(c for c in (portal_credit(entry.item.url) for entry in entries) if c)
+    if credits:
+        links = ", ".join(f'<a href="{link}">{name}</a>' for name, link in credits)
+        lines.extend(["", f"📡 Algunas vía {links}"])
     lines.append("<i>[n] = prioridad de revisión, no probabilidad.</i>")
     return "\n".join(lines)
 
@@ -232,11 +234,6 @@ def digest_keyboard(entries: list[DigestEntry]) -> dict[str, Any]:
             ]
         )
     return {"inline_keyboard": rows}
-
-
-def _host(url: str | None) -> str | None:
-    safe = _safe_public_url(url)
-    return urlsplit(safe).hostname if safe else None
 
 
 def _jobs_with_rows(session: Session, job_ids: set[UUID]) -> set[UUID]:

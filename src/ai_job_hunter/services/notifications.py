@@ -955,12 +955,34 @@ def format_notification_message(item: Opportunity) -> str:
     url = _safe_public_url(item.url)
     if url:
         lines.extend(["", f'<a href="{html.escape(url, quote=True)}">Ver oferta →</a>'])
-        if (urlsplit(url).hostname or "").endswith("himalayas.app"):
-            # Himalayas' terms ask for a visible credit and link.
-            lines.append('📡 Fuente: <a href="https://himalayas.app">Himalayas</a>')
+        credit = portal_credit(url)
+        if credit:
+            # Portal terms ask for a visible credit and link back.
+            lines.append(f'📡 Fuente: <a href="{credit[1]}">{credit[0]}</a>')
     lines.append("<i>La prioridad ordena la revisión; no es una probabilidad.</i>")
     return "\n".join(lines)
 
+
+
+# Portals whose terms require a visible credit with a link back: host suffix -> (name, link).
+_PORTAL_CREDITS = (
+    ("himalayas.app", "Himalayas", "https://himalayas.app"),
+    ("adzuna.es", "Jobs by Adzuna", "https://www.adzuna.es"),
+    ("adzuna.com", "Jobs by Adzuna", "https://www.adzuna.com"),
+    ("remoteok.com", "Remote OK", "https://remoteok.com"),
+    ("remotive.com", "Remotive", "https://remotive.com"),
+    ("jobicy.com", "Jobicy", "https://jobicy.com"),
+)
+
+
+def portal_credit(url: str | None) -> tuple[str, str] | None:
+    """The (name, link) credit owed to the portal that hosts ``url``, if any."""
+
+    host = (urlsplit(url).hostname or "").lower() if url else ""
+    for suffix, name, link in _PORTAL_CREDITS:
+        if host == suffix or host.endswith("." + suffix):
+            return name, link
+    return None
 
 _WORK_MODE_LABELS = {"REMOTE": "🏠 remoto", "HYBRID": "🏙️ híbrido", "ONSITE": "🏢 presencial"}
 _CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
