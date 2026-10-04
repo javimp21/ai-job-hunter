@@ -90,6 +90,33 @@ def test_invalid_or_missing_source_config_has_readable_error(tmp_path):
         load_job_sources(tmp_path / "missing.json")
 
 
+def test_workable_and_personio_sources_build_connectors():
+    from ai_job_hunter.connectors import PersonioConnector, WorkableConnector
+
+    config = JobSourcesConfig.model_validate(
+        {
+            "sources": [
+                {"provider": "Workable", "identifier": "idoven", "company_name": "Idoven", "max_jobs": 3},
+                {"provider": "personio", "identifier": "acme", "region": "COM"},
+                {"provider": "personio", "identifier": "other"},
+            ]
+        }
+    )
+    connectors = build_job_connectors(config)
+    try:
+        assert isinstance(connectors[0], WorkableConnector)
+        assert connectors[0].account == "idoven" and connectors[0].max_jobs == 3
+        assert isinstance(connectors[1], PersonioConnector) and connectors[1].region == "com"
+        assert connectors[2].region == "de"
+    finally:
+        for connector in connectors:
+            connector.close()
+    with pytest.raises(ValueError, match="Personio region"):
+        JobSourcesConfig.model_validate({"sources": [{"provider": "personio", "identifier": "a", "region": "eu"}]})
+    with pytest.raises(ValueError, match="only supported by"):
+        JobSourcesConfig.model_validate({"sources": [{"provider": "workable", "identifier": "a", "region": "eu"}]})
+
+
 def test_teamtailor_and_smartrecruiters_sources_build_connectors():
     from ai_job_hunter.connectors import SmartRecruitersConnector, TeamtailorConnector
 

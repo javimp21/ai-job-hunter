@@ -27,6 +27,10 @@ from ai_job_hunter.services.company_intelligence import public_board_url
         ("https://Acme-Co.teamtailor.com", ATSProvider.TEAMTAILOR, "Acme-Co".casefold(), None),
         ("https://jobs.smartrecruiters.com/AcmeCo/744-role", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),
         ("https://careers.smartrecruiters.com/AcmeCo", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),
+        ("https://apply.workable.com/idoven/", ATSProvider.WORKABLE, "idoven", None),
+        ("https://apply.workable.com/titanos/j/ABC123/", ATSProvider.WORKABLE, "titanos", None),
+        ("https://acme-co.jobs.personio.de/job/123", ATSProvider.PERSONIO, "acme-co", None),
+        ("https://acme.jobs.personio.com", ATSProvider.PERSONIO, "acme", "com"),
     ],
 )
 def test_discovery_extracts_exact_public_board_identifiers(url, provider, identifier, region):
@@ -56,6 +60,14 @@ def test_discovery_extracts_exact_public_board_identifiers(url, provider, identi
         ("https://teamtailor.com/", "does not match"),
         ("https://smartrecruiters.com/AcmeCo", "does not match"),
         ("https://jobs.smartrecruiters.com.evil.test/AcmeCo", "does not match"),
+        ("https://apply.workable.com/", "does not match"),
+        ("https://apply.workable.com/j/ABC123", "does not match"),
+        ("https://apply.workable.com.evil.test/acme", "does not match"),
+        ("https://acme.workable.com/jobs", "does not match"),
+        ("https://www.jobs.personio.de/", "does not match"),
+        ("https://a.b.jobs.personio.de/", "does not match"),
+        ("https://acme.jobs.personio.de.evil.test/", "does not match"),
+        ("https://acme.factorialhr.com/", "does not match"),
     ],
 )
 def test_unknown_urls_are_not_guessed(url, evidence_part):
@@ -92,6 +104,9 @@ def test_smartrecruiters_host_without_company_path_is_not_monitorable():
         (ATSProvider.TEAMTAILOR, "acme", None, "https://acme.teamtailor.com/jobs"),
         (ATSProvider.SMARTRECRUITERS, "AcmeCo", None, "https://jobs.smartrecruiters.com/AcmeCo"),
         (ATSProvider.ASHBY, "acme", None, "https://jobs.ashbyhq.com/acme"),
+        (ATSProvider.WORKABLE, "idoven", None, "https://apply.workable.com/idoven"),
+        (ATSProvider.PERSONIO, "acme", None, "https://acme.jobs.personio.de"),
+        (ATSProvider.PERSONIO, "acme", "com", "https://acme.jobs.personio.com"),
     ],
 )
 def test_public_board_url_for_new_providers(provider, identifier, region, expected):

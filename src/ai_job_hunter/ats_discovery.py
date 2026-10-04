@@ -1,7 +1,7 @@
-"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, and SmartRecruiters job boards.
+"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable and Personio job boards.
 
-Teamtailor is detected only on ``{company}.teamtailor.com``; custom career
-domains are not guessed."""
+Teamtailor is detected only on ``{company}.teamtailor.com`` and Personio only on
+``{company}.jobs.personio.de|com``; custom career domains are not guessed."""
 
 from __future__ import annotations
 
@@ -61,16 +61,26 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
     elif host in {"jobs.smartrecruiters.com", "careers.smartrecruiters.com"}:
         provider = ATSProvider.SMARTRECRUITERS
         evidence = f"Exact SmartRecruiters hostname '{host}' matched; the first path segment is the company identifier."
+    elif host == "apply.workable.com":
+        # "/j/<shortcode>" and "/api/..." are not account paths.
+        if segments and segments[0].casefold() not in {"j", "api"}:
+            provider = ATSProvider.WORKABLE
+            evidence = "Exact Workable hostname 'apply.workable.com' matched; the first path segment is the account slug."
     else:
         label, _, parent = host.partition(".")
         if parent == "teamtailor.com" and label not in {"www", "app", "api"}:
             provider = ATSProvider.TEAMTAILOR
             identifier = label
             evidence = f"Teamtailor career-site subdomain '{host}' matched; the subdomain is the company identifier."
+        elif parent in {"jobs.personio.de", "jobs.personio.com"} and label != "www":
+            provider = ATSProvider.PERSONIO
+            identifier = label
+            region = "com" if parent.endswith(".com") else None
+            evidence = f"Personio career-site subdomain '{host}' matched; the subdomain is the company identifier."
 
     if provider is None:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
-    if provider is not ATSProvider.TEAMTAILOR:
+    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO}:
         identifier = segments[0] if segments else None
     if identifier is None or not _BOARD_IDENTIFIER.fullmatch(identifier):
         return ATSDiscoveryResult(

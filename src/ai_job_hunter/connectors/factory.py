@@ -11,6 +11,8 @@ from ai_job_hunter.connectors.protocol import JobConnector
 from ai_job_hunter.candidates.prefilter import title_may_be_relevant
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
+from ai_job_hunter.connectors.personio import PersonioConnector
+from ai_job_hunter.connectors.workable import WorkableConnector
 from ai_job_hunter.job_sources import JobSourcesConfig
 
 
@@ -75,6 +77,27 @@ def build_job_connectors(
                     client=client,
                     # One detail request per posting: skip clearly non-target titles.
                     detail_filter=title_may_be_relevant,
+                )
+            )
+        elif source.provider == "workable":
+            connectors.append(
+                WorkableConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                )
+            )
+        elif source.provider == "personio":
+            connectors.append(
+                PersonioConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    region=source.region or "de",
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
                 )
             )
         else:  # Defensive: the config model already restricts this to supported providers.

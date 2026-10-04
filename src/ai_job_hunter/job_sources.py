@@ -25,9 +25,13 @@ class JobSourceSpec(BaseModel):
     def supported_provider(cls, value: Any) -> Any:
         if isinstance(value, str):
             normalized = value.strip().casefold()
-            if normalized in {"greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters"}:
+            if normalized in {
+                "greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio",
+            }:
                 return normalized
-        raise ValueError("provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters")
+        raise ValueError(
+            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio"
+        )
 
     @field_validator("identifier")
     @classmethod
@@ -43,10 +47,12 @@ class JobSourceSpec(BaseModel):
 
     @model_validator(mode="after")
     def provider_options_are_valid(self) -> JobSourceSpec:
-        if self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters"} and self.region is not None:
-            raise ValueError("region is only supported by Lever sources")
+        if self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters", "workable"} and self.region is not None:
+            raise ValueError("region is only supported by Lever and Personio sources")
         if self.provider == "lever" and self.region not in {None, "global", "eu"}:
             raise ValueError("Lever region must be 'global' or 'eu'")
+        if self.provider == "personio" and self.region not in {None, "de", "com"}:
+            raise ValueError("Personio region must be 'de' or 'com'")
         return self
 
 

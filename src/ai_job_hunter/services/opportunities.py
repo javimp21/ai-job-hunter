@@ -38,6 +38,8 @@ from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
+from ai_job_hunter.connectors.personio import PersonioConnectorError
+from ai_job_hunter.connectors.workable import WorkableConnectorError
 from ai_job_hunter.decision_engine import (
     POLICY_VERSION_V2,
     RUBRIC_VERSION,
@@ -1074,6 +1076,8 @@ def _fetch_targets(
                 LeverConnectorError,
                 SmartRecruitersConnectorError,
                 TeamtailorConnectorError,
+                WorkableConnectorError,
+                PersonioConnectorError,
             ) as error:
                 failures.append(
                     SourceFailure(target.company_name, spec.provider.upper(), type(error).__name__)
