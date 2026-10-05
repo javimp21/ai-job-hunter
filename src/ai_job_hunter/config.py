@@ -22,12 +22,16 @@ class Settings(BaseSettings):
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
-    # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy, arbeitnow, fourdayweek, weworkremotely.
+    # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy, arbeitnow, fourdayweek, weworkremotely, theirstack.
     # Adzuna needs the keys below. remoteok is off by default: applying through Remote OK requires a paid plan.
     job_portals: str = "himalayas,manfred,remotive,jobicy,adzuna,arbeitnow,fourdayweek,weworkremotely"
     # Optional Adzuna credentials (https://developer.adzuna.com); the adzuna portal is skipped without them.
     adzuna_app_id: SecretStr | None = None
     adzuna_app_key: SecretStr | None = None
+    # TheirStack (https://theirstack.com) bills one credit per job returned: the key enables the
+    # opt-in `theirstack` portal and the daily credit budget caps what it can spend.
+    theirstack_api_key: SecretStr | None = None
+    theirstack_daily_credits: int = Field(default=100, ge=1, le=5000)
 
 
 def get_settings() -> Settings:

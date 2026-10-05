@@ -34,3 +34,27 @@ def get_json(
         return response.json()
     except ValueError:
         raise error(f"{portal} returned invalid JSON.") from None
+
+
+def post_json(
+    client: httpx.Client,
+    url: str,
+    body: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    portal: str,
+    error: type[Exception],
+    timeout: float,
+) -> Any:
+    """POST a JSON ``body`` and decode the JSON answer, raising only safe messages (never the URL, body or headers)."""
+
+    try:
+        response = client.post(url, json=body, headers=headers, timeout=timeout)
+    except httpx.HTTPError as exc:
+        raise error(f"{portal} request failed ({type(exc).__name__}).") from None
+    if response.status_code != 200:
+        raise error(f"{portal} returned HTTP {response.status_code}.")
+    try:
+        return response.json()
+    except ValueError:
+        raise error(f"{portal} returned invalid JSON.") from None
