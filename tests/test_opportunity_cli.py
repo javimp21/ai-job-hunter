@@ -126,3 +126,20 @@ def test_sources_commands_validate_arguments_before_database(capsys) -> None:
             main(argv)
         assert error.value.code == 2
     capsys.readouterr()
+
+
+def test_refresh_summary_prints_the_safe_failure_detail(capsys) -> None:
+    from ai_job_hunter.services.opportunities import SourceFailure
+
+    _print_refresh_summary(
+        RefreshSummary(
+            failures=[
+                SourceFailure("Acme", "WORKDAY", "WorkdayConnectorError", "Workday career site API returned HTTP 429."),
+                SourceFailure("Beta", "GREENHOUSE", "ValueError"),
+            ]
+        )
+    )
+
+    lines = capsys.readouterr().out.splitlines()
+    assert "Fetch/ingest failure: Acme | WORKDAY | WorkdayConnectorError | Workday career site API returned HTTP 429." in lines
+    assert "Fetch/ingest failure: Beta | GREENHOUSE | ValueError" in lines
