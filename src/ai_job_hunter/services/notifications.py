@@ -553,6 +553,7 @@ def _current_opportunities(
         if eligible:
             reason = (
                 _paywalled_copy_suppression(item, free_identities)
+                or _snippet_only_suppression(item)
                 or _onsite_suppression(item, decision)
                 or _uncertain_location_suppression(item, decision)
                 or _human_state_suppression(item)
@@ -627,6 +628,18 @@ def _onsite_suppression(item: Opportunity, decision: str) -> str | None:
     if item.priority is not None and item.priority >= ONSITE_MIN_PRIORITY:
         return None
     return "onsite_not_exceptional"
+
+
+# Portals whose API returns only a fixed-length snippet of each posting (Adzuna: 500
+# characters); seniority and stack often come after the cut, so these never alert.
+SNIPPET_PORTAL_HOSTS = ("adzuna.es", "adzuna.com", "adzuna.nl", "adzuna.ch")
+
+
+def _snippet_only_suppression(item: Opportunity) -> str | None:
+    host = (urlsplit(item.url).hostname or "").lower() if item.url else ""
+    if any(host == suffix or host.endswith("." + suffix) for suffix in SNIPPET_PORTAL_HOSTS):
+        return "incomplete_description"
+    return None
 
 
 def _uncertain_location_suppression(item: Opportunity, decision: str) -> str | None:

@@ -12,7 +12,12 @@ from ai_job_hunter.services.direct_postings import (
     paywalled_portal,
     same_title,
 )
-from ai_job_hunter.services.notifications import _paywalled_copy_suppression, _job_identity, format_notification_message
+from ai_job_hunter.services.notifications import (
+    _job_identity,
+    _paywalled_copy_suppression,
+    _snippet_only_suppression,
+    format_notification_message,
+)
 from tests.test_notifications import _opportunity
 
 WWR_URL = "https://weworkremotely.com/remote-jobs/acme-backend-engineer"
@@ -135,3 +140,12 @@ def test_paywalled_copy_is_suppressed_when_a_free_copy_exists():
     assert _paywalled_copy_suppression(paid, {_job_identity(free)}) == "paywalled_copy_of_free_posting"
     assert _paywalled_copy_suppression(paid, set()) is None
     assert _paywalled_copy_suppression(free, {_job_identity(free)}) is None
+
+
+def test_snippet_only_portals_go_to_the_digest_not_alerts():
+    adzuna = replace(_opportunity(uuid4(), FinalDecision.REVIEW, 83), url="https://www.adzuna.es/details/5908611619")
+    board = replace(adzuna, url="https://job-boards.greenhouse.io/acme/jobs/1")
+
+    assert _snippet_only_suppression(adzuna) == "incomplete_description"
+    assert _snippet_only_suppression(replace(adzuna, url="https://www.adzuna.ch/details/1")) == "incomplete_description"
+    assert _snippet_only_suppression(board) is None

@@ -40,6 +40,13 @@ SUPPORTED_POLICY_VERSIONS = (POLICY_VERSION_V1, POLICY_VERSION_V2)
 MIN_APPLY_DESCRIPTION_CHARS = 300
 
 
+def _complete_description(description: str | None) -> bool:
+    """Long enough to state requirements, and not a snippet cut off by the portal ("…")."""
+
+    text = (description or "").strip()
+    return len(text) >= MIN_APPLY_DESCRIPTION_CHARS and not text.endswith(("…", "..."))
+
+
 def experience_blocks_apply(experience: Any) -> bool:
     """Whether the explicit experience check prevents APPLY.
 
@@ -696,13 +703,13 @@ def _decision_result(
         )
         reasons = (reason.message, *reasons)
         review_reasons = (reason, *review_reasons)
-    elif decision is FinalDecision.APPLY and len((context.offer.description or "").strip()) < MIN_APPLY_DESCRIPTION_CHARS:
+    elif decision is FinalDecision.APPLY and not _complete_description(context.offer.description):
         # "No years stated" only counts when there is a description to state them in
         # (a portal detail request can fail and leave the title alone).
         decision = FinalDecision.REVIEW
         reason = StructuredReviewReason(
             code=ReviewReasonCode.EXPERIENCE_UNKNOWN,
-            message="No job description was available to check the experience requirement.",
+            message="The job description is missing or cut off, so the experience requirement could not be checked.",
         )
         reasons = (reason.message, *reasons)
         review_reasons = (reason, *review_reasons)

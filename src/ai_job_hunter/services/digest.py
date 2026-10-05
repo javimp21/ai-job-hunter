@@ -59,6 +59,7 @@ _DIGEST_REASONS = {
     "onsite_not_exceptional",
     "uncertain_location",
     "older_than_max_age",
+    "incomplete_description",
 }
 
 
@@ -188,6 +189,7 @@ def preview_digest(
 _REASON_TAGS = {
     "uncertain_location": "⚠️ puede no ser remota",
     "older_than_max_age": "publicada hace días",
+    "incomplete_description": "📄 descripción incompleta: revisa nivel y stack",
 }
 
 

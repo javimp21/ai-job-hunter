@@ -66,7 +66,8 @@ def sample_offer(**overrides: object) -> NormalizedJob:
     if values.get("description"):
         values["description"] = "Minimum 0 years of professional experience required.\n" + str(values["description"])
         # Real postings are long; APPLY needs a description of at least MIN_APPLY_DESCRIPTION_CHARS.
-        values["description"] = str(values["description"]).ljust(MIN_APPLY_DESCRIPTION_CHARS + 20, ".")
+        while len(str(values["description"])) < MIN_APPLY_DESCRIPTION_CHARS + 20:
+            values["description"] = str(values["description"]) + " The team ships and supports its own services."
     return NormalizedJob.model_validate(values)
 
 
@@ -273,7 +274,17 @@ def test_apply_needs_a_description_to_check_the_experience_requirement() -> None
 
     assert result.final_decision is FinalDecision.REVIEW
     assert result.review_reasons[0].code is ReviewReasonCode.EXPERIENCE_UNKNOWN
-    assert "No job description" in result.reasons[0]
+    assert "missing or cut off" in result.reasons[0]
+
+
+def test_apply_needs_an_uncut_description() -> None:
+    # Adzuna returns 500-character snippets ending in an ellipsis; seniority often comes later.
+    snippet = ("Our client is seeking a hands-on AI Full Stack Engineer for a fintech ledger platform. " * 6)[:480] + "…"
+    offer = sample_offer().model_copy(update={"description": snippet})
+    result = evaluate_job_decision(context_for(offer), FakeJobDecisionEngine(good_answers()))
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert result.review_reasons[0].code is ReviewReasonCode.EXPERIENCE_UNKNOWN
 
 
 def test_conflicting_role_and_experience_signals_require_review() -> None:
