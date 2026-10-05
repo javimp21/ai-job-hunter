@@ -17,8 +17,14 @@ from ai_job_hunter.connectors.factorial import FactorialConnector, FactorialConn
 from ai_job_hunter.connectors.personio import PersonioConnector, PersonioConnectorError
 from ai_job_hunter.connectors.workday import WorkdayConnector, WorkdayConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnector, WorkableConnectorError
+from ai_job_hunter.connectors.careers_site import CareersSiteConnector, CareersSiteConnectorError
+from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnector, AmazonJobsConnectorError
 
 __all__ = [
+    "CareersSiteConnector",
+    "CareersSiteConnectorError",
+    "AmazonJobsConnector",
+    "AmazonJobsConnectorError",
     "FactorialConnector",
     "FactorialConnectorError",
     "WorkdayConnector",

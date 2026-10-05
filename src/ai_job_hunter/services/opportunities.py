@@ -38,6 +38,8 @@ from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
+from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnectorError
+from ai_job_hunter.connectors.careers_site import CareersSiteConnectorError
 from ai_job_hunter.connectors.factorial import FactorialConnectorError
 from ai_job_hunter.connectors.personio import PersonioConnectorError
 from ai_job_hunter.connectors.workable import WorkableConnectorError
@@ -1033,12 +1035,14 @@ def _fetch_targets(
     client: httpx.Client | None,
 ) -> tuple[list[tuple[NormalizedJob, CompanyMonitorTarget]], list[SourceFailure]]:
     specs: list[JobSourceSpec] = []
+    known_urls: dict[str, frozenset[str]] = {}
     target_by_key: dict[tuple[str, str, str | None], CompanyMonitorTarget] = {}
     for target in targets:
         key = (target.provider.value.casefold(), target.identifier.casefold(), target.region)
         if key in target_by_key:
             continue
         target_by_key[key] = target
+        known_urls[target.identifier.casefold()] = target.known_urls
         specs.append(
             JobSourceSpec(
                 provider=key[0],
@@ -1063,7 +1067,7 @@ def _fetch_targets(
     failures: list[SourceFailure] = []
     per_company_counts: dict[UUID, int] = {}
     try:
-        connectors = build_job_connectors(config, client=active_client)
+        connectors = build_job_connectors(config, client=active_client, known_urls=known_urls)
         for spec, connector in zip(config.sources, connectors, strict=True):
             target = target_by_key[(spec.provider, spec.identifier.casefold(), spec.region)]
             try:
@@ -1077,6 +1081,8 @@ def _fetch_targets(
                 WorkableConnectorError,
                 PersonioConnectorError,
                 FactorialConnectorError,
+                CareersSiteConnectorError,
+                AmazonJobsConnectorError,
                 WorkdayConnectorError,
             ) as error:
                 failures.append(

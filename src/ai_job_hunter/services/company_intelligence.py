@@ -425,7 +425,7 @@ def sync_ats_evidence_from_job_sources(
         job_sources = session.scalars(
             select(JobSource)
             .options(selectinload(JobSource.job).selectinload(Job.company))
-            .where(JobSource.provider.in_(("greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday", "factorial")))
+            .where(JobSource.provider.in_(("greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday", "factorial", "amazon_jobs")))
             .order_by(JobSource.provider, JobSource.id)
         ).all()
         observations = [
@@ -660,6 +660,12 @@ def public_board_url(provider: ATSProvider, identifier: str, region: str | None)
         return f"https://{slug}.jobs.personio.{'com' if region == 'com' else 'de'}"
     if provider is ATSProvider.FACTORIAL:
         return f"https://{slug}.factorial.es" if region == "es" else f"https://{slug}.factorialhr.com"
+    if provider is ATSProvider.CAREERS_SITE:
+        from ai_job_hunter.connectors.careers_site import careers_site_board_url
+
+        return careers_site_board_url(identifier)
+    if provider is ATSProvider.AMAZON_JOBS:
+        return "https://www.amazon.jobs/en/"
     return f"https://jobs.ashbyhq.com/{slug}"
 
 

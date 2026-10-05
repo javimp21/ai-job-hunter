@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection, Mapping
+
 import httpx
 
+from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnector
+from ai_job_hunter.connectors.careers_site import CareersSiteConnector, job_url_title
 from ai_job_hunter.connectors.ashby import AshbyConnector
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnector
 from ai_job_hunter.connectors.lever import LeverConnector
@@ -23,8 +27,13 @@ def build_job_connectors(
     *,
     client: httpx.Client | None = None,
     timeout: float = 20.0,
+    known_urls: Mapping[str, Collection[str]] | None = None,
 ) -> list[JobConnector]:
-    """Create one provider connector per configured company without hardcoding names."""
+    """Create one provider connector per configured company without hardcoding names.
+
+    ``known_urls`` maps a careers-site identifier (lower-case) to the job page URLs the
+    caller already stores, so those pages are not fetched again.
+    """
 
     connectors: list[JobConnector] = []
     for source in config.sources:
@@ -127,6 +136,29 @@ def build_job_connectors(
                     client=client,
                     # One detail request per posting: skip clearly non-target titles.
                     detail_filter=title_may_be_relevant,
+                )
+            )
+        elif source.provider == "careers_site":
+            connectors.append(
+                CareersSiteConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                    known_urls=(known_urls or {}).get(source.identifier.casefold(), ()),
+                    # One detail request per job page: skip URLs whose slug names a non-target role.
+                    url_filter=lambda url: title_may_be_relevant(job_url_title(url) or "engineer"),
+                )
+            )
+        elif source.provider == "amazon_jobs":
+            connectors.append(
+                AmazonJobsConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
                 )
             )
         else:  # Defensive: the config model already restricts this to supported providers.

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://careers.example.com/en/job/100/Senior-Platform-Engineer</loc><lastmod>2026-10-01</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/101/Junior-Software-Engineer</loc><lastmod>2026-10-04</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/102/Data-Engineer-Microdata</loc><lastmod>2026-09-20</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/103/Expired-Role</loc><lastmod>2026-08-01</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/104/Listing-With-Two-Postings</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/105/Remote-Backend-Engineer</loc><lastmod>2026-10-03</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/106/Graph-Engineer</loc><lastmod>2026-10-02</lastmod></url>
+  <url><loc>https://careers.example.com/en/job/107/Web-Page-Without-Posting</loc><lastmod>2026-09-15</lastmod></url>
+  <url><loc>https://careers.example.com/en/about-us</loc></url>
+  <url><loc>https://careers.example.com/en/job/</loc></url>
+  <url><loc>https://careers.example.com/en/jobs/brochure.pdf</loc></url>
+  <url><loc>https://careers.example.com/en/job/110/apply</loc></url>
+  <url><loc>https://careers.example.com/private/job/9/Hidden-Role</loc></url>
+  <url><loc>https://evil.example.net/en/job/1/Foreign-Host</loc></url>
+</urlset>

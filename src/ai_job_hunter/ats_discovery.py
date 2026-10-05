@@ -3,7 +3,8 @@
 Teamtailor is detected only on ``{company}.teamtailor.com`` and Personio only on
 ``{company}.jobs.personio.de|com``; Factorial HR only on
 ``{company}.factorialhr.com`` (region ``com``) and ``{company}.factorial.es`` (region ``es``); Workday only on
-``{tenant}.wdN.myworkdayjobs.com/[locale/]{site}``; custom career domains are not guessed."""
+``{tenant}.wdN.myworkdayjobs.com/[locale/]{site}``; Amazon jobs only on ``www.amazon.jobs``; custom career
+domains are not guessed here (``connectors.careers_site.probe_careers_site`` verifies them from live pages)."""
 
 from __future__ import annotations
 
@@ -69,6 +70,10 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
     elif host in {"jobs.smartrecruiters.com", "careers.smartrecruiters.com"}:
         provider = ATSProvider.SMARTRECRUITERS
         evidence = f"Exact SmartRecruiters hostname '{host}' matched; the first path segment is the company identifier."
+    elif host in {"www.amazon.jobs", "amazon.jobs"}:
+        provider = ATSProvider.AMAZON_JOBS
+        identifier = "amazon.jobs"
+        evidence = f"Amazon jobs hostname '{host}' matched; the public JSON search is limited to a fixed set of countries."
     elif host == "apply.workable.com":
         # "/j/<shortcode>" and "/api/..." are not account paths.
         if segments and segments[0].casefold() not in {"j", "api"}:
@@ -106,7 +111,13 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
 
     if provider is None:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
-    if provider not in {ATSProvider.TEAMTAILOR, ATSProvider.PERSONIO, ATSProvider.FACTORIAL, ATSProvider.WORKDAY}:
+    if provider not in {
+        ATSProvider.TEAMTAILOR,
+        ATSProvider.PERSONIO,
+        ATSProvider.FACTORIAL,
+        ATSProvider.WORKDAY,
+        ATSProvider.AMAZON_JOBS,
+    }:
         identifier = segments[0] if segments else None
     if identifier is None or (provider is not ATSProvider.WORKDAY and not _BOARD_IDENTIFIER.fullmatch(identifier)):
         return ATSDiscoveryResult(

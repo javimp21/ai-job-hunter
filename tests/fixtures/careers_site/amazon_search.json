@@ -1,0 +1,43 @@
+{
+  "error": null,
+  "hits": 3,
+  "jobs": [
+    {
+      "id": "3141336",
+      "id_icims": "3141336",
+      "title": "Software Dev Engineer I",
+      "job_path": "/en/jobs/3141336/software-dev-engineer-i",
+      "description": "Build services.<br/>Own them.",
+      "basic_qualifications": "- Bachelor's degree<br/>- Java or Python",
+      "preferred_qualifications": "- AWS experience",
+      "country_code": "ESP",
+      "location": "ES, M, Madrid",
+      "normalized_location": "Madrid, Community of Madrid, ESP",
+      "posted_date": "September 22, 2026",
+      "job_schedule_type": "full-time",
+      "is_intern": false,
+      "job_category": "Software Development",
+      "business_category": "aws",
+      "team": "AWS",
+      "company_name": "Amazon Spain Services SL"
+    },
+    {
+      "id": "3141337",
+      "title": "Software Dev Engineer Intern",
+      "job_path": "/en/jobs/3141337/software-dev-engineer-intern",
+      "description": "Intern work.",
+      "country_code": "IRL",
+      "location": "IE, D, Dublin",
+      "posted_date": "May 13, 2026",
+      "job_schedule_type": "full-time",
+      "is_intern": true
+    },
+    {
+      "id": "999",
+      "title": "Out Of Scope Engineer",
+      "job_path": "/en/jobs/999/out-of-scope-engineer",
+      "country_code": "USA",
+      "location": "US, WA, Seattle"
+    }
+  ]
+}

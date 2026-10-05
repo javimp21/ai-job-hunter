@@ -1,0 +1,12 @@
+# Example careers site
+User-agent: BadBot
+Disallow: /
+
+User-agent: *
+Disallow: */apply
+Disallow: /private/
+Allow: /private/public/
+Crawl-delay: 2
+
+Sitemap: http://careers.example.com/sitemap_index.xml
+Sitemap: https://other.example.net/foreign.xml

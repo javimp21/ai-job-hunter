@@ -27,11 +27,12 @@ class JobSourceSpec(BaseModel):
             normalized = value.strip().casefold()
             if normalized in {
                 "greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday",
-                "factorial",
+                "factorial", "careers_site", "amazon_jobs",
             }:
                 return normalized
         raise ValueError(
-            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio, workday, factorial"
+            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio, "
+            "workday, factorial, careers_site, amazon_jobs"
         )
 
     @field_validator("identifier")
@@ -55,7 +56,16 @@ class JobSourceSpec(BaseModel):
             if self.region is None or not WORKDAY_REGION.fullmatch(self.region):
                 raise ValueError("Workday region must be a data-centre label such as 'wd3'")
             return self
-        if self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters", "workable"} and self.region is not None:
+        if self.provider == "careers_site":
+            from ai_job_hunter.connectors.careers_site import split_careers_identifier
+
+            split_careers_identifier(self.identifier)
+        if self.provider == "amazon_jobs" and self.identifier.casefold() != "amazon.jobs":
+            raise ValueError("Amazon jobs identifier must be 'amazon.jobs'")
+        if (
+            self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters", "workable", "careers_site", "amazon_jobs"}
+            and self.region is not None
+        ):
             raise ValueError("region is only supported by Lever, Personio, Factorial and Workday sources")
         if self.provider == "lever" and self.region not in {None, "global", "eu"}:
             raise ValueError("Lever region must be 'global' or 'eu'")

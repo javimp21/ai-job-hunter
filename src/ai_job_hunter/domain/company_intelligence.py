@@ -31,6 +31,8 @@ class ATSProvider(StrEnum):
     PERSONIO = "PERSONIO"
     FACTORIAL = "FACTORIAL"
     WORKDAY = "WORKDAY"
+    CAREERS_SITE = "CAREERS_SITE"
+    AMAZON_JOBS = "AMAZON_JOBS"
     UNKNOWN = "UNKNOWN"
 
 
@@ -45,6 +47,8 @@ SUPPORTED_ATS_PROVIDERS = frozenset(
         ATSProvider.PERSONIO,
         ATSProvider.FACTORIAL,
         ATSProvider.WORKDAY,
+        ATSProvider.CAREERS_SITE,
+        ATSProvider.AMAZON_JOBS,
     }
 )
 
@@ -125,6 +129,8 @@ class CompanyMonitorTarget(BaseModel):
     confidence: ATSDiscoveryConfidence
     # Set when the target comes from a reviewed monitored_sources row.
     source_id: UUID | None = None
+    # Careers-site boards only: job page URLs already stored, which are not fetched again.
+    known_urls: frozenset[str] = frozenset()
 
 
 class CompanyEvidenceFact(BaseModel):
@@ -225,6 +231,17 @@ def company_facts(company: Any) -> CompanyFacts:
                 inferred_ats.setdefault(
                     (discovery.provider, discovery.identifier, discovery.region), discovery
                 )
+        verified = item.structured_data.get("verified_careers_site")
+        verified_id = verified.get("identifier") if isinstance(verified, dict) else None
+        if isinstance(verified_id, str) and verified_id.strip() and isinstance(single_page, str):
+            careers_site = ATSDiscoveryResult(
+                provider=ATSProvider.CAREERS_SITE,
+                identifier=verified_id.strip(),
+                confidence=ATSDiscoveryConfidence.DIRECT_URL_PATTERN,
+                evidence=str(verified.get("evidence") or "Careers site verified to publish JobPosting JSON-LD."),
+                source_url=single_page.strip(),
+            )
+            inferred_ats.setdefault((careers_site.provider, careers_site.identifier, None), careers_site)
 
     observed_ats: dict[tuple[ATSProvider, str | None, str | None], ATSDiscoveryResult] = {}
     for item in evidence:

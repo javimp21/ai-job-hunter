@@ -21,11 +21,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai_job_hunter.ats_discovery import discover_ats_url
+from ai_job_hunter.connectors.careers_site import CareersSiteProbe, probe_careers_site
 from ai_job_hunter.deduplication.normalization import (
     extract_company_domain,
     normalize_company_name,
 )
 from ai_job_hunter.domain.company_intelligence import (
+    ATSDiscoveryConfidence,
     ATSDiscoveryResult,
     ATSProvider,
     CompanyEvidenceRecord,
@@ -262,12 +264,14 @@ def resolve_company_leads(
     recheck_unsupported: bool = False,
     client: httpx.Client | None = None,
     host_resolver: Callable[[str, int], Iterable[str]] | None = None,
+    careers_probe: Callable[[str, httpx.Client], CareersSiteProbe | None] | None = None,
 ) -> CompanyLeadResolveSummary:
     """Resolve NEW leads through bounded public HTML inspection and exact ATS matching."""
 
     if not 1 <= limit <= 100:
         raise ValueError("limit must be from 1 to 100")
     resolver = host_resolver or _resolve_host
+    probe = careers_probe or (lambda url, http: probe_careers_site(url, client=http))
     statuses = [CompanyLeadStatus.NEW.value]
     if retry_failed:
         statuses.append(CompanyLeadStatus.FAILED.value)
@@ -294,7 +298,7 @@ def resolve_company_leads(
     try:
         for lead in leads:
             try:
-                outcome = _resolve_one(lead, http_client, resolver)
+                outcome = _resolve_one(lead, http_client, resolver, probe)
                 with session.begin_nested():
                     # Mark it checked even when nothing changed (recheck order).
                     lead.updated_at = datetime.now(UTC)
@@ -362,14 +366,20 @@ def _resolve_one(
     lead: CompanyLead,
     client: httpx.Client,
     host_resolver: Callable[[str, int], Iterable[str]],
+    careers_probe: Callable[[str, httpx.Client], CareersSiteProbe | None],
 ) -> _PageOutcome:
     if lead.careers_url:
-        return _inspect_careers_url(
-            lead.careers_url,
-            website_url=lead.website_url,
-            explicit=True,
-            client=client,
-            host_resolver=host_resolver,
+        return _with_careers_site_probe(
+            _inspect_careers_url(
+                lead.careers_url,
+                website_url=lead.website_url,
+                explicit=True,
+                client=client,
+                host_resolver=host_resolver,
+            ),
+            client,
+            host_resolver,
+            careers_probe,
         )
     if not lead.website_url:
         return _PageOutcome(
@@ -418,12 +428,57 @@ def _resolve_one(
             None,
             f"Found {len(careers)} distinct careers/jobs links; none was selected automatically.",
         )
-    return _inspect_careers_url(
-        careers[0],
-        website_url=lead.website_url,
-        explicit=False,
-        client=client,
-        host_resolver=host_resolver,
+    return _with_careers_site_probe(
+        _inspect_careers_url(
+            careers[0],
+            website_url=lead.website_url,
+            explicit=False,
+            client=client,
+            host_resolver=host_resolver,
+        ),
+        client,
+        host_resolver,
+        careers_probe,
+    )
+
+
+def _with_careers_site_probe(
+    outcome: _PageOutcome,
+    client: httpx.Client,
+    host_resolver: Callable[[str, int], Iterable[str]],
+    careers_probe: Callable[[str, httpx.Client], CareersSiteProbe | None],
+) -> _PageOutcome:
+    """Upgrade a careers page that names no known ATS when its job pages publish JobPosting JSON-LD."""
+
+    if (
+        outcome.discovery is not None
+        or outcome.status not in {CompanyLeadStatus.RESOLVED, CompanyLeadStatus.UNSUPPORTED_ATS}
+        or not outcome.careers_url
+    ):
+        return outcome
+    try:
+        _validate_public_url(outcome.careers_url, host_resolver)
+        probe = careers_probe(outcome.careers_url, client)
+    except (CareerPageDiscoveryError, ValueError, httpx.RequestError):
+        return outcome
+    if probe is None or not probe.supported:
+        return outcome
+    discovery = ATSDiscoveryResult(
+        provider=ATSProvider.CAREERS_SITE,
+        identifier=probe.identifier,
+        confidence=ATSDiscoveryConfidence.DIRECT_URL_PATTERN,
+        evidence=(
+            f"Verified by sampling: {probe.postings} of {probe.sampled} sampled job pages published JobPosting "
+            f"JSON-LD ({probe.job_urls} job URLs in the sitemap); robots.txt allowed the reads."
+        ),
+        source_url=outcome.careers_url,
+    )
+    return _PageOutcome(
+        CompanyLeadStatus.SUPPORTED_ATS,
+        outcome.careers_url,
+        outcome.landing_url,
+        discovery,
+        "Careers site with schema.org JobPosting JSON-LD job pages found; no ATS host pattern matched.",
     )
 
 
@@ -752,6 +807,12 @@ def _persist_supported_lead(
             "career_page_url": careers_url,
             "career_page_landing_url": outcome.landing_url,
             "discovery_chain": provenance,
+            # A careers site has no URL pattern to re-derive; the verification is stored with the evidence.
+            **(
+                {"verified_careers_site": {"identifier": discovery.identifier, "evidence": discovery.evidence}}
+                if discovery.provider is ATSProvider.CAREERS_SITE
+                else {}
+            ),
         },
         raw_metadata=provenance,
     )

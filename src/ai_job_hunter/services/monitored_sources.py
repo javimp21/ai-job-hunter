@@ -205,9 +205,28 @@ def active_monitor_targets(
                     else ATSDiscoveryConfidence.DIRECT_URL_PATTERN
                 ),
                 source_id=row.id,
+                known_urls=_known_job_urls(session, row) if provider is ATSProvider.CAREERS_SITE else frozenset(),
             )
         )
     return targets
+
+
+def _known_job_urls(session: Session, row: MonitoredSource) -> frozenset[str]:
+    """Job page URLs already stored for the company's careers-site postings (never closed, see below)."""
+
+    from ai_job_hunter.models import Job, JobSource
+
+    return frozenset(
+        session.scalars(
+            select(JobSource.canonical_url)
+            .join(Job, Job.id == JobSource.job_id)
+            .where(
+                Job.company_id == row.company_id,
+                JobSource.provider == "careers_site",
+                JobSource.canonical_url.is_not(None),
+            )
+        ).all()
+    )
 
 
 def record_fetch_results(
@@ -405,6 +424,8 @@ def mark_closed_postings(
         count = counts.get(target.source_id, 0)
         if target.source_id is None or (target.company_name, target.provider.value.casefold()) in failed:
             continue
+        if target.provider is ATSProvider.CAREERS_SITE:
+            continue  # Each run returns only unseen job pages, never the whole board.
         if count == 0 or count >= max_jobs_per_company:
             continue
         stale = session.scalars(
