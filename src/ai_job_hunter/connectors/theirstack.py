@@ -39,7 +39,7 @@ DEFAULT_TITLES = (
 )
 DEFAULT_SENIORITY = ("junior", "mid_level")
 DEFAULT_CREDITS_PATH = Path("data/local/theirstack-credits.json")
-MAX_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 25  # the free plan rejects larger pages (HTTP 403, E-020)
 
 
 class TheirStackConnectorError(RuntimeError):

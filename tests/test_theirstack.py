@@ -71,7 +71,7 @@ def test_jobs_link_to_the_employer_and_keep_only_stated_facts(tmp_path):
 
     request = requests[0]
     assert request.method == "POST" and request.headers["authorization"] == f"Bearer {KEY}"
-    assert json.loads(request.content)["limit"] == 50
+    assert json.loads(request.content)["limit"] == 25
     first = jobs["theirstack:1"]
     assert first.apply_url == first.canonical_url == "https://job-boards.greenhouse.io/acme/jobs/1"
     assert first.source_url == "https://www.linkedin.com/jobs/view/1"
@@ -90,16 +90,16 @@ def test_the_daily_credit_budget_caps_requests_across_runs(tmp_path):
     connector, requests, budget = make(
         lambda request: httpx.Response(200, json={"data": [raw_job(n) for n in range(json.loads(request.content)["limit"])]}),
         tmp_path,
-        daily=60,
+        daily=40,
     )
 
-    assert len(connector.fetch_jobs()) == 50 and budget.used() == 50
-    assert len(connector.fetch_jobs()) == 10 and budget.used() == 60  # only what is left
-    assert json.loads(requests[1].content)["limit"] == 10
+    assert len(connector.fetch_jobs()) == 25 and budget.used() == 25
+    assert len(connector.fetch_jobs()) == 15 and budget.used() == 40  # only what is left
+    assert json.loads(requests[1].content)["limit"] == 15
     assert connector.fetch_jobs() == [] and len(requests) == 2  # spent: no request at all
     # A new day starts a new budget.
-    tomorrow = CreditBudget(tmp_path / "credits.json", 60, today=lambda: date(2026, 10, 6))
-    assert tomorrow.used() == 0 and tomorrow.remaining() == 60
+    tomorrow = CreditBudget(tmp_path / "credits.json", 40, today=lambda: date(2026, 10, 6))
+    assert tomorrow.used() == 0 and tomorrow.remaining() == 40
 
 
 def test_count_matches_costs_one_credit(tmp_path):

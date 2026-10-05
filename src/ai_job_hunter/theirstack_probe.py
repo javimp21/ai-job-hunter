@@ -76,7 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("count", help="matches for the default filters (1 credit)")
     sample = sub.add_parser("sample", help="fetch N postings (N credits) and compare them with the database")
-    sample.add_argument("n", type=int, help="postings to fetch (1-50)")
+    sample.add_argument("n", type=int, help="postings to fetch (1-25)")
     args = parser.parse_args(argv)
     settings = get_settings()
     connector = TheirStackConnector(
@@ -87,8 +87,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "count":
             print(f"THEIRSTACK MATCHES (default filters, last day): {connector.count_matches()}")
             return 0
-        if not 1 <= args.n <= 50:
-            parser.error("n must be from 1 to 50")
+        if not 1 <= args.n <= 25:
+            parser.error("n must be from 1 to 25")
         connector._page_size = args.n  # noqa: SLF001 - one measured page
         jobs = connector.fetch_jobs()
     except TheirStackConnectorError as error:
