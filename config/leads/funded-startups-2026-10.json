@@ -1,0 +1,26 @@
+{
+  "leads": [
+    {
+      "company_name": "Fundcraft",
+      "website_url": "https://www.fundcraft.com",
+      "careers_url": "https://apply.workable.com/fundcraft",
+      "source_type": "web_research",
+      "source_label": "funded_startups_2026_10",
+      "source_url": "https://seedtable.com/best-fintech-startups-in-luxembourg",
+      "location_hint": "Luxembourg; roles in Spain",
+      "hiring_hint": "Luxembourg fund-administration software, funded in 2026. Live check 2026-10-05: public Workable board with 18 postings; Spain-based roles include a Junior Data Engineer and Backend Engineers.",
+      "notes": "Board verified through Workable's public widget API."
+    },
+    {
+      "company_name": "Titan OS",
+      "website_url": "https://titanos.tv",
+      "careers_url": "https://apply.workable.com/titanos",
+      "source_type": "web_research",
+      "source_label": "funded_startups_2026_10",
+      "source_url": "https://apply.workable.com/titanos",
+      "location_hint": "Spain",
+      "hiring_hint": "Series A smart-TV operating system company. Live check 2026-10-05: public Workable board with 23 postings, 10 with relevant engineering titles (AI Engineer, Backend and Infrastructure interns).",
+      "notes": "Board verified through Workable's public widget API."
+    }
+  ]
+}
