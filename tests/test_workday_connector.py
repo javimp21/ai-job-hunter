@@ -39,7 +39,7 @@ DETAIL = {
 def make(handler, **kwargs):
     client = httpx.Client(transport=httpx.MockTransport(handler))
     kwargs.setdefault("request_delay", 0)
-    kwargs.setdefault("spain_only", False)  # pagination tests; the Spain filter has its own tests
+    kwargs.setdefault("target_countries_only", False)  # pagination tests; the country filter has its own tests
     return WorkdayConnector("acme/Careers", region="wd3", client=client, **kwargs), client
 
 
@@ -256,9 +256,9 @@ def facet_handler(facets, requests, total=3):
     return handler
 
 
-def test_spain_only_applies_the_country_facet():
+def test_target_countries_apply_the_country_facet():
     requests = []
-    connector, _ = make(facet_handler(SPAIN_FACETS, requests), spain_only=True, detail_filter=lambda title: False)
+    connector, _ = make(facet_handler(SPAIN_FACETS, requests), target_countries_only=True, detail_filter=lambda title: False)
 
     jobs = connector.fetch_jobs()
 
@@ -268,19 +268,43 @@ def test_spain_only_applies_the_country_facet():
     assert bodies[1]["appliedFacets"] == {"locationCountry": ["es-id"]}
 
 
-def test_spain_only_falls_back_to_spanish_locations_and_skips_sites_without_spain():
+def test_target_countries_fall_back_to_locations_and_skip_sites_without_them():
     places = [{"facetParameter": "locations", "values": [
         {"descriptor": "Madrid (Hubs Spain)", "id": "hub", "count": 1},
         {"descriptor": "London", "id": "ldn", "count": 5},
     ]}]
     requests = []
-    make(facet_handler(places, requests), spain_only=True, detail_filter=lambda title: False)[0].fetch_jobs()
+    make(facet_handler(places, requests), target_countries_only=True, detail_filter=lambda title: False)[0].fetch_jobs()
     assert json.loads(requests[1].content)["appliedFacets"] == {"locations": ["hub"]}
 
     abroad = [{"facetParameter": "locations", "values": [{"descriptor": "London", "id": "ldn", "count": 5}]}]
     requests = []
-    assert make(facet_handler(abroad, requests), spain_only=True)[0].fetch_jobs() == []
+    assert make(facet_handler(abroad, requests), target_countries_only=True)[0].fetch_jobs() == []
     assert len(requests) == 1
+
+
+def test_target_countries_include_the_preferred_relocation_countries():
+    facets = [{"facetParameter": "locationCountry", "values": [
+        {"descriptor": "Spain", "id": "es", "count": 1},
+        {"descriptor": "Netherlands, The", "id": "nl", "count": 1},
+        {"descriptor": "Switzerland", "id": "ch", "count": 1},
+        {"descriptor": "Ireland", "id": "ie", "count": 1},
+        {"descriptor": "Luxembourg", "id": "lu", "count": 1},
+        {"descriptor": "Northern Ireland Office", "id": "x", "count": 1},
+        {"descriptor": "Germany", "id": "de", "count": 9},
+    ]}]
+    requests = []
+    make(facet_handler(facets, requests), target_countries_only=True, detail_filter=lambda title: False)[0].fetch_jobs()
+    assert json.loads(requests[1].content)["appliedFacets"] == {"locationCountry": ["es", "nl", "ch", "ie", "lu"]}
+
+    places = [{"facetParameter": "locations", "values": [
+        {"descriptor": "Zurich, Switzerland", "id": "zrh", "count": 1},
+        {"descriptor": "Dublin 2", "id": "dub", "count": 1},
+        {"descriptor": "Berlin", "id": "ber", "count": 4},
+    ]}]
+    requests = []
+    make(facet_handler(places, requests), target_countries_only=True, detail_filter=lambda title: False)[0].fetch_jobs()
+    assert json.loads(requests[1].content)["appliedFacets"] == {"locations": ["zrh", "dub"]}
 
 
 @pytest.mark.parametrize(

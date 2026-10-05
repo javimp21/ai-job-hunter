@@ -65,6 +65,12 @@ _SAFE_CONTACT_METADATA_KEYS = frozenset(
         "observed_at",
         "record_type",
         "confidence",
+        # Company Hunter: the public text that supports the contact, its language
+        # and a public article/talk of theirs (never an email or phone).
+        "quote",
+        "language",
+        "topic",
+        "topic_url",
     }
 )
 _MAX_CONTACT_METADATA_BYTES = 2048
@@ -292,6 +298,7 @@ def create_outreach(
         job_id=job_id,
         contact_id=contact_id,
         purpose=normalized_purpose,
+        channel=normalized_channel,
     )
     if existing is not None:
         return OutreachCreateResult(outreach=existing, created=False)
@@ -332,8 +339,13 @@ def find_active_duplicate(
     job_id: UUID | None,
     contact_id: UUID | None,
     purpose: OutreachPurpose | str,
+    channel: OutreachChannel | str | None = None,
 ) -> Outreach | None:
-    """Return the oldest active outreach with the same dedupe identity."""
+    """Return the oldest active outreach with the same dedupe identity.
+
+    Company-level outreach (no job) is unique per channel too, so an email
+    draft and a LinkedIn draft for one company coexist.
+    """
 
     normalized_purpose = _coerce_enum(OutreachPurpose, purpose, "outreach purpose")
     statement = select(Outreach).where(
@@ -342,6 +354,10 @@ def find_active_duplicate(
     )
     if job_id is None:
         statement = statement.where(Outreach.company_id == company_id)
+        if channel is not None:
+            statement = statement.where(
+                Outreach.channel == _coerce_enum(OutreachChannel, channel, "outreach channel").value
+            )
     statement = statement.where(
         Outreach.job_id.is_(None) if job_id is None else Outreach.job_id == job_id
     )

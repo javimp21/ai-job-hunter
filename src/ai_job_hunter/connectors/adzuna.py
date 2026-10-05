@@ -1,4 +1,4 @@
-"""Adzuna job-search API for Spain (needs a free app id/key).
+"""Adzuna job-search API for Spain, the Netherlands and Switzerland (needs a free app id/key).
 
 Adzuna lists on-site and remote jobs from many employers. The free tier allows
 roughly 250 calls a day, so the connector runs a handful of searches with at
@@ -24,9 +24,11 @@ from ai_job_hunter.connectors._portal_http import get_json, new_client
 from ai_job_hunter.connectors._html import html_to_text
 from ai_job_hunter.domain.normalized_job import EmploymentType, NormalizedJob, SalaryPeriod
 
-SEARCH_URL = "https://api.adzuna.com/v1/api/jobs/es/search/{page}"
-# (what, where): on-site roles in Madrid, then the same roles with "remoto" nationwide.
-DEFAULT_SEARCHES: tuple[tuple[str, str | None], ...] = (
+SEARCH_URL = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
+# (what, where[, country]); country defaults to "es". Spain: on-site roles in Madrid, then
+# the same roles with "remoto" nationwide. Netherlands and Switzerland (preferred relocation
+# destinations; Adzuna has no Ireland or Luxembourg site): nationwide.
+DEFAULT_SEARCHES: tuple[tuple[str, str | None] | tuple[str, str | None, str], ...] = (
     ("backend engineer", "Madrid"),
     ("java developer", "Madrid"),
     ("python developer", "Madrid"),
@@ -35,9 +37,18 @@ DEFAULT_SEARCHES: tuple[tuple[str, str | None], ...] = (
     ("java developer remoto", None),
     ("python developer remoto", None),
     ("AI engineer remoto", None),
+    ("backend engineer", None, "nl"),
+    ("java developer", None, "nl"),
+    ("AI engineer", None, "nl"),
+    ("backend engineer", None, "ch"),
+    ("java developer", None, "ch"),
+    ("AI engineer", None, "ch"),
 )
+DEFAULT_COUNTRY = "es"
+# Adzuna quotes annual salaries in the country's currency.
+_CURRENCIES = {"es": "EUR", "nl": "EUR", "ch": "CHF"}
 _PAGE_SIZE = 50
-_ADZUNA_HOSTS = {"adzuna.es", "adzuna.com"}
+_ADZUNA_HOSTS = {"adzuna.es", "adzuna.com", "adzuna.nl", "adzuna.ch"}
 
 
 class AdzunaConnectorError(RuntimeError):
@@ -56,7 +67,7 @@ class AdzunaConnector:
         *,
         app_id: SecretStr | str | None,
         app_key: SecretStr | str | None,
-        searches: Sequence[tuple[str, str | None]] = DEFAULT_SEARCHES,
+        searches: Sequence[tuple[str, str | None] | tuple[str, str | None, str]] = DEFAULT_SEARCHES,
         max_pages: int = 2,
         max_days_old: int = 7,
         pause_seconds: float = 1.0,
@@ -67,6 +78,9 @@ class AdzunaConnector:
             raise ValueError("max_pages must be positive")
         if not searches:
             raise ValueError("at least one search is required")
+        for search in searches:
+            if (search[2] if len(search) > 2 else DEFAULT_COUNTRY) not in _CURRENCIES:
+                raise ValueError(f"unsupported Adzuna country in {search!r}")
         self._app_id = _secret(app_id)
         self._app_key = _secret(app_key)
         self.searches = tuple(searches)
@@ -91,7 +105,9 @@ class AdzunaConnector:
         jobs: dict[str, NormalizedJob] = {}
         first = True
         try:
-            for what, where in self.searches:
+            for search in self.searches:
+                what, where = search[0], search[1]
+                country = search[2] if len(search) > 2 else DEFAULT_COUNTRY
                 for page in range(1, self.max_pages + 1):
                     if not first and self._pause:
                         time.sleep(self._pause)
@@ -108,7 +124,7 @@ class AdzunaConnector:
                         params["where"] = where
                     payload = get_json(
                         client,
-                        SEARCH_URL.format(page=page),
+                        SEARCH_URL.format(country=country, page=page),
                         params,
                         portal="Adzuna",
                         error=AdzunaConnectorError,
@@ -119,7 +135,7 @@ class AdzunaConnector:
                     results = [item for item in payload.get("results") or [] if isinstance(item, Mapping)]
                     for raw in results:
                         try:
-                            job = _normalize_job(raw, discovered_at=discovered_at)
+                            job = _normalize_job(raw, discovered_at=discovered_at, country=country)
                         except ValueError:
                             continue
                         jobs.setdefault(job.external_id or job.source_url or job.title, job)
@@ -131,7 +147,7 @@ class AdzunaConnector:
         return list(jobs.values())
 
 
-def _normalize_job(raw: Mapping[str, Any], *, discovered_at: datetime) -> NormalizedJob:
+def _normalize_job(raw: Mapping[str, Any], *, discovered_at: datetime, country: str = DEFAULT_COUNTRY) -> NormalizedJob:
     title = _text(raw.get("title"))
     url = _text(raw.get("redirect_url"))
     if title is None or url is None:
@@ -141,6 +157,8 @@ def _normalize_job(raw: Mapping[str, Any], *, discovered_at: datetime) -> Normal
         raise ValueError("redirect_url must be an Adzuna URL")
     raw_id = raw.get("id")
     external_id = str(raw_id).strip() if isinstance(raw_id, (str, int)) and not isinstance(raw_id, bool) else None
+    if external_id and country != DEFAULT_COUNTRY:
+        external_id = f"{country}:{external_id}"  # ids are per country site; Spanish ids stay as they were
     company = raw.get("company")
     location = raw.get("location")
     predicted = str(raw.get("salary_is_predicted", "")).strip().casefold() in {"1", "true"}
@@ -161,8 +179,7 @@ def _normalize_job(raw: Mapping[str, Any], *, discovered_at: datetime) -> Normal
         location=(_text(location.get("display_name")) if isinstance(location, Mapping) else None),
         salary_min=salary_min,
         salary_max=salary_max,
-        # Adzuna Spain quotes annual EUR salaries.
-        currency="EUR" if has_salary else None,
+        currency=_CURRENCIES[country] if has_salary else None,
         salary_period=SalaryPeriod.YEAR if has_salary else None,
         employment_type=_employment_type(raw),
         published_at=_timestamp(raw.get("created")),

@@ -15,6 +15,29 @@ from ai_job_hunter.domain.normalized_job import (
 )
 
 
+_REAL_CREDENTIALS = (
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "ANTHROPIC_API_KEY",
+    "TYPESAFE_API_KEY",
+    "ADZUNA_APP_ID",
+    "ADZUNA_APP_KEY",
+)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Blank real credentials so no test can reach Telegram, Claude, Jev or Adzuna.
+
+    Settings also read ./.env, where a developer keeps real values; environment
+    variables take precedence, so empty ones mask them. Tests that need a
+    configured service set their own fake values.
+    """
+
+    for name in _REAL_CREDENTIALS:
+        monkeypatch.setenv(name, "")
+
+
 @pytest.fixture
 def db_session() -> Iterator[Session]:
     engine = create_engine("sqlite+pysqlite:///:memory:")

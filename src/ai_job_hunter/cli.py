@@ -17,6 +17,8 @@ from ai_job_hunter.candidates import (
     CandidateConfigError,
     load_candidate_config,
 )
+from ai_job_hunter.company_hunter import cli as company_hunter
+from ai_job_hunter.company_hunter.bot import build_handlers as build_hunter_handlers
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
 from ai_job_hunter.decision_engine import FinalDecision
@@ -89,7 +91,9 @@ from ai_job_hunter.services.opportunities import (
     transition_application,
 )
 from ai_job_hunter.services.application_pack import prepare_application
+from ai_job_hunter.services.interview_prep import prepare_interview
 from ai_job_hunter.services.digest import preview_digest, send_digest
+from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
@@ -148,6 +152,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     digest.add_argument("--dry-run", action="store_true", help="show the digest without sending or recording it")
     digest.add_argument("--force", action="store_true", help="send even if a digest went out in the last 20 hours")
+    weekly = notification_commands.add_parser(
+        "weekly", help="send the weekly Telegram report (last 7 days; at most once per 6 days)"
+    )
+    weekly.add_argument("--dry-run", action="store_true", help="show the report without sending or recording it")
+    weekly.add_argument("--force", action="store_true", help="send even if a weekly report went out in the last 6 days")
     system = notification_commands.add_parser(
         "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
     )
@@ -290,6 +299,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     pack.add_argument("--language", choices=("auto", "es", "en"), default="auto")
     pack.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
 
+    interview = subparsers.add_parser(
+        "interview-prep",
+        help="interview-prep brief for one job with Claude (saved locally; nothing is sent)",
+    )
+    interview.add_argument("job_id", type=UUID)
+    interview.add_argument("--language", choices=("auto", "es", "en"), default="auto")
+    interview.add_argument("--candidate-config", type=Path, default=DEFAULT_CANDIDATE_CONFIG)
+
     bot = subparsers.add_parser(
         "bot",
         help="listen for Telegram cover-letter buttons and reply with drafts (never sent anywhere)",
@@ -381,6 +398,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     outreach_approve.add_argument("outreach_id", type=UUID)
     outreach_approve.add_argument("--note")
 
+    company_hunter.add_parsers(outreach_commands)
+
     for command_parser in outreach_commands.choices.values():
         command_parser.add_argument("--database-url", default=argparse.SUPPRESS)
 
@@ -417,6 +436,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         and args.limit < 1
     ):
         parser.error("--limit must be positive")
+    if args.command == "outreach" and args.outreach_command in company_hunter.HUNTER_COMMANDS:
+        company_hunter.validate(args, parser)
 
     if args.command == "apply":
         try:
@@ -432,12 +453,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     candidate = None
     if args.command in {
-        "refresh", "reevaluate", "cover-letter", "prepare-application", "bot", "opportunities", "show", "run"
+        "refresh", "reevaluate", "cover-letter", "prepare-application", "interview-prep", "bot", "opportunities", "show", "run"
     } or (
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed", "digest"}
+        and args.notification_command in {"send", "retry-failed", "digest", "weekly"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -496,6 +517,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"Answers: {pack_result.answers_path}")
                 print()
                 print(pack_result.answers_text)
+                return 0
+            if args.command == "interview-prep":
+                try:
+                    brief = prepare_interview(session, candidate, args.job_id, language=args.language)
+                except CoverLetterError as error:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                    return 1
+                print(f"INTERVIEW PREP — {brief.company} — {brief.title} (nothing was sent)")
+                print(f"Markdown: {brief.md_path}")
+                if brief.docx_path is not None:
+                    print(f"Word: {brief.docx_path}")
+                if brief.pdf_path is not None:
+                    print(f"PDF: {brief.pdf_path}")
+                if brief.render_error:
+                    print(f"WARNING: {brief.render_error}", file=sys.stderr)
                 return 0
             if args.command == "cover-letter":
                 try:
@@ -609,6 +645,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _print_opportunity(item, show_company_facts=True)
                 _print_application_history(session, args.job_id)
                 return 0
+            if args.command == "outreach" and args.outreach_command in company_hunter.HUNTER_COMMANDS:
+                return company_hunter.run(args, session, settings)
             if args.command == "outreach":
                 return _run_outreach_command(args, session, candidate)
             if args.command in {"seen", "save", "dismiss"}:
@@ -1134,6 +1172,10 @@ def _run_bot_command(candidate, settings) -> int:
                 documents=documents,
             )
 
+    def interview(job_id: UUID):
+        with session_factory() as session:
+            return prepare_interview(session, candidate, job_id)
+
     def record_feedback(job_id: UUID, state: str, reason: str | None) -> None:
         with session_factory() as feedback_session:
             set_review_state(feedback_session, job_id, HumanReviewStatus(state), reason=reason)
@@ -1148,6 +1190,8 @@ def _run_bot_command(candidate, settings) -> int:
             offset_path=BOT_OFFSET_PATH,
             record_feedback=record_feedback,
             prepare=prepare,
+            prepare_interview=interview,
+            hunter=build_hunter_handlers(session_factory),
         )
     except KeyboardInterrupt:
         print("Bot stopped.")
@@ -1260,6 +1304,27 @@ def _run_digest_command(args, session, candidate, settings) -> int:
     return 1 if result.status == "failed" else 0
 
 
+def _run_weekly_command(args, session, candidate, settings) -> int:
+    if args.dry_run:
+        result = preview_weekly(session, candidate)
+    else:
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; weekly report not sent.", file=sys.stderr)
+            return 1
+        result = send_weekly(session, candidate, provider, force=args.force)
+    labels = {
+        "too_soon": "Weekly report: already sent in the last 6 days",
+        "failed": "Weekly report: delivery failed; nothing recorded",
+        "sent": "Weekly report sent",
+        "preview": "Weekly report preview (not sent)",
+    }
+    print(labels[result.status])
+    if result.status == "preview" and result.message:
+        print(result.message)
+    return 1 if result.status == "failed" else 0
+
+
 def _run_notification_command(args, session, candidate, settings) -> int:
     command = args.notification_command
     if command == "pending":
@@ -1274,6 +1339,8 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         return 0
     if command == "digest":
         return _run_digest_command(args, session, candidate, settings)
+    if command == "weekly":
+        return _run_weekly_command(args, session, candidate, settings)
     if command == "system":
         provider = _configured_telegram_provider(settings)
         if provider is None:

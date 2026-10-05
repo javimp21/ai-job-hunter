@@ -117,6 +117,31 @@ def test_workable_and_personio_sources_build_connectors():
         JobSourcesConfig.model_validate({"sources": [{"provider": "workable", "identifier": "a", "region": "eu"}]})
 
 
+def test_factorial_sources_build_connectors_with_title_filtered_details():
+    from ai_job_hunter.candidates.prefilter import title_may_be_relevant
+    from ai_job_hunter.connectors import FactorialConnector
+
+    config = JobSourcesConfig.model_validate(
+        {
+            "sources": [
+                {"provider": "Factorial", "identifier": "embat", "company_name": "Embat", "max_jobs": 4},
+                {"provider": "factorial", "identifier": "nextaillabs", "region": "ES"},
+            ]
+        }
+    )
+    connectors = build_job_connectors(config)
+    try:
+        assert all(isinstance(connector, FactorialConnector) for connector in connectors)
+        assert connectors[0].region == "com" and connectors[0].max_jobs == 4
+        assert connectors[0].detail_filter is title_may_be_relevant
+        assert connectors[1].region == "es" and connectors[1].base_url == "https://nextaillabs.factorial.es"
+    finally:
+        for connector in connectors:
+            connector.close()
+    with pytest.raises(ValueError, match="Factorial region"):
+        JobSourcesConfig.model_validate({"sources": [{"provider": "factorial", "identifier": "a", "region": "de"}]})
+
+
 def test_teamtailor_and_smartrecruiters_sources_build_connectors():
     from ai_job_hunter.connectors import SmartRecruitersConnector, TeamtailorConnector
 

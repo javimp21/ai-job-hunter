@@ -77,6 +77,7 @@ Read only when relevant:
 - Job decisions/domain → `docs/DOMAIN.md`
 - Jev → `docs/JEV.md`
 - Company Intelligence/Leads → `docs/COMPANY_INTELLIGENCE.md`
+- Company Hunter (company fit ranking, public contacts, outreach drafts, manual LinkedIn queue) → `docs/COMPANY_HUNTER.md`
 - External actions/outreach → `docs/EXTERNAL_ACTIONS.md`
 - Persistence/migrations → `docs/DATA.md`
 - Testing → `docs/TESTING.md`

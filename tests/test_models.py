@@ -27,6 +27,7 @@ def test_models_import_and_relationships_are_configured() -> None:
         "companies",
         "company_evidence",
         "company_leads",
+        "connection_requests",
         "contacts",
         "job_evaluations",
         "job_reviews",
@@ -36,6 +37,7 @@ def test_models_import_and_relationships_are_configured() -> None:
         "outreach_events",
         "opportunity_notifications",
         "monitored_sources",
+        "report_deliveries",
     }
     assert Company.jobs.property.mapper.class_ is Job
     assert Company.evidence_items.property.mapper.class_ is CompanyEvidence

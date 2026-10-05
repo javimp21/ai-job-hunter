@@ -123,6 +123,7 @@ class Outreach(TimestampMixin, Base):
             "uq_outreach_active_company_contact_purpose",
             "company_id",
             "contact_id",
+            "channel",
             "purpose",
             unique=True,
             sqlite_where=text(
@@ -135,6 +136,7 @@ class Outreach(TimestampMixin, Base):
         Index(
             "uq_outreach_active_company_without_contact_purpose",
             "company_id",
+            "channel",
             "purpose",
             unique=True,
             sqlite_where=text(

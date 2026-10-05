@@ -3,7 +3,7 @@
 # ai-job-hunter-run.service. Output goes to journald. Never overlaps: a second
 # invocation (or a deploy in progress) skips the run.
 # Tunables (set via `systemctl edit ai-job-hunter-run.service`, [Service] Environment=):
-#   MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  RUN_TIMEOUT (55m)
+#   COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -51,9 +51,31 @@ if [ "$((10#$hour))" -ge 7 ] && [ "$(cat "$marker" 2>/dev/null)" != "$today" ]; 
     "$exe" sources auto-activate --limit 40 || true
     echo "$today" > "$marker"
 fi
+dow=$(TZ="$TIMEZONE" date +%u)
+hunter_marker="$SHARED_DIR/data/local/company-hunter.date"
+# Off until contact extraction is reliable (2026-10-04: menu items were stored as people).
+# Enable with COMPANY_HUNTER_ENABLED=1 (systemctl edit ai-job-hunter-run.service).
+if [ "${COMPANY_HUNTER_ENABLED:-0}" = 1 ] && [ "$dow" -le 5 ] && [ "$((10#$hour))" -ge 9 ] && [ "$(cat "$hunter_marker" 2>/dev/null)" != "$today" ]; then
+    # Weekdays after 09:00, once a day (marker written first so a failure never repeats paid calls
+    # every 15 minutes). Mondays also read top companies' public pages and post the weekly
+    # "Company Hunter" message. Everything goes to your own Telegram chat; nothing is sent to
+    # companies or LinkedIn.
+    echo "$today" > "$hunter_marker"
+    log "company hunter"
+    if [ "$dow" -eq 1 ]; then
+        "$exe" outreach find-contacts --top 15 || true
+        "$exe" outreach weekly --send || true
+    fi
+    "$exe" outreach connections --send || true
+fi
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1
+fi
+if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FROM_HOUR:-20}" ]; then
+    # Sunday evening. The command itself sends at most one report per 6 days,
+    # so every later tick that evening is a no-op.
+    "$exe" notify weekly || code=1
 fi
 
 if [ "$code" -ne 0 ]; then

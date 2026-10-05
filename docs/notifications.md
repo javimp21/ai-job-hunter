@@ -34,6 +34,26 @@ ai-job-hunter notify digest
 
 `scripts\run-scheduled.ps1` runs it after the 20:00 and 22:00 runs, so the digest arrives with the first of them that runs.
 
+## Weekly report
+
+A concise Spanish Telegram message (HTML, phone-sized) summarising the last 7 days, sent on Sunday evening by the scheduled script. Every figure is computed from stored rows; nothing is estimated, and a section with no data says so.
+
+- **Funnel**: jobs first seen in the window, how many passed the deterministic prefilter (not `REJECT`), how many have a current evaluation, and how many are `APPLY` / `REVIEW`; alerts (`TELEGRAM`) and daily-digest items (`TELEGRAM_DIGEST`) actually sent in the window.
+- **Relevant jobs** (`APPLY` or `REVIEW`, first seen in the window): top 5 companies and top 5 sources (a job seen through two providers counts once for each).
+- **Technologies**: most frequent in relevant jobs, marked ✅ when they are in the candidate's profile (`technologies`, `primary_skills`, `secondary_skills`), plus the technologies of the jobs you saved (👍) and dismissed (👎) in the window.
+- **Salaries**: published ranges of relevant jobs in EUR only, yearly (monthly values are multiplied by 12; other periods and other currencies are skipped, with no conversion): median of each job's midpoint, lowest and highest published figure, and how many relevant jobs carry one.
+- **Feedback**: 👍 / 👎 counts (saved / dismissed reviews updated in the window) and their reasons.
+- **Failing sources**: active boards with 6+ consecutive failed fetches (same rule as the digest).
+- **Suggestions** (at most 3, plain rules over the figures above): a technology missing from your stack in at least 3 relevant jobs and 25% of them; one dismissal reason behind at least 3 and 40% of your 👎; failing sources; no relevant jobs, or no new jobs at all. With no pattern the report says there are not enough data.
+
+```powershell
+ai-job-hunter notify weekly --dry-run
+ai-job-hunter notify weekly
+ai-job-hunter notify weekly --force
+```
+
+At most one report per 6 days: the marker is a row in `report_deliveries` (kind `WEEKLY`, written only after Telegram accepted the message; a failed delivery records nothing). It is a table of its own rather than a new notification channel because the notification ledger is keyed by job (`job_id` is required), and a report is not about one job. `--dry-run` never contacts Telegram or writes anything; `--force` ignores the 6-day marker. On Linux `deploy/linux/run-scheduled.sh` calls it on Sundays from 20:00 Europe/Madrid (see [SERVER.md](SERVER.md#schedule)); on Windows run it manually or from a Task Scheduler entry.
+
 ## Cover letters from alerts
 
 Every alert carries two inline buttons: "✍️ Cover letter" (the letter follows the language of the posting) and "🇪🇸 En español" (always Spanish, whatever the posting language). Tapping one asks the local bot to draft a cover letter for that job with Claude; the bot replies to that alert (quoting it) with the letter as one grouped Word (.docx) + PDF message (name, contact line, date and body; A4) and a one-line caption, so the alert feed is not interleaved with long letter texts. The same files are saved next to the Markdown draft; `ai-job-hunter cover-letter <job_id> --language {auto,es,en}` does the same from the CLI. If the files cannot be rendered or uploaded, the letter text is sent instead, still as a reply to the alert. The bot is a separate long-polling process; it does nothing unless it is running:
@@ -52,6 +72,14 @@ Every alert (and every digest line, as `n 📝`) also has "📝 Preparar candida
 - The CV is tailored by Claude from the candidate's own base CV, `private/cv/CV_base_EN.md` / `CV_base_ES.md` (a small Markdown subset rendered single-column with standard bullets, ATS-friendly). It may retarget the headline and summary, reorder bullets and skills, and lightly rephrase with the posting's vocabulary. A validator rejects any tailored CV that changes the sections, the name or the contact/role/date/education lines, introduces a number that is not in the base CV, or lists a skill or headline technology that is not in it; the base CV is then sent instead, with the reason in the caption.
 - "Why this company / role" answers come from Claude in the candidate's voice; notice period, work authorization and relocation come verbatim from `candidate_application.local.json`, and the salary line shows the candidate's target next to the posting's published range. Missing facts say "(completa tú)".
 - Files are saved under `data/local/applications/<timestamp>-<company>-<title>/`. Each pack costs two Claude calls (letter + CV), roughly $0.10–0.15. A second tap in the same bot session resends the same pack.
+
+## Preparar entrevista
+
+After tapping 👍 on an alert, the follow-up "¿Qué te gusta de esta oferta?" message also has "🎯 Preparar entrevista" (callback `ip:<job_id>`). The bot replies to the alert with the brief as one grouped Word + PDF message; nothing is sent anywhere. `ai-job-hunter interview-prep <job_id> [--language auto|es|en]` does the same from the CLI.
+
+- Language follows the posting (`auto`) or is forced; the base CV `private/cv/CV_base_<ES|EN>.md` of that language is required.
+- The brief has: what the company does (only from the posting text and the stored website URL, which is never fetched; "no consta" when unknown), what the role involves, 8-12 likely questions (technical ones tied to the posting's stack, plus behavioural) each with the real CV experience to use, honest gaps with a positive but truthful framing, and 4-5 questions to ask. Claude is instructed never to add experience that is not in the base CV; there is no automatic validator as for tailored CVs, so contrast the company facts and the CV references before the interview.
+- Files are saved under `data/local/interviews/<timestamp>-<company>-<title>/` as `entrevista_<LANG>.md/.docx/.pdf`. One Claude call per brief; a second tap in the same bot session resends it. Without Word/PDF the text is sent instead.
 
 ## Periodic local run on Windows
 

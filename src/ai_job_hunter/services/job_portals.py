@@ -65,7 +65,7 @@ PORTALS: dict[str, PortalSpec] = {
         build=lambda client: ManfredConnector(client=client),
         errors=(ManfredConnectorError,),
     ),
-    # Adzuna: free tier is ~250 calls/day and each run makes up to 16; needs ADZUNA_APP_ID/KEY.
+    # Adzuna: free tier is ~250 calls/day and each run makes up to 28 (ES, NL, CH); needs ADZUNA_APP_ID/KEY.
     "adzuna": PortalSpec(
         name="adzuna",
         min_interval=timedelta(hours=12),
