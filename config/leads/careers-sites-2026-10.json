@@ -1,0 +1,26 @@
+{
+  "leads": [
+    {
+      "company_name": "Cisco (Galway)",
+      "website_url": "https://www.cisco.com",
+      "careers_url": "https://careers.cisco.com/global/en",
+      "source_type": "web_research",
+      "source_label": "careers_site_2026_10",
+      "source_url": "https://careers.cisco.com/global/en",
+      "location_hint": "Global site; Galway, Ireland is the location of interest",
+      "hiring_hint": "Live check 2026-10-05: robots.txt allows job pages; sitemap lists 1315 job URLs across 3 sitemap files; 3 of 3 sampled job pages publish schema.org JobPosting JSON-LD (title, datePosted, location, employmentType).",
+      "notes": "jobs.cisco.com redirects to careers.cisco.com, so the careers_site board is careers.cisco.com/global/en. The sitemap is global (not Galway-only): the deterministic prefilter decides geography. The site lists Junior Software Engineer roles in Krakow (Splunk) on the check date; no Galway posting was verified. Parsed with the careers_site connector; no remote eligibility is inferred."
+    },
+    {
+      "company_name": "Amazon (Madrid)",
+      "website_url": "https://www.amazon.jobs",
+      "careers_url": "https://www.amazon.jobs/en/",
+      "source_type": "web_research",
+      "source_label": "careers_site_2026_10",
+      "source_url": "https://www.amazon.jobs/en/search.json?category%5B%5D=software-development&normalized_country_code%5B%5D=ESP",
+      "location_hint": "Madrid, Spain; also Ireland, Luxembourg, Netherlands, Switzerland",
+      "hiring_hint": "Live check 2026-10-05 of the public search.json (robots.txt allows it): 74 software-development jobs in the five target countries (Ireland 59, Spain 8, Luxembourg 6, Netherlands 1, Switzerland 0).",
+      "notes": "Handled by the amazon_jobs connector, limited to software-development in ES/IE/LU/NL/CH. The site's terms of use could not be read (client-rendered page); only robots.txt was verified. Amazon's payload has no work-mode field, so remote policy stays unknown."
+    }
+  ]
+}
