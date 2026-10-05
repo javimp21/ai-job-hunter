@@ -486,3 +486,21 @@ def test_reimport_with_a_new_careers_url_queues_the_lead_again(db_session):
 
     assert lead.careers_url == "https://job-boards.greenhouse.io/bankco"
     assert lead.status == CompanyLeadStatus.NEW.value
+
+
+def test_reimport_with_an_ats_board_replaces_a_generic_careers_page(db_session):
+    lead = _import_one(db_session, _input(name="Fever Co", website="https://fever.test", careers="https://careers.fever.test"))
+    lead.status = CompanyLeadStatus.RESOLVED.value
+    db_session.commit()
+
+    import_company_leads(
+        db_session,
+        CompanyLeadsConfig(leads=[_input(name="Fever Co", website="https://fever.test", careers="https://job-boards.greenhouse.io/feverco")]),
+    )
+    assert lead.careers_url == "https://job-boards.greenhouse.io/feverco"
+    assert lead.status == CompanyLeadStatus.NEW.value
+
+    # An ATS board is never replaced by a generic page, nor by another board.
+    for other in ("https://careers.fever.test/jobs", "https://jobs.ashbyhq.com/feverco"):
+        import_company_leads(db_session, CompanyLeadsConfig(leads=[_input(name="Fever Co", website="https://fever.test", careers=other)]))
+        assert lead.careers_url == "https://job-boards.greenhouse.io/feverco"

@@ -208,6 +208,16 @@ def import_company_leads(
             for field_name in ("website_url", "careers_url", "source_url", "location_hint", "hiring_hint", "notes"):
                 current = getattr(lead, field_name)
                 incoming = getattr(item, field_name)
+                if (
+                    field_name == "careers_url"
+                    and current is not None
+                    and incoming is not None
+                    and incoming != current
+                    and _is_ats_board(incoming)
+                    and not _is_ats_board(current)
+                ):
+                    # A verified ATS board beats a generic careers page we could not resolve.
+                    current = None
                 if current is None and incoming is not None:
                     setattr(lead, field_name, incoming)
                     changed = True
@@ -220,6 +230,10 @@ def import_company_leads(
                 unchanged += 1
         session.flush()
     return CompanyLeadImportSummary(created, duplicates, updated, unchanged)
+
+
+def _is_ats_board(url: str) -> bool:
+    return discover_ats_url(url).provider is not ATSProvider.UNKNOWN
 
 
 def list_company_leads(
