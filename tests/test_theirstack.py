@@ -102,14 +102,15 @@ def test_the_daily_credit_budget_caps_requests_across_runs(tmp_path):
     assert tomorrow.used() == 0 and tomorrow.remaining() == 60
 
 
-def test_count_matches_uses_a_preview_request(tmp_path):
+def test_count_matches_costs_one_credit(tmp_path):
     connector, requests, budget = make(
-        lambda request: httpx.Response(200, json={"metadata": {"total_results": 137}, "data": []}), tmp_path
+        lambda request: httpx.Response(200, json={"metadata": {"total_results": 137}, "data": [raw_job()]}), tmp_path
     )
 
     assert connector.count_matches() == 137
     body = json.loads(requests[0].content)
-    assert body["blur_company_data"] is True and body["limit"] == 1 and budget.used() == 0
+    assert body["limit"] == 1 and body["include_total_results"] is True and "blur_company_data" not in body
+    assert budget.used() == 1
 
 
 def test_missing_key_is_skipped_without_requests(tmp_path):

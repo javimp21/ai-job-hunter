@@ -1,6 +1,6 @@
 """Measure what TheirStack would add before it is enabled as a portal.
 
-``count`` asks how many postings match the default filters, in preview mode (no credits).
+``count`` asks how many postings match the default filters (1 credit; API preview mode is not available by default).
 ``sample N`` fetches N postings (N credits, counted in the daily budget) and reports, with
 counts only, how many we already have in the database, by employer URL or by company +
 normalized title. No posting text, company
@@ -74,7 +74,7 @@ def overlap(
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Measure TheirStack coverage against the stored jobs.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("count", help="matches for the default filters (preview request, no credits)")
+    sub.add_parser("count", help="matches for the default filters (1 credit)")
     sample = sub.add_parser("sample", help="fetch N postings (N credits) and compare them with the database")
     sample.add_argument("n", type=int, help="postings to fetch (1-50)")
     args = parser.parse_args(argv)

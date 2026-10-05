@@ -164,11 +164,18 @@ class TheirStackConnector:
         return list(jobs.values())
 
     def count_matches(self) -> int | None:
-        """Total postings matching the default filters, from a preview request (no credits)."""
+        """Total postings matching the default filters.
+
+        Costs one credit (a single job is requested to read the total). API preview mode, which
+        would be free, is not available by default on TheirStack accounts (HTTP 403).
+        """
 
         if not self._key:
             raise TheirStackNotConfigured("TheirStack skipped: set THEIRSTACK_API_KEY in .env to enable it.")
-        payload = self._search(build_search_body(limit=1, preview=True, include_total=True))
+        if self._budget.remaining() < 1:
+            raise TheirStackConnectorError("TheirStack daily credit budget is spent.")
+        payload = self._search(build_search_body(limit=1, include_total=True))
+        self._budget.spend(1)
         metadata = payload.get("metadata") if isinstance(payload, Mapping) else None
         total = metadata.get("total_results") if isinstance(metadata, Mapping) else None
         return total if isinstance(total, int) and not isinstance(total, bool) else None
