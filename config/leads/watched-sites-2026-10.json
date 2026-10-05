@@ -10,6 +10,39 @@
       "location_hint": "Madrid; A Coruna; Spain",
       "hiring_hint": "Requested by the user. Offers are linked from /ofertas/ (not in the sitemap) and labelled (Ubicacion, Tipo de contrato, Experiencia); live check 2026-10-05: Data Engineer 1-3 years and MLOps Engineer 1-4 years in Madrid.",
       "notes": "Read by careers_site from the listing page and labelled job pages (no JSON-LD). Robots allows everything except wp-admin."
+    },
+    {
+      "company_name": "Telefónica",
+      "website_url": null,
+      "careers_url": "https://jobs.telefonica.com/",
+      "source_type": "web_research",
+      "source_label": "watched_sites_2026_10",
+      "source_url": "https://jobs.telefonica.com/",
+      "location_hint": "Spain",
+      "hiring_hint": "Live probe 2026-10-05: sitemap lists 220 job pages; 3 of 3 sampled pages carry a structured JobPosting.",
+      "notes": "Read by careers_site (sitemap + JobPosting JSON-LD or microdata). The prefilter decides geography."
+    },
+    {
+      "company_name": "Mapfre",
+      "website_url": null,
+      "careers_url": "https://jobs.mapfre.com/",
+      "source_type": "web_research",
+      "source_label": "watched_sites_2026_10",
+      "source_url": "https://jobs.mapfre.com/",
+      "location_hint": "Spain",
+      "hiring_hint": "Live probe 2026-10-05: sitemap lists 152 job pages; 3 of 3 sampled pages carry a structured JobPosting.",
+      "notes": "Read by careers_site (sitemap + JobPosting JSON-LD or microdata). The prefilter decides geography."
+    },
+    {
+      "company_name": "Vodafone",
+      "website_url": null,
+      "careers_url": "https://jobs.vodafone.com/",
+      "source_type": "web_research",
+      "source_label": "watched_sites_2026_10",
+      "source_url": "https://jobs.vodafone.com/",
+      "location_hint": "Global; Spain among locations",
+      "hiring_hint": "Live probe 2026-10-05: sitemap lists 1259 job pages; 3 of 3 sampled pages carry a structured JobPosting.",
+      "notes": "Read by careers_site (sitemap + JobPosting JSON-LD or microdata). The prefilter decides geography."
     }
   ]
 }
