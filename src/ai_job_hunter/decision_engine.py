@@ -36,6 +36,10 @@ POLICY_VERSION_V2 = "job_decision_v2"
 SUPPORTED_POLICY_VERSIONS = (POLICY_VERSION_V1, POLICY_VERSION_V2)
 
 
+# APPLY needs a real description: without one, "no experience requirement stated" means nothing.
+MIN_APPLY_DESCRIPTION_CHARS = 300
+
+
 def experience_blocks_apply(experience: Any) -> bool:
     """Whether the explicit experience check prevents APPLY.
 
@@ -689,6 +693,16 @@ def _decision_result(
                   if experience.outcome is ExperienceOutcome.STRETCH
                   else ReviewReasonCode.EXPERIENCE_UNKNOWN),
             message=experience.reason + " " + experience.requirement_display,
+        )
+        reasons = (reason.message, *reasons)
+        review_reasons = (reason, *review_reasons)
+    elif decision is FinalDecision.APPLY and len((context.offer.description or "").strip()) < MIN_APPLY_DESCRIPTION_CHARS:
+        # "No years stated" only counts when there is a description to state them in
+        # (a portal detail request can fail and leave the title alone).
+        decision = FinalDecision.REVIEW
+        reason = StructuredReviewReason(
+            code=ReviewReasonCode.EXPERIENCE_UNKNOWN,
+            message="No job description was available to check the experience requirement.",
         )
         reasons = (reason.message, *reasons)
         review_reasons = (reason, *review_reasons)

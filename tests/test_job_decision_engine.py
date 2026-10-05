@@ -18,6 +18,7 @@ from ai_job_hunter.decision_engine import (
     JobDecisionError,
     JevAnswers,
     JevSignal,
+    MIN_APPLY_DESCRIPTION_CHARS,
     ReviewReasonCode,
     apply_decision_policy,
     apply_decision_policy_v2,
@@ -64,6 +65,8 @@ def sample_offer(**overrides: object) -> NormalizedJob:
     # is tested independently in test_experience.py.
     if values.get("description"):
         values["description"] = "Minimum 0 years of professional experience required.\n" + str(values["description"])
+        # Real postings are long; APPLY needs a description of at least MIN_APPLY_DESCRIPTION_CHARS.
+        values["description"] = str(values["description"]).ljust(MIN_APPLY_DESCRIPTION_CHARS + 20, ".")
     return NormalizedJob.model_validate(values)
 
 
@@ -260,6 +263,17 @@ def test_accessible_backend_role_is_recommended_apply() -> None:
     assert result.input_tokens == 123
     assert result.rubric_version == RUBRIC_VERSION
     assert result.deterministic_result.prefilter_decision.value in {"PASS", "REVIEW"}
+
+
+def test_apply_needs_a_description_to_check_the_experience_requirement() -> None:
+    # A portal detail request failed: only the title arrived, so no years could be stated.
+    result = evaluate_job_decision(
+        context_for(sample_offer(description=None)), FakeJobDecisionEngine(good_answers())
+    )
+
+    assert result.final_decision is FinalDecision.REVIEW
+    assert result.review_reasons[0].code is ReviewReasonCode.EXPERIENCE_UNKNOWN
+    assert "No job description" in result.reasons[0]
 
 
 def test_conflicting_role_and_experience_signals_require_review() -> None:

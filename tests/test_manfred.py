@@ -77,12 +77,17 @@ def test_only_active_offers_are_kept_and_mapped_conservatively():
         raw_offer(5, remotePercentage="n/a", salaryFrom=60000, salaryTo=50000),
         "junk",
     ]
-    client = client_for(listing, {1: detail(1)}, requests)
+    bare = {offer_id: raw_offer(offer_id) for offer_id in (3, 4, 5)}
+    for offer_id, changes in ((3, {"remotePercentage": 0, "salaryFrom": 0, "locations": []}),
+                              (4, {"remotePercentage": 40, "isFreelance": True, "currency": "CHF"}),
+                              (5, {"remotePercentage": "n/a", "salaryFrom": 60000, "salaryTo": 50000})):
+        bare[offer_id].update(changes)
+    client = client_for(listing, {1: detail(1), **bare}, requests)
 
     jobs = {job.external_id: job for job in ManfredConnector(client=client, detail_pause=0).fetch_jobs()}
 
     assert set(jobs) == {"1", "3", "4", "5"}
-    assert len(requests) == 5  # one list + four details (three 404s are tolerated)
+    assert len(requests) == 5  # one list + four details
     full = jobs["1"]
     assert full.source_url == "https://www.getmanfred.com/ofertas-empleo/1/acme-backend-1"
     assert full.remote_policy is RemotePolicy.REMOTE and full.remote_eligibility is RemoteEligibility.UNKNOWN
@@ -98,12 +103,21 @@ def test_only_active_offers_are_kept_and_mapped_conservatively():
     onsite = jobs["3"]
     assert onsite.remote_policy is RemotePolicy.ONSITE and onsite.location is None
     assert onsite.salary_min is None and onsite.salary_max == Decimal("55000")
-    assert onsite.description is None and onsite.published_at is None  # no detail, no date
+    assert onsite.description is None and onsite.published_at is None  # empty detail: no text, no date
     hybrid = jobs["4"]
     assert hybrid.remote_policy is RemotePolicy.HYBRID and hybrid.employment_type is EmploymentType.CONTRACT
     assert hybrid.currency is None and hybrid.salary_period is None  # unknown currency: no invented salary
     unknown = jobs["5"]
     assert unknown.remote_policy is None and unknown.salary_min is None and unknown.salary_max is None
+
+
+def test_offers_whose_detail_fails_are_skipped_until_a_later_run():
+    listing = [raw_offer(1), raw_offer(2)]
+    jobs = ManfredConnector(client=client_for(listing, {1: detail(1)}), detail_pause=0).fetch_jobs()
+    assert [job.external_id for job in jobs] == ["1"]  # offer 2 had no detail (404)
+
+    with pytest.raises(ManfredConnectorError, match="details are unavailable"):
+        ManfredConnector(client=client_for(listing, {}), detail_pause=0).fetch_jobs()
 
 
 @pytest.mark.parametrize(

@@ -4,7 +4,8 @@ Uses the public, keyless JSON that Manfred's own site reads. It is not a
 documented API, so every shape assumption is checked and a change raises
 ``ManfredConnectorError`` instead of ingesting guesses. The list endpoint
 returns every offer ever published (mostly CLOSED); only ``ACTIVE`` ones are
-kept, and each active offer's detail endpoint supplies the description.
+kept, and each active offer's detail endpoint supplies the description (an offer whose
+detail fails is skipped until a later run).
 Manfred's robots.txt allows crawling; callers throttle to once per hour.
 """
 
@@ -77,6 +78,7 @@ class ManfredConnector:
                 raise ManfredConnectorError("Manfred offers no longer match the expected fields.")
             active = [raw for raw in listing if isinstance(raw, Mapping) and raw.get("status") == "ACTIVE"]
             jobs: list[NormalizedJob] = []
+            skipped_details = 0
             for index, raw in enumerate(active[: self.max_offers]):
                 detail: Mapping[str, Any] | None = None
                 if index and self._detail_pause:
@@ -85,12 +87,19 @@ class ManfredConnector:
                     payload = self._get_json(client, f"{LIST_URL}/{int(raw['id'])}", _MAX_DETAIL_BYTES)
                     detail = payload if isinstance(payload, Mapping) else None
                 except (ManfredConnectorError, KeyError, TypeError, ValueError):
-                    detail = None  # keep the offer without a description
+                    detail = None
+                if detail is None:
+                    # Without the detail there is no description (so no stated experience):
+                    # skip the offer; the next run (hourly) fetches it again.
+                    skipped_details += 1
+                    continue
                 try:
                     jobs.append(_normalize_job(raw, detail, discovered_at=discovered_at))
                 except (KeyError, TypeError, ValueError):
                     continue
             if active and not jobs:
+                if skipped_details:
+                    raise ManfredConnectorError("Manfred offer details are unavailable.")
                 raise ManfredConnectorError("Manfred offers no longer match the expected fields.")
             return jobs
         finally:
