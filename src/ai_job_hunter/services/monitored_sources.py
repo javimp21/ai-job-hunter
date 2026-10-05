@@ -143,7 +143,13 @@ def list_sources(session: Session, *, state: MonitoredSourceState | None = None)
 
 # Providers polled less often than every run. Lever's API stopped accepting
 # connections from the server after a day of 15-minute polling (2026-10-04).
-PROVIDER_MIN_INTERVAL = {"LEVER": timedelta(hours=2)}
+# Careers sites (sitemap + JobPosting pages) and Amazon change slowly and should
+# not be hit every 15 minutes.
+PROVIDER_MIN_INTERVAL = {
+    "LEVER": timedelta(hours=2),
+    "CAREERS_SITE": timedelta(hours=3),
+    "AMAZON_JOBS": timedelta(hours=4),
+}
 
 
 def active_monitor_targets(
