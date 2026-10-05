@@ -129,7 +129,7 @@ def test_opportunity_feed_adds_recommendation_and_suppresses_application_or_acti
     assert with_application.outreach_recommendation is OutreachRecommendation.NO_OUTREACH
 
 
-def test_high_priority_review_has_optional_outreach_in_feed(db_session) -> None:
+def test_high_priority_review_has_no_outreach_recommendation_in_feed(db_session) -> None:
     candidate, _company, _job = _persist_evaluated_job(
         db_session,
         decision=FinalDecision.REVIEW,
@@ -138,7 +138,7 @@ def test_high_priority_review_has_optional_outreach_in_feed(db_session) -> None:
 
     row = list_opportunities(db_session, candidate)[0]
     assert row.priority >= 70
-    assert row.outreach_recommendation is OutreachRecommendation.OUTREACH_OPTIONAL
+    assert row.outreach_recommendation is OutreachRecommendation.NO_OUTREACH
 
 
 def test_job_draft_workflow_creates_placeholder_drafts_and_reuses_them(

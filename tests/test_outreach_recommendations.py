@@ -27,11 +27,12 @@ def test_apply_without_application_or_active_outreach_is_recommended():
     assert _recommend() is OutreachRecommendation.OUTREACH_RECOMMENDED
 
 
-def test_strong_review_is_optional_but_weak_review_is_not():
-    assert _recommend(decision="REVIEW") is OutreachRecommendation.OUTREACH_OPTIONAL
-    assert _recommend(decision="REVIEW", priority=69) is OutreachRecommendation.NO_OUTREACH
-    assert _recommend(decision="REVIEW", role_relevance=0.74) is OutreachRecommendation.NO_OUTREACH
-    assert _recommend(decision="REVIEW", hard_mismatch=True) is OutreachRecommendation.NO_OUTREACH
+def test_only_strong_apply_is_recommended_and_review_never_is():
+    assert _recommend(priority=70) is OutreachRecommendation.OUTREACH_RECOMMENDED
+    assert _recommend(priority=69) is OutreachRecommendation.NO_OUTREACH
+    assert _recommend(priority=None) is OutreachRecommendation.NO_OUTREACH
+    assert _recommend(decision="REVIEW") is OutreachRecommendation.NO_OUTREACH
+    assert _recommend(decision="REVIEW", priority=95, role_relevance=1.0) is OutreachRecommendation.NO_OUTREACH
 
 
 def test_skip_and_application_or_active_outreach_suppress_new_outreach():
@@ -42,8 +43,6 @@ def test_skip_and_application_or_active_outreach_suppress_new_outreach():
 
 
 def test_recommendation_reason_helper_explains_thresholds():
-    reasons = outreach_recommendation_reasons(
-        "REVIEW", 72, 0.8, False, None, False
-    )
-    assert "priority >= 70" in reasons[0]
-    assert "role relevance >= 0.75" in reasons[0]
+    assert "priority >= 70" in outreach_recommendation_reasons("APPLY", 72, 0.8, False, None, False)[0]
+    assert "below 70" in outreach_recommendation_reasons("APPLY", 60, 0.8, False, None, False)[0]
+    assert "REVIEW is not" in outreach_recommendation_reasons("REVIEW", 90, 0.9, False, None, False)[0]

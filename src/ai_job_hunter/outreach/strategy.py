@@ -47,9 +47,9 @@ def recommend_contact_strategy(
 ) -> ContactStrategy:
     """Suggest roles using the job title and optional sourced company size.
 
-    Ordering is contextual: recruiter-first for explicit recruiting/seniority
-    signals; engineering peers/managers are foregrounded for technical roles;
-    founder is included only with explicit small-startup evidence.
+    Ordering is contextual: recruiter-first by default (talent title or size not
+    evidenced as small); leadership titles lead with the hiring manager;
+    founder leads only with explicit small-company evidence.
     """
 
     title = job_title.strip()
@@ -75,23 +75,26 @@ def recommend_contact_strategy(
         contacts.extend((ContactType.TALENT, ContactType.RECRUITER, ContactType.HIRING_MANAGER))
         reasons.append("The title names recruiting/talent work, so a talent contact is directly relevant.")
     elif engineering:
-        # Vary the order based on concrete title evidence instead of a global ranking.
+        small = bool(company_size_evidence and company_size_evidence.is_evidenced_small_startup)
         if leadership:
-            contacts.extend((ContactType.HIRING_MANAGER, ContactType.ENGINEERING_MANAGER, ContactType.ENGINEER))
+            contacts.extend((ContactType.HIRING_MANAGER, ContactType.ENGINEERING_MANAGER, ContactType.RECRUITER))
+            if small:
+                contacts.append(ContactType.FOUNDER)
             reasons.append("The title signals an engineering leadership role; a hiring or engineering manager may clarify scope.")
+        elif small:
+            contacts.extend((ContactType.FOUNDER, ContactType.ENGINEERING_MANAGER, ContactType.ENGINEER, ContactType.RECRUITER))
+            reasons.append(
+                "Sourced small-company size evidence: a founder or engineering lead reads their own inbox and decides directly."
+            )
         else:
-            contacts.extend((ContactType.ENGINEERING_MANAGER, ContactType.ENGINEER, ContactType.RECRUITER))
-            reasons.append("The title describes technical work; engineering peers/managers can speak to the team and recruiter can clarify process.")
+            # Size unknown or larger: the recruiter owns the process and answers; engineers are a second touch.
+            contacts.extend((ContactType.RECRUITER, ContactType.HIRING_MANAGER, ContactType.ENGINEERING_MANAGER))
+            reasons.append(
+                "Company size is not evidenced as small; the recruiter owns the process, then the hiring or engineering manager."
+            )
     else:
         contacts.extend((ContactType.RECRUITER, ContactType.HIRING_MANAGER, ContactType.OTHER))
         reasons.append("The title does not identify a specific function; recruiter and role owner are broad starting points.")
-
-    if company_size_evidence and company_size_evidence.is_evidenced_small_startup:
-        if engineering:
-            contacts.append(ContactType.FOUNDER)
-            reasons.append("Sourced small-startup size evidence makes a founder a possible additional contact.")
-        else:
-            reasons.append("Sourced small-startup size evidence is present, but the title does not establish founder relevance.")
 
     # Keep first occurrence and preserve this role-specific order.
     unique = tuple(dict.fromkeys(contacts))
