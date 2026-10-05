@@ -22,6 +22,7 @@ from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+import html
 from html import unescape as html_unescape
 from html.parser import HTMLParser
 from typing import Any
@@ -403,7 +404,7 @@ class CareersSiteConnector:
     def _fetch_posting(self, url: str, lastmod: str | None, discovered_at: datetime) -> NormalizedJob | None:
         html_text = self._request(url, "text/html,application/xhtml+xml", limit=_MAX_PAGE_BYTES, allow_missing=True)
         self.stats["fetched"] += 1
-        postings = _job_postings(html_text) if html_text is not None else []
+        postings = (_job_postings(html_text) or _microdata_postings(html_text)) if html_text is not None else []
         if not postings and html_text is not None:
             # Small sites (e.g. WordPress) without JSON-LD: accept only a page shaped like one job ad.
             job = self._labelled_page(html_text, url, lastmod, discovered_at)
@@ -695,6 +696,87 @@ def _job_postings(html_text: str) -> list[dict[str, Any]]:
     return postings
 
 
+_VOID_TAGS = frozenset({"meta", "link", "br", "img", "input", "hr", "source", "area", "base", "col", "wbr"})
+_MAX_MICRODATA_DEPTH = 6
+
+
+class _MicrodataParser(HTMLParser):
+    """schema.org microdata items (``itemscope``/``itemprop``) as JSON-LD-shaped dicts.
+
+    Nested items become nested dicts; ``meta`` values come from ``content``, links from
+    ``href``, and other properties from their inner HTML (turned into text later).
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.items: list[dict[str, Any]] = []
+        self._scopes: list[tuple[str, dict[str, Any], int]] = []  # (tag, item, depth)
+        self._capture: tuple[str, str, int, dict[str, Any], list[str]] | None = None
+        self._depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {name: (value or "") for name, value in attrs}
+        if self._capture is not None:
+            self._capture[4].append(self.get_starttag_text() or "")
+        if tag not in _VOID_TAGS:
+            self._depth += 1
+        prop = values.get("itemprop", "").strip()
+        parent = self._scopes[-1][1] if self._scopes else None
+        if "itemscope" in values and len(self._scopes) < _MAX_MICRODATA_DEPTH:
+            item: dict[str, Any] = {"@type": values.get("itemtype", "").rstrip("/").rsplit("/", 1)[-1]}
+            if prop and parent is not None:
+                parent.setdefault(prop, item)
+            elif not self._scopes:
+                self.items.append(item)
+            if tag not in _VOID_TAGS:
+                self._scopes.append((tag, item, self._depth))
+            return
+        if not prop or parent is None or self._capture is not None:
+            return
+        if "content" in values:
+            parent.setdefault(prop, values["content"])
+        elif tag in {"a", "link"} and values.get("href"):
+            parent.setdefault(prop, values["href"])
+        elif tag not in _VOID_TAGS:
+            self._capture = (tag, prop, self._depth, parent, [])
+
+    def handle_data(self, data: str) -> None:
+        if self._capture is not None:
+            self._capture[4].append(html.escape(data))
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._capture is not None:
+            capture_tag, prop, depth, parent, parts = self._capture
+            if tag == capture_tag and self._depth == depth:
+                parent.setdefault(prop, "".join(parts))
+                self._capture = None
+            else:
+                parts.append(f"</{tag}>")
+        if self._scopes and self._scopes[-1][0] == tag and self._scopes[-1][2] == self._depth:
+            self._scopes.pop()
+        if tag not in _VOID_TAGS:
+            self._depth = max(0, self._depth - 1)
+
+
+def _microdata_postings(html_text: str) -> list[dict[str, Any]]:
+    """``JobPosting`` items written as microdata (e.g. SAP SuccessFactors career sites)."""
+
+    if "itemscope" not in html_text:
+        return []
+    parser = _MicrodataParser()
+    try:
+        parser.feed(html_text)
+        parser.close()
+    except Exception:
+        return []
+    postings = [item for item in parser.items if item.get("@type") == "JobPosting"]
+    for posting in postings:
+        title = posting.get("title")
+        if isinstance(title, str):
+            posting["title"] = html_to_text(title) or None
+    return postings
+
+
 def _json_ld_nodes(data: Any, depth: int = 0) -> Iterator[dict[str, Any]]:
     if depth > 3:
         return
@@ -826,7 +908,10 @@ def _parse_datetime(value: Any, now: datetime) -> datetime | None:
     try:
         moment = datetime.fromisoformat(value.strip())
     except ValueError:
-        return None
+        try:  # SAP SuccessFactors microdata: "Tue Sep 29 00:00:00 UTC 2026"
+            moment = datetime.strptime(value.strip(), "%a %b %d %H:%M:%S UTC %Y")
+        except ValueError:
+            return None
     moment = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment
     return moment if moment <= now + timedelta(days=1) else None  # a posting is not published in the future
 

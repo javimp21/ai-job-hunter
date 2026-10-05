@@ -310,11 +310,13 @@ def test_pages_without_exactly_one_job_posting_are_skipped_never_scraped():
     connector, client = make_connector(max_details=20)
     titles = {job.title for job in connector.fetch_jobs()}
     client.close()
-    assert titles == {"Remote Backend Engineer", "Junior Software Engineer", "Graph Engineer"}
-    # 100 and 107 (WebPage + broken JSON), 102 (microdata only), 104 (two postings) are skipped; 103 expired.
-    assert connector.stats["no_jobposting"] == 4
+    # 102 carries its JobPosting as microdata, which is read like JSON-LD.
+    assert {"Remote Backend Engineer", "Junior Software Engineer", "Graph Engineer"} <= titles
+    assert len(titles) == 4 and any(title.startswith("Data Engineer") for title in titles)
+    # 100 and 107 (WebPage + broken JSON) and 104 (two postings) are skipped; 103 expired.
+    assert connector.stats["no_jobposting"] == 3
     assert connector.stats["expired"] == 1
-    assert connector.stats["parsed"] == 3
+    assert connector.stats["parsed"] == 4
 
 
 def test_withdrawn_page_and_non_html_are_skipped():
@@ -546,3 +548,34 @@ def test_probe_finds_a_listing_page_identifier():
     probe = probe_careers_site(f"https://{HOST}/ofertas/", client=client, sleep=lambda _s: None)
     client.close()
     assert probe is not None and probe.identifier == f"{HOST}/ofertas" and probe.postings >= 1
+
+
+# -- schema.org microdata (SAP SuccessFactors career sites) -------------------------------
+
+MICRODATA_JOB = """<html><body><div class="jobDisplayShell" itemscope="itemscope" itemtype="http://schema.org/JobPosting">
+<span itemprop="jobLocation" itemscope itemtype="http://schema.org/Place">
+<span itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+<meta itemprop="addressLocality" content="Madrid"><meta itemprop="addressRegion" content="MD">
+<meta itemprop="addressCountry" content="ES"></span></span>
+<meta itemprop="datePosted" content="Tue Sep 29 00:00:00 UTC 2026">
+<meta itemprop="hiringOrganization" content="Indra Group">
+<h1><span itemprop="title">Desarrollador/a <b>Java</b> Junior</span></h1>
+<span itemprop="description"><div><p>Spring Boot y APIs REST.</p><p>Menos de 2 años de experiencia.</p></div></span>
+</div></body></html>"""
+
+
+def test_microdata_job_postings_are_read_like_json_ld():
+    routes = {
+        "/robots.txt": (200, "User-agent: *\nAllow: /\n", "text/plain"),
+        "/sitemap.xml": (200, '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://careers.example.com/job/Madrid-Java-Junior/1369/</loc><lastmod>2026-10-03</lastmod></url></urlset>', "application/xml"),
+        "/job/Madrid-Java-Junior/1369/": (200, MICRODATA_JOB, "text/html"),
+    }
+    connector, client = make_connector(routes=routes, company_name="Indra")
+    (job,) = connector.fetch_jobs()
+    client.close()
+
+    assert job.title == "Desarrollador/a Java Junior"
+    assert job.location == "Madrid, MD, ES"
+    assert job.published_at is not None and job.published_at.isoformat() == "2026-09-29T00:00:00+00:00"
+    assert "Spring Boot y APIs REST." in job.description and "<p>" not in job.description
+    assert job.remote_eligibility is RemoteEligibility.UNKNOWN
