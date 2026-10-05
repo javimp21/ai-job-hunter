@@ -43,6 +43,28 @@
       "location_hint": "Global; Spain among locations",
       "hiring_hint": "Live probe 2026-10-05: sitemap lists 1259 job pages; 3 of 3 sampled pages carry a structured JobPosting.",
       "notes": "Read by careers_site (sitemap + JobPosting JSON-LD or microdata). The prefilter decides geography."
+    },
+    {
+      "company_name": "Iberdrola",
+      "website_url": null,
+      "careers_url": "https://iberdrola.wd3.myworkdayjobs.com/Iberdrola",
+      "source_type": "web_research",
+      "source_label": "watched_sites_2026_10",
+      "source_url": "https://www.iberdrola.com/careers/careers-iberdrola",
+      "location_hint": "Spain",
+      "hiring_hint": "Requested by the user; the official careers page links to this Workday site (checked 2026-10-05).",
+      "notes": "Workday connector; Spain and the preferred relocation countries via the site's location facets."
+    },
+    {
+      "company_name": "Repsol",
+      "website_url": null,
+      "careers_url": "https://repsol.wd3.myworkdayjobs.com/Repsol",
+      "source_type": "web_research",
+      "source_label": "watched_sites_2026_10",
+      "source_url": "https://www.repsol.com/en/careers/index.cshtml",
+      "location_hint": "Spain",
+      "hiring_hint": "Requested by the user; the official careers page links to this Workday site (checked 2026-10-05).",
+      "notes": "Workday connector; Spain and the preferred relocation countries via the site's location facets."
     }
   ]
 }
