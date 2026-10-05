@@ -141,6 +141,9 @@ class WorkdayConnector:
                     break
                 if not isinstance(raw, dict):
                     raise WorkdayConnectorError(f"Workday posting at offset {offset + index} is not a JSON object.")
+                if "title" not in raw and "externalPath" not in raw:
+                    # Some sites return stubs with only a requisition id; they are not postings.
+                    continue
                 try:
                     offers.append(self._build_job(raw, discovered_at))
                 except (TypeError, ValueError) as error:

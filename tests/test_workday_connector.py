@@ -184,6 +184,16 @@ def test_network_error_and_detail_server_error_are_connector_errors():
     client.close()
 
 
+def test_stub_postings_with_only_a_requisition_id_are_skipped():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"total": 3, "jobPostings": [posting(1), {"bulletFields": ["r-19753"]}, posting(2)]})
+        return httpx.Response(200, json=DETAIL)
+
+    connector, _ = make(handler, detail_filter=lambda title: False)
+    assert [job.title for job in connector.fetch_jobs()] == ["Engineer 1", "Engineer 2"]
+
+
 def test_page_cap_stops_runaway_pagination():
     requests: list = []
 
