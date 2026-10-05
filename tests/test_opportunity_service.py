@@ -1197,3 +1197,28 @@ def test_relocation_to_a_preferred_destination_costs_less(location, points) -> N
     prepared = opportunities._prepare_offer(offer, candidate, engine_identity="offline")
 
     assert sum(value for value, _label in opportunities._relocation_adjustment(prepared.context)) == points
+
+
+def test_fetch_targets_records_the_connector_error_message_as_failure_detail() -> None:
+    import httpx
+    from uuid import uuid4
+
+    from ai_job_hunter.domain.company_intelligence import ATSDiscoveryConfidence, ATSProvider, CompanyMonitorTarget
+
+    target = CompanyMonitorTarget(
+        company_id=uuid4(),
+        company_name="Acme",
+        provider=ATSProvider.WORKDAY,
+        identifier="acme/Careers",
+        region="wd1",
+        careers_url="https://acme.wd1.myworkdayjobs.com/Careers",
+        evidence_source="test",
+        confidence=ATSDiscoveryConfidence.OBSERVED_JOB_SOURCE,
+    )
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(429)))
+
+    jobs, failures = opportunities._fetch_targets([target], max_jobs_per_company=5, client=client)
+
+    assert jobs == []
+    assert [(f.company, f.provider, f.error_type) for f in failures] == [("Acme", "WORKDAY", "WorkdayConnectorError")]
+    assert failures[0].detail == "Workday career site API returned HTTP 429."

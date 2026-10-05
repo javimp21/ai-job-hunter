@@ -1618,7 +1618,8 @@ def _print_refresh_summary(summary: RefreshSummary) -> None:
     ):
         print(f"{label}: {value}")
     for failure in summary.failures:
-        print(f"Fetch/ingest failure: {failure.company} | {failure.provider} | {failure.error_type}")
+        suffix = f" | {failure.detail}" if failure.detail else ""
+        print(f"Fetch/ingest failure: {failure.company} | {failure.provider} | {failure.error_type}{suffix}")
 
 
 def _print_reevaluation_summary(summary: ReevaluationSummary) -> None:

@@ -5,6 +5,9 @@ from __future__ import annotations
 from enum import StrEnum
 
 
+OUTREACH_MIN_PRIORITY = 70
+
+
 class OutreachRecommendation(StrEnum):
     OUTREACH_RECOMMENDED = "OUTREACH_RECOMMENDED"
     OUTREACH_OPTIONAL = "OUTREACH_OPTIONAL"
@@ -28,8 +31,8 @@ def recommend_outreach(
 
     Any existing application record or active outreach suppresses a *new*
     initial outreach recommendation. APPLY is recommended only when neither
-    exists. REVIEW is optional at priority >= 70 and role relevance >= 0.75,
-    provided there is no hard mismatch. SKIP and unknown decisions return NO.
+    exists and priority is at least 70. REVIEW, SKIP and unknown decisions
+    return NO.
     """
 
     if _decision(decision) == "SKIP":
@@ -39,18 +42,10 @@ def recommend_outreach(
     if existing_active_outreach:
         return OutreachRecommendation.NO_OUTREACH
 
-    state = _decision(decision)
-    if state == "APPLY":
+    # Outreach is extra effort: only strong APPLY decisions earn a recommendation.
+    # REVIEW never does (OUTREACH_OPTIONAL is kept for stored/legacy values only).
+    if _decision(decision) == "APPLY" and priority is not None and priority >= OUTREACH_MIN_PRIORITY:
         return OutreachRecommendation.OUTREACH_RECOMMENDED
-    if (
-        state == "REVIEW"
-        and not hard_mismatch
-        and priority is not None
-        and role_relevance is not None
-        and priority >= 70
-        and role_relevance >= 0.75
-    ):
-        return OutreachRecommendation.OUTREACH_OPTIONAL
     return OutreachRecommendation.NO_OUTREACH
 
 
@@ -73,28 +68,20 @@ def outreach_recommendation_reasons(
         existing_active_outreach,
     )
     if result is OutreachRecommendation.OUTREACH_RECOMMENDED:
-        return ("APPLY with no application record and no active outreach.",)
-    if result is OutreachRecommendation.OUTREACH_OPTIONAL:
-        return (
-            "REVIEW has priority >= 70 and role relevance >= 0.75.",
-            "No strong mismatch, application record, or active outreach is present.",
-        )
+        return (f"APPLY with priority >= {OUTREACH_MIN_PRIORITY}, no application record and no active outreach.",)
 
     reasons: list[str] = []
     state = _decision(decision)
     if state == "SKIP":
         reasons.append("SKIP decisions are not recommended for outreach.")
+    if state == "REVIEW":
+        reasons.append("Only APPLY decisions are recommended for outreach; REVIEW is not.")
     if application_status and str(application_status).strip():
         reasons.append("An application record already exists.")
     if existing_active_outreach:
         reasons.append("Active outreach already exists.")
-    if state == "REVIEW":
-        if hard_mismatch:
-            reasons.append("A strong mismatch is present.")
-        if priority is None or priority < 70:
-            reasons.append("REVIEW priority is below 70 or unavailable.")
-        if role_relevance is None or role_relevance < 0.75:
-            reasons.append("REVIEW role relevance is below 0.75 or unavailable.")
+    if state == "APPLY" and (priority is None or priority < OUTREACH_MIN_PRIORITY):
+        reasons.append(f"APPLY priority is below {OUTREACH_MIN_PRIORITY} or unavailable.")
     if not reasons:
         reasons.append("Decision is not eligible under the conservative outreach rules.")
     return tuple(reasons)

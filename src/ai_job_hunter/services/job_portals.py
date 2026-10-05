@@ -19,11 +19,14 @@ from pathlib import Path
 import httpx
 
 from ai_job_hunter.connectors.adzuna import AdzunaConnector, AdzunaConnectorError
+from ai_job_hunter.connectors.arbeitnow import ArbeitnowConnector, ArbeitnowConnectorError
+from ai_job_hunter.connectors.fourdayweek import FourDayWeekConnector, FourDayWeekConnectorError
 from ai_job_hunter.connectors.himalayas import HimalayasConnector, HimalayasConnectorError
 from ai_job_hunter.connectors.manfred import ManfredConnector, ManfredConnectorError
 from ai_job_hunter.connectors.jobicy import JobicyConnector, JobicyConnectorError
 from ai_job_hunter.connectors.remoteok import RemoteOKConnector, RemoteOKConnectorError
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
+from ai_job_hunter.connectors.weworkremotely import WeWorkRemotelyConnector, WeWorkRemotelyConnectorError
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 
 DEFAULT_STATE_PATH = Path("data/local/portal-state.json")
@@ -86,6 +89,27 @@ PORTALS: dict[str, PortalSpec] = {
         min_interval=timedelta(hours=4),
         build=lambda client: JobicyConnector(client=client),
         errors=(JobicyConnectorError,),
+    ),
+    # Arbeitnow refreshes hourly; one request returns the newest ~300 jobs (mostly Germany/EU).
+    "arbeitnow": PortalSpec(
+        name="arbeitnow",
+        min_interval=timedelta(hours=3),
+        build=lambda client: ArbeitnowConnector(client=client),
+        errors=(ArbeitnowConnectorError,),
+    ),
+    # 4dayweek.io: remote engineering jobs of the last 7 days, up to 3 pages of 100 (API limit: 60 req/min).
+    "fourdayweek": PortalSpec(
+        name="fourdayweek",
+        min_interval=timedelta(hours=6),
+        build=lambda client: FourDayWeekConnector(client=client),
+        errors=(FourDayWeekConnectorError,),
+    ),
+    # We Work Remotely: three category RSS feeds (ttl 60 min), 2 s apart.
+    "weworkremotely": PortalSpec(
+        name="weworkremotely",
+        min_interval=timedelta(hours=4),
+        build=lambda client: WeWorkRemotelyConnector(client=client),
+        errors=(WeWorkRemotelyConnectorError,),
     ),
 }
 

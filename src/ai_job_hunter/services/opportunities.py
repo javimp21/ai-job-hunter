@@ -136,6 +136,8 @@ class SourceFailure:
     company: str
     provider: str
     error_type: str
+    # Connector messages are safe by construction (status or type, never URLs or credentials).
+    detail: str | None = None
 
 
 @dataclass(slots=True)
@@ -1078,7 +1080,9 @@ def _fetch_targets(
                 WorkdayConnectorError,
             ) as error:
                 failures.append(
-                    SourceFailure(target.company_name, spec.provider.upper(), type(error).__name__)
+                    SourceFailure(
+                        target.company_name, spec.provider.upper(), type(error).__name__, str(error)[:200] or None
+                    )
                 )
                 continue
             remaining = max_jobs_per_company - per_company_counts.get(target.company_id, 0)
