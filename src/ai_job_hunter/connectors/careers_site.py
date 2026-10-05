@@ -22,6 +22,7 @@ from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from html import unescape as html_unescape
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import unquote, urljoin, urlsplit
@@ -76,6 +77,28 @@ _SALARY_PERIODS = {
 }
 
 
+# Job pages without JSON-LD (see CareersSiteConnector._labelled_page).
+_H1 = re.compile(r"<h1\b[^>]*>(.*?)</h1>", re.IGNORECASE | re.DOTALL)
+_HREF = re.compile(r"<a\b[^>]*\bhref\s*=\s*[\"']([^\"'#]+)", re.IGNORECASE)
+_MAIN = re.compile(r"<main\b[^>]*>(.*?)</main>", re.IGNORECASE | re.DOTALL)
+_LABEL_FIELDS = {
+    "ubicación": "location", "ubicacion": "location", "localización": "location", "localizacion": "location",
+    "location": "location", "lugar de trabajo": "location",
+    "experiencia": "experience", "experience": "experience", "años de experiencia": "experience",
+    "tipo de contrato": "contract", "contrato": "contract", "jornada": "contract", "contract": "contract",
+    "employment type": "contract",
+}
+_LABELLED_LINE = re.compile(
+    r"^\W{0,4}(" + "|".join(re.escape(label) for label in sorted(_LABEL_FIELDS, key=len, reverse=True)) + r")\s*:\s*(\S.{0,200})$",
+    re.IGNORECASE,
+)
+_CONTRACT_WORDS = (
+    (("completa", "full"), EmploymentType.FULL_TIME),
+    (("parcial", "part"), EmploymentType.PART_TIME),
+    (("prácticas", "practicas", "intern", "beca"), EmploymentType.INTERNSHIP),
+)
+
+
 class CareersSiteConnectorError(RuntimeError):
     """An HTTP, robots.txt or sitemap error while reading a public careers site."""
 
@@ -121,6 +144,24 @@ def careers_site_identifier_from_url(url: str, *, host_only: bool = False) -> st
         kept.append(segment)
     path = "" if host_only else "".join(f"/{part}" for part in kept[:4])
     identifier = f"{host}{path}"
+    try:
+        split_careers_identifier(identifier)
+    except ValueError:
+        return None
+    return identifier
+
+
+def _listing_identifier(url: str) -> str | None:
+    """``host/path`` of a listing page whose path ends in a job marker (``/ofertas/``, ``/jobs``)."""
+
+    try:
+        parts = urlsplit(url.strip() if "://" in url else f"https://{url.strip()}")
+    except ValueError:
+        return None
+    segments = [unquote(part) for part in parts.path.split("/") if part]
+    if not segments or len(segments) > 4 or segments[-1].casefold() not in _JOB_SEGMENTS:
+        return None
+    identifier = f"{(parts.hostname or '').casefold()}/" + "/".join(segments)
     try:
         split_careers_identifier(identifier)
     except ValueError:
@@ -294,7 +335,39 @@ class CareersSiteConnector:
                     raise CareersSiteConnectorError("Careers site sitemap lists too many URLs.")
                 if self._looks_like_job_url(loc):
                     found.setdefault(loc, lastmod)
+        if not found and self.path_prefix:
+            found = dict.fromkeys(self._listing_job_urls(robots))
         return list(found.items())
+
+    def _listing_job_urls(self, robots: RobotsRules) -> list[str]:
+        """Links one level below the careers path, read from that listing page itself.
+
+        Used when the sitemap lists no job pages (e.g. ``quantia.es/ofertas`` lists its
+        offers only on ``/ofertas/``). Only same-host links under the path are kept.
+        """
+
+        listing = f"{self.origin}{self.path_prefix}/"
+        if not robots.can_fetch(listing):
+            return []
+        body = self._request(listing, "text/html,application/xhtml+xml", limit=_MAX_PAGE_BYTES, allow_missing=True)
+        if body is None:
+            return []
+        prefix = [part.casefold() for part in self.path_prefix.split("/") if part]
+        urls: list[str] = []
+        for href in _HREF.findall(body):
+            url = self._own_https(urljoin(listing, html_unescape(href)))
+            if url is None:
+                continue
+            parts = urlsplit(url)
+            segments = [part for part in parts.path.split("/") if part]
+            if parts.query or len(segments) != len(prefix) + 1:
+                continue
+            if [part.casefold() for part in segments[: len(prefix)]] != prefix:
+                continue
+            if "." in segments[-1] and segments[-1].rsplit(".", 1)[-1].casefold() in _NON_PAGE_EXTENSIONS:
+                continue
+            urls.append(parts._replace(fragment="").geturl())
+        return list(dict.fromkeys(urls))
 
     def _own_https(self, url: str) -> str | None:
         """Return ``url`` as https on this site's host (a declared ``http://`` sitemap is upgraded)."""
@@ -331,7 +404,13 @@ class CareersSiteConnector:
         html_text = self._request(url, "text/html,application/xhtml+xml", limit=_MAX_PAGE_BYTES, allow_missing=True)
         self.stats["fetched"] += 1
         postings = _job_postings(html_text) if html_text is not None else []
-        if len(postings) != 1:  # none (not a job page) or several (a listing page): never scrape HTML
+        if not postings and html_text is not None:
+            # Small sites (e.g. WordPress) without JSON-LD: accept only a page shaped like one job ad.
+            job = self._labelled_page(html_text, url, lastmod, discovered_at)
+            if job is not None:
+                self.stats["parsed"] += 1
+                return job
+        if len(postings) != 1:  # none (not a job page) or several (a listing page)
             self.stats["no_jobposting"] += 1
             return None
         job = self._normalize(postings[0], url, lastmod, discovered_at)
@@ -399,6 +478,55 @@ class CareersSiteConnector:
                     **(salary.metadata if salary else {}),
                 },
                 **(salary.fields if salary else {}),
+            )
+        except ValidationError:
+            return None
+
+    def _labelled_page(
+        self, html_text: str, url: str, lastmod: str | None, discovered_at: datetime
+    ) -> NormalizedJob | None:
+        """A job page without JSON-LD: one ``<h1>`` title plus explicit "Label: value" lines.
+
+        At least two different labels (location, experience, contract) must each appear
+        exactly once, which a single job ad has and listings, blog posts or shop pages do
+        not. Values are copied as written; nothing is inferred.
+        """
+
+        headings = [html_to_text(match) for match in _H1.findall(html_text)]
+        headings = [heading.strip() for heading in headings if heading and heading.strip()]
+        if len(headings) != 1 or len(headings[0]) > 255:
+            return None
+        mains = _MAIN.findall(html_text)
+        body = html_to_text(mains[0] if len(mains) == 1 else html_text) or ""
+        labels: dict[str, list[str]] = {}
+        for line in body.splitlines():
+            match = _LABELLED_LINE.match(line.strip())
+            if match:
+                field = _LABEL_FIELDS[match.group(1).casefold()]
+                labels.setdefault(field, []).append(match.group(2).strip())
+        found = {field: values[0] for field, values in labels.items() if len(values) == 1}
+        if len(found) < 2 or any(len(values) > 1 for values in labels.values()):
+            return None
+        location = found.get("location")
+        contract = (found.get("contract") or "").casefold()
+        employment_type = next((kind for words, kind in _CONTRACT_WORDS if any(w in contract for w in words)), None)
+        description = body[:_MAX_DESCRIPTION_CHARS] or None
+        clean_url = _normalize_url(url)
+        try:
+            return NormalizedJob(
+                provider=self.provider,
+                external_id=f"{self.host}{urlsplit(clean_url).path}"[:500],
+                source_url=clean_url,
+                canonical_url=clean_url,
+                apply_url=clean_url,
+                title=headings[0],
+                company_name=self.company_name,
+                description=description,
+                location=location[:255] if location else None,
+                employment_type=employment_type,
+                published_at=None,  # the sitemap lastmod is a modification date, not publication
+                discovered_at=discovered_at,
+                raw_metadata={"format": "labelled_page", "labels": found, "sitemapLastmod": lastmod},
             )
         except ValidationError:
             return None
@@ -472,7 +600,11 @@ def probe_careers_site(
     candidates = [
         identifier
         for identifier in dict.fromkeys(
-            (careers_site_identifier_from_url(url), careers_site_identifier_from_url(url, host_only=True))
+            (
+                careers_site_identifier_from_url(url),
+                careers_site_identifier_from_url(url, host_only=True),
+                _listing_identifier(url),  # e.g. quantia.es/ofertas: offers linked only from that page
+            )
         )
         if identifier is not None
     ]

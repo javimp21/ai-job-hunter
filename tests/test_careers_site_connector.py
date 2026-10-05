@@ -476,3 +476,73 @@ def test_factory_builds_careers_site_connectors_with_known_urls_and_slug_filter(
     fetched = {request.url.path for request in requests if request.url.path.startswith("/en/")}
     assert "/en/job/105/Remote-Backend-Engineer" not in fetched
     assert "/en/job/101/Junior-Software-Engineer" in fetched
+
+
+# -- job pages without JSON-LD (small WordPress-style sites) ------------------------------
+
+LABELLED_JOB = """<html><body><nav><a href="/ofertas/">Ofertas</a></nav><main>
+<h1>Data Engineer</h1>
+<p>Acerca del empleo</p>
+<p>&#128205; Ubicación: Madrid (modelo híbrido)</p>
+<p>&#128188; Tipo de contrato: Jornada completa</p>
+<p>&#127919; Experiencia: 1 – 3 años</p>
+<p>Diseñar pipelines de datos con Python y SQL.</p>
+</main></body></html>"""
+
+LISTING = """<html><body><main><h1>Ofertas</h1>
+<a href="/ofertas/data-engineer/">Data Engineer</a><p>Ubicación: Madrid</p><p>Experiencia: 1 – 3 años</p>
+<a href="https://careers.example.com/ofertas/mlops-engineer/">MLOps Engineer</a><p>Ubicación: Madrid</p><p>Experiencia: 1 – 4 años</p>
+<a href="/ofertas/brochure.pdf">PDF</a><a href="/blog/post/">Blog</a><a href="https://other.example.org/ofertas/x/">Other</a>
+<a href="/ofertas/?page=2">Next</a></main></body></html>"""
+
+BLOG_POST = "<html><body><main><h1>Diez consejos</h1><p>Ubicación: Madrid</p></main></body></html>"
+
+
+def listing_routes():
+    html = "text/html; charset=utf-8"
+    return {
+        "/robots.txt": (200, "User-agent: *\nAllow: /\n", "text/plain"),
+        "/sitemap.xml": (200, '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://careers.example.com/ofertas/</loc></url></urlset>', "application/xml"),
+        "/ofertas/": (200, LISTING, html),
+        "/ofertas/data-engineer/": (200, LABELLED_JOB, html),
+        "/ofertas/mlops-engineer/": (200, BLOG_POST, html),
+    }
+
+
+def test_offers_linked_only_from_the_listing_page_are_read_from_labelled_job_pages():
+    requests: list[httpx.Request] = []
+    connector, client = make_connector(f"{HOST}/ofertas", routes=listing_routes(), requests=requests, company_name="Quantia")
+    jobs = connector.fetch_jobs()
+    client.close()
+
+    paths = [request.url.path for request in requests]
+    assert "/ofertas/data-engineer/" in paths and "/ofertas/mlops-engineer/" in paths
+    assert not any(path.endswith(".pdf") or path.startswith("/blog") for path in paths)
+    (job,) = jobs  # the blog-like page has one label only and is skipped
+    assert job.title == "Data Engineer" and job.company_name == "Quantia"
+    assert job.location == "Madrid (modelo híbrido)"
+    assert job.employment_type is EmploymentType.FULL_TIME
+    assert job.published_at is None and job.remote_eligibility is RemoteEligibility.UNKNOWN
+    assert job.raw_metadata["labels"]["experience"] == "1 – 3 años"
+    assert "pipelines de datos" in job.description and "Ofertas" not in job.description.split("\n")[0]
+
+
+def test_listing_pages_and_pages_with_repeated_labels_are_not_job_ads():
+    routes = listing_routes()
+    routes["/ofertas/data-engineer/"] = (200, LISTING, "text/html")  # labels repeated: a listing, not one ad
+    connector, client = make_connector(f"{HOST}/ofertas", routes=routes)
+    assert connector.fetch_jobs() == []
+    client.close()
+
+
+def test_probe_finds_a_listing_page_identifier():
+    routes = {**default_routes(), **listing_routes()}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        status, body, content_type = routes.get(request.url.path, (404, "", "text/plain"))
+        return httpx.Response(status, content=body.encode("utf-8"), headers={"content-type": content_type})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    probe = probe_careers_site(f"https://{HOST}/ofertas/", client=client, sleep=lambda _s: None)
+    client.close()
+    assert probe is not None and probe.identifier == f"{HOST}/ofertas" and probe.postings >= 1
