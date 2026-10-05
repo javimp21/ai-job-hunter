@@ -1,0 +1,103 @@
+{
+  "leads": [
+    {
+      "company_name": "Telefónica",
+      "website_url": "https://www.telefonica.com",
+      "careers_url": "https://jobs.telefonica.com",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-4942",
+      "location_hint": "Madrid, Spain",
+      "hiring_hint": "36 h/week average per year (art. 18, Convenio de Unidades Globales de Telefonica en Espana, BOE-A-2026-4942, read 2026-10-05). Careers board reachable; one junior posting on 2026-10-05 (TDS Gestor Junior de Seguridad de la Informacion, Madrid), not backend.",
+      "notes": "The 36 h figure applies to the Unidades Globales agreement scope; whether it covers each subsidiary (for example TDS) was not verified."
+    },
+    {
+      "company_name": "MAPFRE",
+      "website_url": "https://www.mapfre.com",
+      "careers_url": "https://jobs.mapfre.com",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://ccoomapfre.es/convenio/articulo-22/",
+      "location_hint": "Madrid, Spain",
+      "hiring_hint": "1,665 effective hours per year (about 37.4 h/week, own estimate) and flexible hours with a 6.5 h Friday reference, per art. 22 of the MAPFRE collective agreement (read 2026-10-05). Careers site lists a Graduates Program; no specific IT junior posting seen.",
+      "notes": "Hours read through a fetch tool because the union site refused direct requests. Weekly equivalent assumes about 44.5 working weeks per year (own estimate)."
+    },
+    {
+      "company_name": "Banco Santander",
+      "website_url": "https://www.santander.com",
+      "careers_url": "https://santander.wd3.myworkdayjobs.com/SantanderCareers",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.ccoo-servicios.es/archivos/bs/XXVCCB.pdf",
+      "location_hint": "Boadilla del Monte (Madrid), Spain",
+      "hiring_hint": "Banking sector agreement (XXV Convenio de Banca 2024-2026): 1,700 h/year, about 38 h/week (own estimate). Workday board queried 2026-10-05: JUNIOR Technical Architect, Santander Technology & Operations, Boadilla (Req0903160, posted over 30 days ago).",
+      "notes": "Sector evidence, not company-specific: Santander Technology & Operations may sit under a different agreement. Not verified."
+    },
+    {
+      "company_name": "BBVA",
+      "website_url": "https://www.bbva.com",
+      "careers_url": "https://www.bbva.com/es/empleo/",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.ccoo-servicios.es/archivos/bs/XXVCCB.pdf",
+      "location_hint": "Madrid, Spain",
+      "hiring_hint": "Banking sector agreement (XXV Convenio de Banca 2024-2026): 1,700 h/year, about 38 h/week (own estimate). Careers landing page reachable on 2026-10-05; no postings enumerated.",
+      "notes": "Sector evidence only. Technology subsidiaries may fall under another agreement. The job search behind the landing page was not queried."
+    },
+    {
+      "company_name": "AXA Spain",
+      "website_url": "https://www.axa.es",
+      "careers_url": "https://careers.axa.com",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.unespa.es/convenios/convenio-colectivo-2025-2028/",
+      "location_hint": "Madrid, Spain",
+      "hiring_hint": "Insurance sector agreement 2025-2028: about 1,692 h/year (about 38 h/week, own estimate) per a search-engine summary; the agreement text itself was not read. Careers homepage reachable 2026-10-05; Spain postings not enumerated.",
+      "notes": "Weakest evidence in this file: sector figure from a search summary, company-specific hours not confirmed."
+    },
+    {
+      "company_name": "Allianz",
+      "website_url": "https://www.allianz.com",
+      "careers_url": "https://careers.allianz.com/global/en",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.unespa.es/convenios/convenio-colectivo-2025-2028/",
+      "location_hint": "Spain",
+      "hiring_hint": "Insurance sector agreement 2025-2028: about 1,692 h/year per a search-engine summary; agreement text not read. Global careers site reachable 2026-10-05; Spain postings not enumerated.",
+      "notes": "Weak evidence: sector figure from a search summary, not company-specific."
+    },
+    {
+      "company_name": "ABN AMRO",
+      "website_url": "https://www.abnamro.com",
+      "careers_url": "https://www.werkenbijabnamro.nl/en",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://www.werkenbijabnamro.nl/en/vacancy/9484",
+      "location_hint": "Amsterdam / Amstelveen, Netherlands",
+      "hiring_hint": "36-hour work week stated in postings (vacancies 9484, 9631, 9640, read 2026-10-05). Public sitemap (147 vacancies) and JobPosting JSON-LD. Junior-fit: IT Engineer Intern for recent graduates (9594); Software Engineer Crypto Services (9631, level not stated). Most other engineering roles ask for 5 years.",
+      "notes": "A search summary also claimed 36 h at Rabobank, but the one Rabobank vacancy page read says 40 hours per week (expired), so Rabobank is not counted."
+    },
+    {
+      "company_name": "ING Netherlands",
+      "website_url": "https://www.ing.com",
+      "careers_url": "https://careers.ing.com/en",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://careers.ing.com/en/benefits-NL",
+      "location_hint": "Amsterdam, Netherlands",
+      "hiring_hint": "Base salary stated for a 36-hour week (ING Netherlands benefits page, read 2026-10-05). Careers search lists Amsterdam roles: Power Platform Intern and Junior Business Analyst COO Risk; no junior backend posting seen.",
+      "notes": "36 h is the base for the Dutch banking agreement as shown on the benefits page; individual postings may offer 36 to 40 h."
+    },
+    {
+      "company_name": "Grupo Tragsa",
+      "website_url": "https://www.tragsa.es",
+      "careers_url": "https://www.tragsa.es/es/equipo-humano/unete-a-nuestro-equipo/ofertas-empleo-indefinido/tasa-reposicion-2025-2026/Paginas/default.aspx",
+      "source_type": "web_research",
+      "source_label": "short_hours_2026_10",
+      "source_url": "https://madridinforma.es/se-necesitan-33-personas-en-madrid-para-trabajar-en-grupo-tragsa/",
+      "location_hint": "Madrid, Spain",
+      "hiring_hint": "Postings in Sept 2024 state a full-time week of 37.5 h (press article, read through a fetch tool). 2024 programmer-analyst posts asked for 1 to 3 years. TRO 25-26 admission phase closed; provisional admitted lists published 2026-10-01.",
+      "notes": "The 37.5 h figure is from 2024; the current regime is not verified. The AGE reduction to 35 h (Moncloa, 2026-05-08) applies to AGE staff, not automatically to Tragsa."
+    }
+  ]
+}
