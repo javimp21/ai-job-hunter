@@ -93,6 +93,7 @@ from ai_job_hunter.services.opportunities import (
 from ai_job_hunter.services.application_pack import prepare_application
 from ai_job_hunter.services.interview_prep import prepare_interview
 from ai_job_hunter.services.digest import preview_digest, send_digest
+from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -594,6 +595,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     previews = preview_notifications(
                         session,
                         candidate,
+                        direct_postings=DirectPostingResolver(session, online=False),
                         review_threshold=settings.notify_review_min_priority,
                         max_age_days=settings.notify_max_age_days,
                         limit=args.max_notifications,
@@ -611,6 +613,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     session,
                     candidate,
                     provider,
+                    direct_postings=DirectPostingResolver(session),
                     review_threshold=settings.notify_review_min_priority,
                     max_age_days=settings.notify_max_age_days,
                     limit=args.max_notifications,
@@ -1358,6 +1361,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         previews = preview_notifications(
             session,
             candidate,
+            direct_postings=DirectPostingResolver(session, online=False),
             review_threshold=settings.notify_review_min_priority,
             max_age_days=settings.notify_max_age_days,
             limit=args.limit,
@@ -1388,6 +1392,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             session,
             candidate,
             provider,
+            direct_postings=DirectPostingResolver(session),
             review_threshold=settings.notify_review_min_priority,
             max_age_days=settings.notify_max_age_days,
             limit=args.limit,

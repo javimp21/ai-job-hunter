@@ -91,6 +91,10 @@ Enable them with `JOB_PORTALS` (comma-separated); the default is `himalayas,manf
 
 Arbeitnow, 4dayweek.io and We Work Remotely were checked against live responses on 2026-10-04 (shapes in `tests/test_more_portals.py`). Response shapes of the older portals were written from each provider's public documentation; were written from each provider's public documentation; they were not verified against live responses from the development sandbox (network policy blocked these hosts), so run `refresh --dry-run` once with the portal enabled and check the first results.
 
+### Portals that charge candidates (We Work Remotely, Remote OK)
+
+Applying through these portals needs a paid candidate plan, so their jobs are treated as pointers to the employer (`services/direct_postings.py`). A copy whose company and normalized title match a job from a free source never alerts (`paywalled_copy_of_free_posting`); the free copy does. Otherwise, before the alert is sent, the employer's own posting is looked up: first a job of the same company from another source in the database, then the company's public ATS board guessed from its name (at most 2 slugs x Greenhouse, Ashby, Workable, SmartRecruiters; only a board that answers and lists the same normalized title counts). The alert then links the employer's posting and notes where it was seen (credit kept); when nothing is found it links the portal plus a web search for the employer's posting. Lookups (found or not) are cached in `data/local/direct-postings.json` and a miss is retried at most once a day. Digest rows from these portals carry a 🔒 note.
+
 ### Regional portals evaluated and not integrated (checked 2026-10-04)
 
 Luxembourg, Switzerland, the Netherlands, Ireland and EU-wide portals were checked with read-only `robots.txt`/homepage requests. None offers a documented public feed or API for third parties, so none is a portal here; reaching them would mean scraping listings.

@@ -38,6 +38,7 @@ from ai_job_hunter.services.notifications import (
     _WORK_MODE_LABELS,
     portal_credit,
 )
+from ai_job_hunter.services.direct_postings import paywalled_portal
 from ai_job_hunter.services.opportunities import Opportunity
 
 DIGEST_CHANNEL = "TELEGRAM_DIGEST"
@@ -228,6 +229,8 @@ def format_digest_message(entries: list[DigestEntry], *, failing_sources: list[s
         tag = _REASON_TAGS.get(entry.reason)
         if tag:
             details.append(tag)
+        if paywalled_portal(url):
+            details.append("🔒 portal de pago: búscala en la web de la empresa")
         lines.extend(
             [
                 "",

@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from collections.abc import Callable
 from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
@@ -31,10 +32,13 @@ from ai_job_hunter.models import (
     OpportunityNotification,
     OpportunityNotificationStatus,
 )
+from ai_job_hunter.services.direct_postings import DirectPosting, paywalled_portal, search_link
 from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 
 
 TELEGRAM_CHANNEL = "TELEGRAM"
+# (job_id, company, title) -> the employer's own posting for a paywalled-portal job.
+DirectPostingLookup = Callable[[UUID, str, str], DirectPosting | None]
 _REASON_LABELS = {
     "EXPERIENCE_BORDERLINE": "experiencia algo justa",
     "EXPERIENCE_UNKNOWN": "experiencia requerida no verificada",
@@ -266,11 +270,14 @@ def preview_notifications(
     review_threshold: int = 70,
     limit: int | None = None,
     max_age_days: int | None = None,
+    direct_postings: DirectPostingLookup | None = None,
 ) -> list[NotificationPreview]:
     """Return qualifying APPLY/high-priority REVIEW messages without writes."""
 
     _validate_threshold(review_threshold)
-    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days)
+    current = _current_opportunities(
+        session, candidate, review_threshold, max_age_days=max_age_days, direct_postings=direct_postings
+    )
     return _preview_current(session, current, limit=limit)
 
 
@@ -302,11 +309,14 @@ def send_notifications(
     review_threshold: int = 70,
     limit: int | None = None,
     max_age_days: int | None = None,
+    direct_postings: DirectPostingLookup | None = None,
 ) -> NotificationBatchResult:
     """Record selected evaluations and send pending notifications once."""
 
     _validate_threshold(review_threshold)
-    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days)
+    current = _current_opportunities(
+        session, candidate, review_threshold, max_age_days=max_age_days, direct_postings=direct_postings
+    )
     sendable = _preview_current(session, current, limit=limit)
     selected_keys = {(item.job_id, item.evaluation_fingerprint) for item in sendable}
     result = _materialize(session, current, selected_keys=selected_keys)
@@ -479,6 +489,7 @@ def _current_opportunities(
     threshold: int,
     *,
     max_age_days: int | None = None,
+    direct_postings: DirectPostingLookup | None = None,
 ) -> list[_CurrentOpportunity]:
     opportunities = list_opportunities(
         session,
@@ -522,6 +533,9 @@ def _current_opportunities(
     sent_identities = _sent_job_identities(session)
     batch_identities: set[tuple[str, frozenset[str], frozenset[str]]] = set()
     batch_per_company: dict[str, int] = {}
+    # Postings we also have from a free source (e.g. the employer's board): the
+    # paywalled-portal copy never alerts, the free one does.
+    free_identities = {_job_identity(item) for item in current_rows if not paywalled_portal(item.url)}
     result: list[_CurrentOpportunity] = []
     # Rows arrive in feed order (best first), so caps keep the strongest jobs.
     for item in current_rows:
@@ -538,7 +552,8 @@ def _current_opportunities(
         reason = None if eligible else "review_priority_below_threshold"
         if eligible:
             reason = (
-                _onsite_suppression(item, decision)
+                _paywalled_copy_suppression(item, free_identities)
+                or _onsite_suppression(item, decision)
                 or _uncertain_location_suppression(item, decision)
                 or _human_state_suppression(item)
                 or _repeat_suppression(decision, sent_decisions.get(item.job_id, {}), fingerprint)
@@ -567,6 +582,10 @@ def _current_opportunities(
                 batch_identities.add(identity)
                 batch_per_company[company] = batch_per_company.get(company, 0) + 1
             eligible = reason is None
+        direct_url = None
+        if eligible and direct_postings is not None and paywalled_portal(item.url):
+            found = direct_postings(item.job_id, item.company, item.title)
+            direct_url = found.url if found else None
         preview = NotificationPreview(
             job_id=item.job_id,
             evaluation_fingerprint=fingerprint,
@@ -575,7 +594,7 @@ def _current_opportunities(
             title=_clean_label(item.title, 200),
             location=_clean_label(item.location, 120) if item.location else None,
             priority=item.priority,
-            message=format_notification_message(item),
+            message=format_notification_message(item, direct_url=direct_url),
         )
         result.append(_CurrentOpportunity(item, fingerprint, preview, eligible, reason))
     result.sort(
@@ -590,6 +609,14 @@ def _current_opportunities(
 
 
 ONSITE_MIN_PRIORITY = 85
+
+
+def _paywalled_copy_suppression(
+    item: Opportunity, free_identities: set[tuple[str, frozenset[str], frozenset[str]]]
+) -> str | None:
+    if paywalled_portal(item.url) and _job_identity(item) in free_identities:
+        return "paywalled_copy_of_free_posting"
+    return None
 
 
 def _onsite_suppression(item: Opportunity, decision: str) -> str | None:
@@ -928,11 +955,12 @@ def _dispatch_pending(
         session.commit()
 
 
-def format_notification_message(item: Opportunity) -> str:
+def format_notification_message(item: Opportunity, *, direct_url: str | None = None) -> str:
     """Build a Telegram HTML message from public job fields and fixed labels.
 
     Every dynamic value is length-bounded and HTML-escaped; raw Jev text and
-    candidate facts (years, personal gaps) are never included.
+    candidate facts (years, personal gaps) are never included. ``direct_url`` is
+    the employer's own posting for a job found on a portal that charges candidates.
     """
 
     decision = item.decision.value if item.decision is not None else "REVIEW"
@@ -968,8 +996,30 @@ def format_notification_message(item: Opportunity) -> str:
     if concerns and decision != FinalDecision.APPLY.value:
         lines.append("❓ <b>A revisar:</b> " + "; ".join(concerns[:3]))
     url = _safe_public_url(item.url)
-    if url:
+    portal = paywalled_portal(url)
+    direct = _safe_public_url(direct_url) if portal else None
+    if direct:
+        # Found on a portal that charges candidates; the employer's own posting is free.
+        lines.extend(
+            [
+                "",
+                f'<a href="{html.escape(direct, quote=True)}">Ver oferta en la web de la empresa →</a>',
+                f"ℹ️ Vista en {portal}, que cobra por aplicar.",
+            ]
+        )
+    elif portal and url:
+        search = search_link(item.company, item.title)
+        lines.extend(
+            [
+                "",
+                f'<a href="{html.escape(url, quote=True)}">Ver oferta →</a>',
+                f"🔒 {portal} cobra por aplicar. Búscala en la web de la empresa: "
+                f'<a href="{html.escape(search, quote=True)}">buscar →</a>',
+            ]
+        )
+    elif url:
         lines.extend(["", f'<a href="{html.escape(url, quote=True)}">Ver oferta →</a>'])
+    if url:
         credit = portal_credit(url)
         if credit:
             # Portal terms ask for a visible credit and link back.
