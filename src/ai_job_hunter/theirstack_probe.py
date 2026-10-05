@@ -3,8 +3,8 @@
 ``count`` asks how many postings match the default filters (1 credit; API preview mode is not available by default).
 ``sample N`` fetches N postings (N credits, counted in the daily budget) and reports, with
 counts only, how many we already have in the database, by employer URL or by company +
-normalized title. No posting text, company
-or person is printed.
+normalized title, and how many the deterministic prefilter lets through (PASS/REVIEW) rather than
+rejects. No posting text, company or person is printed.
 """
 
 from __future__ import annotations
@@ -12,10 +12,12 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from collections.abc import Sequence
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ai_job_hunter.candidates import load_candidate_config
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.connectors.theirstack import (
     DEFAULT_CREDITS_PATH,
@@ -24,6 +26,7 @@ from ai_job_hunter.connectors.theirstack import (
     TheirStackConnectorError,
 )
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
+from ai_job_hunter.decision_engine import build_decision_contexts
 from ai_job_hunter.deduplication.normalization import (
     normalize_company_name,
     normalize_job_title,
@@ -77,6 +80,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("count", help="matches for the default filters (1 credit)")
     sample = sub.add_parser("sample", help="fetch N postings (N credits) and compare them with the database")
     sample.add_argument("n", type=int, help="postings to fetch (1-25)")
+    sample.add_argument("--page", type=int, default=0, help="page of N results to read (0 = newest)")
     args = parser.parse_args(argv)
     settings = get_settings()
     connector = TheirStackConnector(
@@ -90,6 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not 1 <= args.n <= 25:
             parser.error("n must be from 1 to 25")
         connector._page_size = args.n  # noqa: SLF001 - one measured page
+        connector.page = max(0, args.page)
         jobs = connector.fetch_jobs()
     except TheirStackConnectorError as error:
         print(f"TheirStack: {error}")
@@ -101,7 +106,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         engine.dispose()
     counts = overlap(jobs, urls, pairs)
-    for key in ("fetched", "with_employer_link", "known_by_url", "known_by_company_and_title", "new"):
+    candidate_path = Path("candidate.local.json")
+    if candidate_path.exists():
+        contexts = build_decision_contexts(list(jobs), load_candidate_config(candidate_path))
+        for context in contexts:
+            counts[f"prefilter_{context.deterministic.decision.value}"] += 1
+    for key in ("fetched", "with_employer_link", "known_by_url", "known_by_company_and_title", "new",
+                "prefilter_PASS", "prefilter_REVIEW", "prefilter_REJECT"):
         print(f"{key}: {counts[key]}")
     return 0
 

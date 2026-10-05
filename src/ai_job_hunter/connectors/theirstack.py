@@ -90,6 +90,7 @@ def build_search_body(
     titles: Sequence[str] = DEFAULT_TITLES,
     seniority: Sequence[str] = DEFAULT_SENIORITY,
     max_age_days: int = 1,
+    page: int = 0,
     preview: bool = False,
     include_total: bool = False,
 ) -> dict[str, Any]:
@@ -100,7 +101,7 @@ def build_search_body(
         "job_seniority_or": list(seniority),
         "order_by": [{"desc": True, "field": "date_posted"}],
         "limit": limit,
-        "page": 0,
+        "page": page,
     }
     if preview:
         body["blur_company_data"] = True  # no credits are consumed in preview mode
@@ -126,6 +127,7 @@ class TheirStackConnector:
         self._key = _secret(api_key)
         self._budget = budget or CreditBudget(DEFAULT_CREDITS_PATH, 100)
         self._page_size = page_size
+        self.page = 0  # only the measurement probe moves it, to read a page it has not paid for yet
         self._client = client
         self._timeout = timeout
 
@@ -146,7 +148,7 @@ class TheirStackConnector:
         limit = min(self._page_size, self._budget.remaining())
         if limit <= 0:
             return []  # today's credit budget is spent
-        payload = self._search(build_search_body(limit=limit))
+        payload = self._search(build_search_body(limit=limit, page=self.page))
         data = payload.get("data") if isinstance(payload, Mapping) else None
         if not isinstance(data, list):
             raise TheirStackConnectorError("TheirStack returned an unexpected payload.")
