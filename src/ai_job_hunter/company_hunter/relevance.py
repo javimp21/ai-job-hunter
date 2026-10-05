@@ -122,18 +122,21 @@ _NOT_BACKEND = re.compile(
 )
 _SENTENCE_END = re.compile(r"[.!?]$")
 
-# Score for a junior backend candidate; higher = better target.
+# Score for a junior backend candidate; higher = better target. Technical recruiters come
+# first (they own the hiring funnel and answer cold messages), then the managers and leads
+# who hire for a team. Directors and CTOs of large companies rarely answer a junior, so they
+# rank below engineers; in a company known to be small the CTO is the best contact.
 _BASE_SCORES = {
-    RoleKind.ENGINEERING_HEAD: 90,
+    RoleKind.RECRUITER: 95,
     RoleKind.ENGINEERING_MANAGER: 85,
     RoleKind.TECH_LEAD: 80,
+    RoleKind.ENGINEERING_HEAD: 70,
     RoleKind.SENIOR_ENGINEER: 70,
-    RoleKind.ENGINEER: 60,
-    RoleKind.RECRUITER: 55,
+    RoleKind.ENGINEER: 65,
     RoleKind.NON_ENGINEERING_C: 20,
 }
 _C_LEVEL_SMALL = 100
-_C_LEVEL_LARGE_OR_UNKNOWN = 75
+_C_LEVEL_LARGE_OR_UNKNOWN = 40
 
 
 def assess_role(role: str | None) -> RoleAssessment | None:

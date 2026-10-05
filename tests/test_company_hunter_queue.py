@@ -67,10 +67,10 @@ def test_suggestions_follow_rank_role_priority_and_limits(db_session, tmp_path):
 
     result, messages = run(db_session, tmp_path)
 
-    assert [r.contact_id for r in result.new] == [manager.id, lead.id]  # 2 per company per day; founder/talent never
-    assert engineer.id not in [r.contact_id for r in result.new]
+    assert [r.contact.name for r in result.new] == ["Tal Ent", "Em Manager"]  # recruiter first; 2 per company per day; never the founder
+    assert engineer.id not in [r.contact_id for r in result.new] and lead.id not in [r.contact_id for r in result.new]
     assert all(len(r.note) <= 300 and r.status == "SUGGESTED" for r in result.new)
-    assert [contact_relevance(c, small_known=False) for c in (manager, lead, engineer)] == [85, 80, 60]
+    assert [contact_relevance(c, small_known=False) for c in (manager, lead, engineer)] == [85, 80, 65]
 
 
 def test_never_more_than_five_per_day_and_second_call_is_idempotent(db_session, tmp_path):

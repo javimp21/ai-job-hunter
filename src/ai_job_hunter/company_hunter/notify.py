@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -84,12 +85,28 @@ def connection_keyboard(request_id: UUID) -> dict[str, Any]:
     }
 
 
-def connection_header(count: int, day_label: str) -> str:
-    return (
+def recruiter_search_url(company_name: str) -> str:
+    """A LinkedIn people search the candidate opens by hand; nothing is fetched from LinkedIn."""
+
+    return "https://www.linkedin.com/search/results/people/?keywords=" + quote(f"technical recruiter {company_name}")
+
+
+def connection_header(count: int, day_label: str, company_names: Sequence[str] = ()) -> str:
+    text = (
         f"🤝 <b>LinkedIn — {count} persona(s) para conectar hoy</b> ({_esc(day_label)})\n"
         "Conexión manual: tú pulsas en LinkedIn; nada se envía desde aquí. "
         "Responde a cualquier mensaje con el texto de un post suyo para regenerar su nota."
     )
+    names = list(dict.fromkeys(name for name in company_names if name))
+    if names:
+        links = " · ".join(
+            f'<a href="{html.escape(recruiter_search_url(name), quote=True)}">{_esc(name)}</a>' for name in names
+        )
+        text += (
+            "\n\n🔎 <b>Reclutadores técnicos</b> (suelen contestar antes; no aparecen en las webs de equipo, "
+            f"así que búscalos tú): {links}"
+        )
+    return text
 
 
 def connection_message(
@@ -139,7 +156,9 @@ def send_connections(
     if not pending:
         return result
     try:
-        provider.send_message(connection_header(len(requests), day_label))
+        provider.send_message(
+            connection_header(len(requests), day_label, [request.company.name for request in requests])
+        )
     except (TelegramRejectedError, TelegramAmbiguousError) as error:
         result.failed.append(f"header: {type(error).__name__}")
         return result

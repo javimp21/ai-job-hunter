@@ -141,6 +141,9 @@ def test_send_connections_sends_one_message_per_person_once_and_stores_ids(db_se
     assert first.sent == 2 and second.sent == 0
     assert len(provider.messages) == 3  # header + two people; nothing on the second call
     assert "conexión manual" in provider.messages[0][0].casefold() or "Conexión manual" in provider.messages[0][0]
+    header = provider.messages[0][0]
+    assert "Reclutadores técnicos" in header
+    assert "https://www.linkedin.com/search/results/people/?keywords=technical%20recruiter%20Acme%20Pay" in header
     ids = {r.telegram_message_id for r in db_session.scalars(select(ConnectionRequest))}
     assert ids == {"102", "103"}
 

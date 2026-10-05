@@ -149,11 +149,13 @@ def test_non_targets_and_sentences_are_not_roles(text):
 
 
 def test_relevance_order_and_company_size_rules():
-    order = ["Head of Engineering", "Engineering Manager", "Tech Lead", "Senior Engineer", "Software Engineer", "Technical Recruiter"]
+    order = ["Technical Recruiter", "Engineering Manager", "Tech Lead", "Head of Engineering", "Software Engineer"]
     scores = [relevance(role, small_known=False) for role in order]
     assert scores == sorted(scores, reverse=True) and None not in scores
-    assert relevance("CTO", small_known=True) > relevance("Head of Engineering", small_known=True)
-    assert relevance("CTO", small_known=False) < relevance("Head of Engineering", small_known=False)
+    # A recruiter is the best cold contact for a junior; a director of a big org the worst of the leaders.
+    assert relevance("Technical Recruiter", small_known=False) > relevance("Engineering Manager", small_known=False)
+    assert relevance("CTO", small_known=True) > relevance("Technical Recruiter", small_known=True)
+    assert relevance("CTO", small_known=False) < relevance("Software Engineer", small_known=False)
     assert relevance("CTO", small_known=False) is not None  # an engineering leader is always a target
     for ceo in ("CEO", "Chief Financial Officer", "COO", "Founder", "Chief Revenue Officer"):
         assert relevance(ceo, small_known=False) is None
@@ -347,7 +349,7 @@ def test_queue_orders_by_relevance_within_a_company(db_session, tmp_path):
         add_contact(db_session, company, name, title, "ENGINEER")
     db_session.commit()
 
-    assert [r.contact.name for r in suggest(db_session, tmp_path).new] == ["Em Manager", "Tech Lead"]
+    assert [r.contact.name for r in suggest(db_session, tmp_path).new] == ["Rec Ruiter", "Em Manager"]
 
 
 # ---- clean-up of already stored bad contacts ---------------------------------------------------------
