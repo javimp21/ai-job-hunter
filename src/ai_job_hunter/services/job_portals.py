@@ -26,6 +26,7 @@ from ai_job_hunter.connectors.manfred import ManfredConnector, ManfredConnectorE
 from ai_job_hunter.connectors.jobicy import JobicyConnector, JobicyConnectorError
 from ai_job_hunter.connectors.remoteok import RemoteOKConnector, RemoteOKConnectorError
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
+from ai_job_hunter.connectors.fantastic_jobs import FantasticJobsConnector, FantasticJobsConnectorError
 from ai_job_hunter.connectors.theirstack import TheirStackConnector, TheirStackConnectorError
 from ai_job_hunter.connectors.weworkremotely import WeWorkRemotelyConnector, WeWorkRemotelyConnectorError
 from ai_job_hunter.domain.normalized_job import NormalizedJob
@@ -72,6 +73,14 @@ PORTALS: dict[str, PortalSpec] = {
         min_interval=timedelta(hours=12),
         build=lambda client: AdzunaConnector.from_settings(client),
         errors=(AdzunaConnectorError,),
+    ),
+    # Fantastic.jobs: recent LinkedIn/job-board postings with full text; one credit per job and per request (the trial
+    # allows 50 requests a week), so it is polled every 4 hours; opt-in via JOB_PORTALS.
+    "fantastic_jobs": PortalSpec(
+        name="fantastic_jobs",
+        min_interval=timedelta(hours=4),
+        build=lambda client: FantasticJobsConnector.from_settings(client),
+        errors=(FantasticJobsConnectorError,),
     ),
     # TheirStack: paid aggregator (one credit per job); opt-in via JOB_PORTALS, capped by THEIRSTACK_DAILY_CREDITS.
     "theirstack": PortalSpec(

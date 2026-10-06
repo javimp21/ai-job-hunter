@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
-    # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy, arbeitnow, fourdayweek, weworkremotely, theirstack.
+    # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy, arbeitnow, fourdayweek, weworkremotely, theirstack, fantastic_jobs.
     # Adzuna needs the keys below. remoteok is off by default: applying through Remote OK requires a paid plan.
     job_portals: str = "himalayas,manfred,remotive,jobicy,adzuna,arbeitnow,fourdayweek,weworkremotely"
     # Optional Adzuna credentials (https://developer.adzuna.com); the adzuna portal is skipped without them.
@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     theirstack_countries: str = ""
     theirstack_titles: str = ""
     theirstack_seniority: str = ""
+    # Fantastic.jobs (https://fantastic.jobs): recent LinkedIn and job-board postings; one job credit per job returned.
+    # Enable the opt-in `fantastic_jobs` portal by adding it to JOB_PORTALS. Filters are comma-separated; empty = defaults.
+    fantastic_jobs_api_key: SecretStr | None = None
+    fantastic_jobs_daily_credits: int = Field(default=70, ge=1, le=100000)
+    fantastic_jobs_time_frame: str = "24h"
+    fantastic_jobs_titles: str = ""
+    fantastic_jobs_countries: str = ""
 
 
 def get_settings() -> Settings:
