@@ -10,6 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -1028,6 +1030,12 @@ def transition_application(
         return application
 
 
+# A run that reads boards for longer than this stops fetching and processes what it has, so the
+# 55-minute kill of run-scheduled.sh never throws a whole run away because one site hung.
+FETCH_DEADLINE_SECONDS = 35 * 60
+SLOW_SOURCE_SECONDS = 60
+
+
 def _fetch_targets(
     targets: list[CompanyMonitorTarget],
     *,
@@ -1068,8 +1076,16 @@ def _fetch_targets(
     per_company_counts: dict[UUID, int] = {}
     try:
         connectors = build_job_connectors(config, client=active_client, known_urls=known_urls)
+        started = time.monotonic()
         for spec, connector in zip(config.sources, connectors, strict=True):
             target = target_by_key[(spec.provider, spec.identifier.casefold(), spec.region)]
+            if time.monotonic() - started > FETCH_DEADLINE_SECONDS:
+                # Skipped boards count as failed, so nothing on them is closed; the next run retries them.
+                failures.append(
+                    SourceFailure(target.company_name, spec.provider.upper(), "FetchDeadlineReached", None)
+                )
+                continue
+            source_started = time.monotonic()
             try:
                 fetched = connector.fetch_jobs()
             except (
@@ -1091,6 +1107,13 @@ def _fetch_targets(
                     )
                 )
                 continue
+            finally:
+                elapsed = time.monotonic() - source_started
+                if elapsed >= SLOW_SOURCE_SECONDS:
+                    print(
+                        f"Slow source: {target.company_name} | {spec.provider.upper()} | {elapsed:.0f}s",
+                        file=sys.stderr,
+                    )
             remaining = max_jobs_per_company - per_company_counts.get(target.company_id, 0)
             accepted = fetched[:max(remaining, 0)]
             per_company_counts[target.company_id] = per_company_counts.get(target.company_id, 0) + len(accepted)

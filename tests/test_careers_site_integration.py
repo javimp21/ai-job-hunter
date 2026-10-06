@@ -380,3 +380,17 @@ def test_normalized_job_contract_for_careers_site_jobs_is_valid():
     job = NormalizedJob(provider="careers_site", title="Engineer", remote_policy=RemotePolicy.REMOTE)
     assert job.remote_eligibility.value == "UNKNOWN"
     assert CompanyMonitorTarget.model_fields["known_urls"].default == frozenset()
+
+
+def test_boards_after_the_fetch_deadline_are_skipped_as_failed_not_closed(db_session, monkeypatch):
+    add_careers_source(db_session)
+    (target,) = active_monitor_targets(db_session)
+    monkeypatch.setattr(opportunities, "FETCH_DEADLINE_SECONDS", -1)
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: pytest.fail("no request after the deadline")))
+    try:
+        offers, failures = opportunities._fetch_targets([target], max_jobs_per_company=50, client=client)
+    finally:
+        client.close()
+
+    assert offers == []
+    assert [(f.company, f.error_type) for f in failures] == [(target.company_name, "FetchDeadlineReached")]
