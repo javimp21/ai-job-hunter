@@ -39,6 +39,7 @@ from ai_job_hunter.connectors.factory import build_job_connectors
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
+from ai_job_hunter.connectors.recruitee import RecruiteeConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnectorError
 from ai_job_hunter.connectors.careers_site import CareersSiteConnectorError
@@ -1095,6 +1096,7 @@ def _fetch_targets(
                 LeverConnectorError,
                 SmartRecruitersConnectorError,
                 TeamtailorConnectorError,
+                RecruiteeConnectorError,
                 WorkableConnectorError,
                 PersonioConnectorError,
                 FactorialConnectorError,

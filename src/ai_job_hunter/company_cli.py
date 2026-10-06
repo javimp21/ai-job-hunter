@@ -25,6 +25,7 @@ from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
+from ai_job_hunter.connectors.recruitee import RecruiteeConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnectorError
 from ai_job_hunter.connectors.careers_site import CareersSiteConnectorError
@@ -89,7 +90,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     monitor.add_argument("--remote-from-spain", action="store_true")
     monitor.add_argument("--supported-ats", action="store_true", help="explicitly select supported boards (always required)")
     monitor.add_argument("--company")
-    monitor.add_argument("--provider", choices=("greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday", "factorial", "careers_site", "amazon_jobs"))
+    monitor.add_argument("--provider", choices=("greenhouse", "lever", "ashby", "teamtailor", "recruitee", "smartrecruiters", "workable", "personio", "workday", "factorial", "careers_site", "amazon_jobs"))
     monitor.add_argument("--limit-companies", type=int, default=10)
     monitor.add_argument("--max-jobs-per-company", type=int, default=100)
     monitor.add_argument("--candidate-config", metavar="PATH", help="run the deterministic prefilter; no Jev calls")
@@ -361,6 +362,7 @@ def _run_monitor(args, session) -> None:
                 LeverConnectorError,
                 SmartRecruitersConnectorError,
                 TeamtailorConnectorError,
+                RecruiteeConnectorError,
                 WorkableConnectorError,
                 PersonioConnectorError,
                 FactorialConnectorError,

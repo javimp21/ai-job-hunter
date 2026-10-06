@@ -26,6 +26,7 @@ class ATSProvider(StrEnum):
     LEVER = "LEVER"
     ASHBY = "ASHBY"
     TEAMTAILOR = "TEAMTAILOR"
+    RECRUITEE = "RECRUITEE"
     SMARTRECRUITERS = "SMARTRECRUITERS"
     WORKABLE = "WORKABLE"
     PERSONIO = "PERSONIO"
@@ -42,6 +43,7 @@ SUPPORTED_ATS_PROVIDERS = frozenset(
         ATSProvider.LEVER,
         ATSProvider.ASHBY,
         ATSProvider.TEAMTAILOR,
+        ATSProvider.RECRUITEE,
         ATSProvider.SMARTRECRUITERS,
         ATSProvider.WORKABLE,
         ATSProvider.PERSONIO,

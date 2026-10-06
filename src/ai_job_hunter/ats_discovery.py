@@ -1,4 +1,4 @@
-"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, SmartRecruiters, Workable, Personio, Workday and Factorial HR job boards.
+"""No-scrape identification of public Greenhouse, Lever, Ashby, Teamtailor, Recruitee, SmartRecruiters, Workable, Personio, Workday and Factorial HR job boards.
 
 Teamtailor is detected only on ``{company}.teamtailor.com`` and Personio only on
 ``{company}.jobs.personio.de|com``; Factorial HR only on
@@ -98,6 +98,10 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
             provider = ATSProvider.TEAMTAILOR
             identifier = label
             evidence = f"Teamtailor career-site subdomain '{host}' matched; the subdomain is the company identifier."
+        elif parent == "recruitee.com" and label not in {"www", "app", "api", "support", "careers"}:
+            provider = ATSProvider.RECRUITEE
+            identifier = label
+            evidence = f"Recruitee career-site subdomain '{host}' matched; the subdomain is the company identifier."
         elif parent in {"jobs.personio.de", "jobs.personio.com"} and label != "www":
             provider = ATSProvider.PERSONIO
             identifier = label
@@ -113,6 +117,7 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
         return _unknown(source_url, f"Hostname '{host}' does not match a supported ATS public board pattern.")
     if provider not in {
         ATSProvider.TEAMTAILOR,
+        ATSProvider.RECRUITEE,
         ATSProvider.PERSONIO,
         ATSProvider.FACTORIAL,
         ATSProvider.WORKDAY,

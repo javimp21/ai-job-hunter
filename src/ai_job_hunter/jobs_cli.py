@@ -22,6 +22,7 @@ from ai_job_hunter.connectors.ashby import AshbyConnectorError
 from ai_job_hunter.connectors.greenhouse import GreenhouseConnectorError
 from ai_job_hunter.connectors.lever import LeverConnectorError
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnectorError
+from ai_job_hunter.connectors.recruitee import RecruiteeConnectorError
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnectorError
 from ai_job_hunter.connectors.amazon_jobs import AmazonJobsConnectorError
 from ai_job_hunter.connectors.careers_site import CareersSiteConnectorError
@@ -45,7 +46,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Fetch or replay public job board listings and run the deterministic pre-filter."
     )
     inputs = parser.add_mutually_exclusive_group(required=True)
-    inputs.add_argument("--sources", metavar="PATH", help="local JSON list of Greenhouse/Lever/Ashby/Teamtailor/SmartRecruiters/Workable/Personio/Workday/Factorial/careers-site/Amazon boards")
+    inputs.add_argument("--sources", metavar="PATH", help="local JSON list of Greenhouse/Lever/Ashby/Teamtailor/Recruitee/SmartRecruiters/Workable/Personio/Workday/Factorial/careers-site/Amazon boards")
     inputs.add_argument("--snapshot", metavar="PATH", help="offline normalized snapshot to replay")
     parser.add_argument("--candidate-config", metavar="PATH", help="local candidate config for pre-filtering")
     parser.add_argument("--save-snapshot", metavar="PATH", help="save fetched normalized offers")
@@ -105,6 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     AshbyConnectorError,
                     SmartRecruitersConnectorError,
                     TeamtailorConnectorError,
+                    RecruiteeConnectorError,
                     WorkableConnectorError,
                     PersonioConnectorError,
                     FactorialConnectorError,

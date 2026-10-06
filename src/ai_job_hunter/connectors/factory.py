@@ -14,6 +14,7 @@ from ai_job_hunter.connectors.lever import LeverConnector
 from ai_job_hunter.connectors.protocol import JobConnector
 from ai_job_hunter.candidates.prefilter import title_may_be_relevant
 from ai_job_hunter.connectors.smartrecruiters import SmartRecruitersConnector
+from ai_job_hunter.connectors.recruitee import RecruiteeConnector
 from ai_job_hunter.connectors.teamtailor import TeamtailorConnector
 from ai_job_hunter.connectors.factorial import FactorialConnector
 from ai_job_hunter.connectors.personio import PersonioConnector
@@ -71,6 +72,16 @@ def build_job_connectors(
         elif source.provider == "teamtailor":
             connectors.append(
                 TeamtailorConnector(
+                    source.identifier,
+                    company_name=source.company_name,
+                    max_jobs=source.max_jobs,
+                    timeout=timeout,
+                    client=client,
+                )
+            )
+        elif source.provider == "recruitee":
+            connectors.append(
+                RecruiteeConnector(
                     source.identifier,
                     company_name=source.company_name,
                     max_jobs=source.max_jobs,

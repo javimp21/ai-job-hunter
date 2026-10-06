@@ -24,6 +24,7 @@ from ai_job_hunter.services.company_intelligence import public_board_url
         ("https://jobs.eu.lever.co/acme-eu/abc", ATSProvider.LEVER, "acme-eu", "eu"),
         ("https://jobs.ashbyhq.com/acme-company/abc", ATSProvider.ASHBY, "acme-company", None),
         ("https://acme.teamtailor.com/jobs/123-role", ATSProvider.TEAMTAILOR, "acme", None),
+        ("https://acme.recruitee.com/o/backend-engineer", ATSProvider.RECRUITEE, "acme", None),
         ("https://Acme-Co.teamtailor.com", ATSProvider.TEAMTAILOR, "Acme-Co".casefold(), None),
         ("https://jobs.smartrecruiters.com/AcmeCo/744-role", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),
         ("https://careers.smartrecruiters.com/AcmeCo", ATSProvider.SMARTRECRUITERS, "AcmeCo", None),

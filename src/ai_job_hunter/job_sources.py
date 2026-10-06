@@ -26,13 +26,13 @@ class JobSourceSpec(BaseModel):
         if isinstance(value, str):
             normalized = value.strip().casefold()
             if normalized in {
-                "greenhouse", "lever", "ashby", "teamtailor", "smartrecruiters", "workable", "personio", "workday",
-                "factorial", "careers_site", "amazon_jobs",
+                "greenhouse", "lever", "ashby", "teamtailor", "recruitee", "smartrecruiters", "workable", "personio",
+                "workday", "factorial", "careers_site", "amazon_jobs",
             }:
                 return normalized
         raise ValueError(
-            "provider must be one of: greenhouse, lever, ashby, teamtailor, smartrecruiters, workable, personio, "
-            "workday, factorial, careers_site, amazon_jobs"
+            "provider must be one of: greenhouse, lever, ashby, teamtailor, recruitee, smartrecruiters, workable, "
+            "personio, workday, factorial, careers_site, amazon_jobs"
         )
 
     @field_validator("identifier")
@@ -63,7 +63,7 @@ class JobSourceSpec(BaseModel):
         if self.provider == "amazon_jobs" and self.identifier.casefold() != "amazon.jobs":
             raise ValueError("Amazon jobs identifier must be 'amazon.jobs'")
         if (
-            self.provider in {"greenhouse", "ashby", "teamtailor", "smartrecruiters", "workable", "careers_site", "amazon_jobs"}
+            self.provider in {"greenhouse", "ashby", "teamtailor", "recruitee", "smartrecruiters", "workable", "careers_site", "amazon_jobs"}
             and self.region is not None
         ):
             raise ValueError("region is only supported by Lever, Personio, Factorial and Workday sources")
