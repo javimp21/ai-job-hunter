@@ -212,7 +212,10 @@ def _arm_stack_dump() -> None:
     except ValueError:
         return
     if seconds > 0:
-        faulthandler.dump_traceback_later(seconds, exit=False, file=sys.stderr)
+        try:
+            faulthandler.dump_traceback_later(seconds, exit=False, file=sys.stderr)
+        except (AttributeError, OSError, ValueError):  # stderr without a file descriptor (captured output)
+            return
 
 
 def main(argv: Sequence[str] | None = None) -> int:
