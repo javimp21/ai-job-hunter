@@ -11,7 +11,9 @@ import hashlib
 import json
 import re
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -25,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from ai_job_hunter.config import get_settings
 from ai_job_hunter.candidates import (
     CandidateConfig,
     JobFacts,
@@ -1106,6 +1109,68 @@ def _utc_aware(moment: datetime) -> datetime:
     return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
+# How many boards of the same server are read at the same time. Shared APIs get a few at once; Lever blocks
+# aggressive clients, so one; a company's own site (Workday tenant, careers site...) is its own server, one at a time.
+HOST_CONCURRENCY = {"greenhouse": 3, "ashby": 3, "smartrecruiters": 3, "workable": 2, "lever": 1, "amazon_jobs": 1}
+
+
+def _host_gate_key(spec: JobSourceSpec) -> str:
+    return spec.provider if spec.provider in HOST_CONCURRENCY else f"{spec.provider}:{spec.identifier.casefold()}"
+
+
+def _host_gates(specs: Sequence[JobSourceSpec]) -> dict[str, threading.Semaphore]:
+    return {
+        _host_gate_key(spec): threading.Semaphore(HOST_CONCURRENCY.get(spec.provider, 1)) for spec in specs
+    }
+
+
+_BOARD_ERRORS = (
+    AshbyConnectorError,
+    GreenhouseConnectorError,
+    LeverConnectorError,
+    SmartRecruitersConnectorError,
+    TeamtailorConnectorError,
+    RecruiteeConnectorError,
+    WorkableConnectorError,
+    PersonioConnectorError,
+    FactorialConnectorError,
+    CareersSiteConnectorError,
+    AmazonJobsConnectorError,
+    WorkdayConnectorError,
+)
+
+
+def _fetch_one(
+    spec: JobSourceSpec,
+    connector: Any,
+    target: CompanyMonitorTarget,
+    started: float,
+    gates: dict[str, threading.Semaphore],
+) -> tuple[list[NormalizedJob], SourceFailure | None]:
+    """Read one board (runs in a worker thread): its offers, or the failure that stopped it."""
+
+    def skipped() -> tuple[list[NormalizedJob], SourceFailure]:
+        # Boards not reached count as failed, so nothing on them is closed; the next run retries them.
+        return [], SourceFailure(target.company_name, spec.provider.upper(), "FetchDeadlineReached", None)
+
+    if time.monotonic() - started > FETCH_DEADLINE_SECONDS:
+        return skipped()
+    with gates[_host_gate_key(spec)]:
+        if time.monotonic() - started > FETCH_DEADLINE_SECONDS:
+            return skipped()
+        source_started = time.monotonic()
+        try:
+            return connector.fetch_jobs(), None
+        except _BOARD_ERRORS as error:
+            return [], SourceFailure(
+                target.company_name, spec.provider.upper(), type(error).__name__, str(error)[:200] or None
+            )
+        finally:
+            elapsed = time.monotonic() - source_started
+            if elapsed >= SLOW_SOURCE_SECONDS:
+                print(f"Slow source: {target.company_name} | {spec.provider.upper()} | {elapsed:.0f}s", file=sys.stderr)
+
+
 def _fetch_targets(
     targets: list[CompanyMonitorTarget],
     *,
@@ -1147,44 +1212,21 @@ def _fetch_targets(
     try:
         connectors = build_job_connectors(config, client=active_client, known_urls=known_urls)
         started = time.monotonic()
-        for spec, connector in zip(config.sources, connectors, strict=True):
-            target = target_by_key[(spec.provider, spec.identifier.casefold(), spec.region)]
-            if time.monotonic() - started > FETCH_DEADLINE_SECONDS:
-                # Skipped boards count as failed, so nothing on them is closed; the next run retries them.
-                failures.append(
-                    SourceFailure(target.company_name, spec.provider.upper(), "FetchDeadlineReached", None)
-                )
+        gates = _host_gates(config.sources)
+        entries = [
+            (spec, connector, target_by_key[(spec.provider, spec.identifier.casefold(), spec.region)])
+            for spec, connector in zip(config.sources, connectors, strict=True)
+        ]
+        workers = max(1, min(get_settings().fetch_workers, len(entries)))
+        # Reading a board is almost all waiting for the answer, so boards are read at the same time (a few per
+        # server, see _host_gates). Everything that touches the database stays in this thread.
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="board-fetch") as pool:
+            futures = [pool.submit(_fetch_one, spec, connector, target, started, gates) for spec, connector, target in entries]
+            outcomes = [future.result() for future in futures]
+        for (spec, _connector, target), (fetched, failure) in zip(entries, outcomes, strict=True):
+            if failure is not None:
+                failures.append(failure)
                 continue
-            source_started = time.monotonic()
-            try:
-                fetched = connector.fetch_jobs()
-            except (
-                AshbyConnectorError,
-                GreenhouseConnectorError,
-                LeverConnectorError,
-                SmartRecruitersConnectorError,
-                TeamtailorConnectorError,
-                RecruiteeConnectorError,
-                WorkableConnectorError,
-                PersonioConnectorError,
-                FactorialConnectorError,
-                CareersSiteConnectorError,
-                AmazonJobsConnectorError,
-                WorkdayConnectorError,
-            ) as error:
-                failures.append(
-                    SourceFailure(
-                        target.company_name, spec.provider.upper(), type(error).__name__, str(error)[:200] or None
-                    )
-                )
-                continue
-            finally:
-                elapsed = time.monotonic() - source_started
-                if elapsed >= SLOW_SOURCE_SECONDS:
-                    print(
-                        f"Slow source: {target.company_name} | {spec.provider.upper()} | {elapsed:.0f}s",
-                        file=sys.stderr,
-                    )
             remaining = max_jobs_per_company - per_company_counts.get(target.company_id, 0)
             accepted = fetched[:max(remaining, 0)]
             per_company_counts[target.company_id] = per_company_counts.get(target.company_id, 0) + len(accepted)

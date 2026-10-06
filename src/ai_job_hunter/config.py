@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     notify_review_min_priority: int = Field(default=70, ge=0, le=100)
     # IANA time zone of the candidate: decides the day (and weekdays) of the Company Hunter queue.
     schedule_timezone: str = "Europe/Madrid"
+    # Company boards read at the same time during a refresh (per-server limits still apply).
+    fetch_workers: int = Field(default=8, ge=1, le=32)
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
