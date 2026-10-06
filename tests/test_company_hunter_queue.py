@@ -67,14 +67,14 @@ def test_suggestions_follow_rank_role_priority_and_limits(db_session, tmp_path):
 
     result, messages = run(db_session, tmp_path)
 
-    assert [r.contact.name for r in result.new] == ["Tal Ent", "Em Manager"]  # recruiter first; 2 per company per day; never the founder
+    assert [r.contact.name for r in result.new] == ["Tal Ent"]  # recruiter first; 1 per company per day; never the founder
     assert engineer.id not in [r.contact_id for r in result.new] and lead.id not in [r.contact_id for r in result.new]
     assert all(len(r.note) <= 300 and r.status == "SUGGESTED" for r in result.new)
     assert [contact_relevance(c, small_known=False) for c in (manager, lead, engineer)] == [85, 80, 65]
 
 
 def test_never_more_than_five_per_day_and_second_call_is_idempotent(db_session, tmp_path):
-    setup_people(db_session, companies=4, per_company=3)
+    setup_people(db_session, companies=6, per_company=3)
 
     first, messages = run(db_session, tmp_path, target=99)
     again, again_messages = run(db_session, tmp_path, target=5, now=MONDAY + timedelta(hours=2))
@@ -97,16 +97,19 @@ def test_weekend_gives_no_suggestions_unless_allowed(db_session, tmp_path):
 
 def test_company_is_dropped_after_two_people_were_contacted(db_session, tmp_path):
     (company_a, people_a), (company_b, _people_b) = setup_people(db_session, per_company=4)
-    first, _ = run(db_session, tmp_path, target=4)
-    for request in first.new:
-        mark_sent(db_session, request.id, now=MONDAY)
-    db_session.commit()
+    sent = []
+    for day in range(2):  # one person per company per day
+        batch, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=day), target=4)
+        assert len(batch.new) == 2
+        for request in batch.new:
+            mark_sent(db_session, request.id, now=MONDAY + timedelta(days=day))
+        db_session.commit()
+        sent.extend(batch.new)
 
-    second, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=1), target=5)
+    third, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=2), target=5)
 
-    contacted_companies = {r.company_id for r in first.new if r.status == "SENT"}
-    assert contacted_companies == {company_a.id, company_b.id}
-    assert second.new == []  # both companies already have 2 contacted people
+    assert {r.company_id for r in sent} == {company_a.id, company_b.id}
+    assert third.new == []  # both companies already have 2 contacted people
 
 
 def test_skip_blocks_a_person_for_sixty_days_then_allows_again(db_session, tmp_path):

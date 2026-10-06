@@ -18,7 +18,7 @@ TEAM = """<html lang="es"><body><h1>Nuestro equipo</h1>
 <div class="card"><h3>Jane Doe</h3><p>Engineering Manager</p>
   <a href="https://www.linkedin.com/in/jane-doe-123/">LinkedIn</a>
   <a href="mailto:jane@acme.example.test">Email</a></div>
-<div class="card"><h3>John Smith</h3><p>Senior Backend Engineer</p>
+<div class="card"><h3>John Smith</h3><p>Backend Engineer</p>
   <a href="mailto:john@gmail.example">Email</a></div>
 <div class="card"><h3>Ana López</h3><p>Marketing Manager</p></div>
 <div class="card"><h3>Pedro Ruiz — CTO</h3></div>
@@ -175,7 +175,7 @@ def test_discovery_stores_verified_contacts_with_evidence_and_topic(db_session):
     db_session.commit()
 
     contacts = {c.name: c for c in db_session.query(Contact).all()}
-    assert set(contacts) == {"Jane Doe", "John Smith", "Pedro Ruiz"}  # Ana (marketing) is not kept
+    assert set(contacts) == {"Jane Doe", "John Smith"}  # Ana (marketing) is not kept; a CTO only where the company is known small
     jane = contacts["Jane Doe"]
     assert (jane.title, jane.contact_type) == ("Engineering Manager", "ENGINEERING_MANAGER")
     assert jane.email == "jane@acme.example.test"
@@ -187,12 +187,12 @@ def test_discovery_stores_verified_contacts_with_evidence_and_topic(db_session):
     assert john.email is None and john.linkedin_url is None
     assert john.evidence["topic"] == "Kafka at Acme"
     assert john.evidence["topic_url"].endswith("/blog/kafka-at-acme")
-    assert (result.created, result.found) == (3, 3)
+    assert (result.created, result.found) == (2, 3)
     assert not any("linkedin.com" in url and "robots" not in url for url in seen)
 
     again = discover_contacts(db_session, company.id, fetcher=make_fetcher(SITE)[0])
-    assert (again.created, again.existing) == (0, 3)
-    assert db_session.query(Contact).count() == 3
+    assert (again.created, again.existing) == (0, 2)
+    assert db_session.query(Contact).count() == 2
 
 
 def test_nothing_verifiable_means_nothing_stored(db_session):
@@ -230,7 +230,7 @@ def test_github_org_members_need_a_stated_role_and_may_publish_linkedin(db_sessi
     members = [{"login": "jdoe"}, {"login": "norole"}, {"login": "noname"}]
     users = {
         "jdoe": {
-            "name": "Jess Doe", "bio": "Staff Software Engineer at Acme", "html_url": "https://github.com/jdoe",
+            "name": "Jess Doe", "bio": "Software Engineer at Acme", "html_url": "https://github.com/jdoe",
             "blog": "https://www.linkedin.com/in/jess-doe",
         },
         "norole": {"name": "Nora Role", "bio": "I like cats", "html_url": "https://github.com/norole"},

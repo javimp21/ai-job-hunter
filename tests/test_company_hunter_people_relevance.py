@@ -155,8 +155,9 @@ def test_relevance_order_and_company_size_rules():
     # A recruiter is the best cold contact for a junior; a director of a big org the worst of the leaders.
     assert relevance("Technical Recruiter", small_known=False) > relevance("Engineering Manager", small_known=False)
     assert relevance("CTO", small_known=True) > relevance("Technical Recruiter", small_known=True)
-    assert relevance("CTO", small_known=False) < relevance("Software Engineer", small_known=False)
-    assert relevance("CTO", small_known=False) is not None  # an engineering leader is always a target
+    assert relevance("CTO", small_known=False) is None  # a CTO answers only where the company is known to be small
+    assert relevance("Senior Backend Engineer", small_known=True) is None  # senior engineers do not hire juniors
+    assert relevance("Staff Engineer", small_known=False) is None
     for ceo in ("CEO", "Chief Financial Officer", "COO", "Founder", "Chief Revenue Officer"):
         assert relevance(ceo, small_known=False) is None
         assert relevance(ceo, small_known=True) == 20
@@ -264,12 +265,14 @@ def test_discovery_stores_engineering_people_and_skips_executives_when_size_is_u
 
     stored = {c.name: c.title for c in db_session.scalars(select(Contact))}
     assert stored == {
-        "Ana Torres": "CTO", "Bob Marley": "Head of Engineering", "Cleo Vega": "Engineering Manager",
-        "Dan Ortiz": "Tech Lead", "Eva Ruiz": "Senior Backend Engineer", "Fer Gil": "Technical Recruiter",
+        "Bob Marley": "Head of Engineering", "Cleo Vega": "Engineering Manager",
+        "Dan Ortiz": "Tech Lead", "Fer Gil": "Technical Recruiter",
     }
-    assert [(n, r) for n, r, _ in result.skipped] == [("Gus Kane", "Chief Executive Officer")]
-    assert "<= 50 employees" in result.skipped[0][2]
-    assert [n for n, _r, _s in result.stored][0] == "Ana Torres"
+    assert {(n, r) for n, r, _ in result.skipped} == {
+        ("Ana Torres", "CTO"), ("Eva Ruiz", "Senior Backend Engineer"), ("Gus Kane", "Chief Executive Officer"),
+    }
+    assert all("<= 50 employees" in reason for n, _r, reason in result.skipped if n in {"Ana Torres", "Gus Kane"})
+    assert {n for n, _r, _s in result.stored} == set(stored)
 
 
 def test_discovery_on_the_raisin_fixture_stores_no_executives_unless_the_company_is_known_small(db_session):
@@ -338,8 +341,8 @@ def test_queue_suggests_executives_only_when_size_is_known_to_be_at_most_50(db_s
 
     result = suggest(db_session, tmp_path)
 
-    # per-company cap is 2: the CTO (top at small companies) and the engineer outrank the CEO (20)
-    assert [r.contact.name for r in result.new] == ["Cto Person", "Eng Ineer"]
+    # one person per company per day: the CTO (top at small companies) outranks the engineer and the CEO (20)
+    assert [r.contact.name for r in result.new] == ["Cto Person"]
 
 
 def test_queue_orders_by_relevance_within_a_company(db_session, tmp_path):
@@ -349,7 +352,7 @@ def test_queue_orders_by_relevance_within_a_company(db_session, tmp_path):
         add_contact(db_session, company, name, title, "ENGINEER")
     db_session.commit()
 
-    assert [r.contact.name for r in suggest(db_session, tmp_path).new] == ["Rec Ruiter", "Em Manager"]
+    assert [r.contact.name for r in suggest(db_session, tmp_path).new] == ["Rec Ruiter"]
 
 
 # ---- clean-up of already stored bad contacts ---------------------------------------------------------
@@ -359,7 +362,7 @@ def test_prune_contacts_flags_and_deletes_only_invalid_unreferenced_generated_co
     company = add_company(db_session, "Databricks")
     junk = add_contact(db_session, company, "Business Intelligence", "Customer Data Platform", "ENGINEER")
     ceo = add_contact(db_session, company, "Chief Exec", "Chief Executive Officer (CEO) y fundador", "FOUNDER")
-    good = add_contact(db_session, company, "Gina Torres", "Staff Engineer", "ENGINEER")
+    good = add_contact(db_session, company, "Gina Torres", "Backend Engineer", "ENGINEER")
     referenced = add_contact(db_session, company, "Platform Overview", "AI Assistant", "ENGINEER")
     manual = Contact(company_id=company.id, name="Manual Entry", title="Anything", contact_type="OTHER", source_provider="manual")
     db_session.add(manual)

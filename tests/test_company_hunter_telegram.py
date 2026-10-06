@@ -75,7 +75,9 @@ def world(db_session, tmp_path):
         db_session, company, "Jane <Doe>", "Engineering Manager", "ENGINEERING_MANAGER",
         linkedin_url="https://linkedin.com/in/jane-doe-1",
     )
-    nolink = add_contact(db_session, company, "Eng Ineer", "Backend Engineer", "ENGINEER")
+    # One person per company per day, so the second person works at another company.
+    other = add_company(db_session, "Beta Pay", website="https://beta.example.test")
+    nolink = add_contact(db_session, other, "Eng Ineer", "Backend Engineer", "ENGINEER")
     db_session.commit()
     cv_dir, style = write_private(tmp_path)
     return company, contact, nolink, cv_dir, style
@@ -116,14 +118,15 @@ def test_weekly_message_with_no_companies_has_no_buttons():
 
 def test_connection_message_shows_linkedin_only_when_a_public_page_linked_it(db_session, world):
     company, contact, nolink, *_ = world
+    other = db_session.get(type(company), nolink.company_id)
     result = suggestions(db_session, world)
     by_contact = {r.contact_id: r for r in result.new}
 
     linked = connection_message(1, 2, by_contact[contact.id], contact, company)
-    plain = connection_message(2, 2, by_contact[nolink.id], nolink, company)
+    plain = connection_message(2, 2, by_contact[nolink.id], nolink, other)
 
     assert "https://linkedin.com/in/jane-doe-1" in linked
-    assert "linkedin.com" not in plain and "Búscalo en LinkedIn: Eng Ineer Acme Pay" in plain
+    assert "linkedin.com" not in plain and "Búscalo en LinkedIn: Eng Ineer Beta Pay" in plain
     assert f"Nota ({len(by_contact[nolink.id].note)}/300" in plain and "<code>" in plain
     keyboard = connection_keyboard(by_contact[nolink.id].id)["inline_keyboard"][0]
     assert [b["text"] for b in keyboard] == ["✅ Enviada", "🤝 Aceptó", "⏭️ Saltar"]

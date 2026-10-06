@@ -178,6 +178,10 @@ def is_target(assessment: RoleAssessment | None, *, small_known: bool) -> bool:
 
     if assessment is None:
         return False
+    if assessment.kind is RoleKind.SENIOR_ENGINEER:
+        return False  # staff/principal/senior engineers do not hire and rarely answer a junior
+    if assessment.kind is RoleKind.ENGINEERING_C:
+        return small_known  # a CTO answers only where the company is known to be small
     if assessment.is_non_engineering_c_level:
         return small_known
     return True

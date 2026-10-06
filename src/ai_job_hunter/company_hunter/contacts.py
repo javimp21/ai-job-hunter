@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.company_hunter.fetching import FetchRefused, PoliteFetcher
 from ai_job_hunter.company_hunter.ranking import SizeEstimate, company_size
-from ai_job_hunter.company_hunter.relevance import assess_role, is_target, relevance, role_belongs_to
+from ai_job_hunter.company_hunter.relevance import RoleKind, assess_role, is_target, relevance, role_belongs_to
 from ai_job_hunter.company_hunter.people import (
     ParsedPage,
     PersonCandidate,
@@ -159,12 +159,15 @@ def discover_contacts(
         if not role_belongs_to(person.role, names):
             reason = "the role names another company (e.g. a customer testimonial)"
         elif not is_target(assessment, small_known=small_known):
-            reason = (
-                "non-engineering executive; stored only for companies known (evidence) to have <= 50 employees "
-                f"(size: {result.size.detail})"
-                if assessment is not None
-                else "role is not an engineering/recruiting target"
-            )
+            if assessment is None:
+                reason = "role is not an engineering/recruiting target"
+            elif assessment.kind is RoleKind.SENIOR_ENGINEER:
+                reason = "senior/staff engineers do not hire and rarely answer a junior"
+            else:
+                reason = (
+                    "executive; stored only for companies known (evidence) to have <= 50 employees "
+                    f"(size: {result.size.detail})"
+                )
         if reason is not None:
             del candidates[key]
             result.skipped.append((person.name, person.role or "", reason))
