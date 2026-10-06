@@ -28,7 +28,7 @@ X pero no Y, entonces Z". Y la plantilla de software tiene que seguir dando **ex
 
 ## 3. Propuesta de formato
 
-Una plantilla es un fichero JSON en `config/sectors/<id>.json` y el perfil del usuario elige una (`"sector": "software"`).
+Una plantilla es un fichero JSON en `src/ai_job_hunter/sectors/templates/<id>.json` y el perfil del usuario elige una (`"sector": "software"`).
 Contiene:
 
 ```json
@@ -117,12 +117,12 @@ cuántos títulos quedan sin clasificar y qué reglas faltan.
    un sector corporativo con tableros en Workday, SuccessFactors y Greenhouse, que sí encaja con la lectura actual y es
    muy distinto del software.
 7. **Formato y ubicación (por defecto, a menos que se diga otra cosa):** JSON, una plantilla por sector con todos los idiomas,
-   en `config/sectors/` y con posibilidad de sobreescribirlas desde la carpeta privada.
+   en `src/ai_job_hunter/sectors/templates/` y con posibilidad de sobreescribirlas desde la carpeta privada.
 
 ## 8. Decisiones que necesito
 
 - **Formato:** JSON (recomendado, sin dependencias nuevas) o YAML (más legible, una dependencia).
-- **Dónde viven las plantillas:** en el repositorio (`config/sectors/`) o también en la carpeta privada de cada usuario para
+- **Dónde viven las plantillas:** en el repositorio (`src/ai_job_hunter/sectors/templates/`) o también en la carpeta privada de cada usuario para
   poder tener las suyas.
 - **Idioma de las plantillas:** el vocabulario ya es multilingüe; ¿mantenemos una plantilla por sector con todos los
   idiomas o una por sector e idioma? Recomendado: una por sector.

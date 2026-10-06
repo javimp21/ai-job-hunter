@@ -520,7 +520,7 @@ def title_may_be_relevant(title: str) -> bool:
 
 
 def _classify_role_family(title: str, sector: str = "software") -> RoleFamilyAssessment:
-    """The title's role family according to the sector template (``config/sectors/<sector>.json``).
+    """The title's role family according to the sector template (``src/ai_job_hunter/sectors/templates/<sector>.json``).
 
     Ambiguous families are left for review; the rules live in the template, see ``sectors/engine.py``.
     """

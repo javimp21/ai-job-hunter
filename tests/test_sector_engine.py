@@ -65,3 +65,10 @@ def test_the_software_template_classifies_real_titles_exactly_like_the_original_
         assert (result.fit, result.family) == (row["fit"], row["family"]), row["title"]
         old = _classify_role_family(row["title"])
         assert (result.fit, result.family, result.reason) == (old.fit.value, old.family, old.reason), row["title"]
+
+
+def test_templates_ship_inside_the_package_so_an_installed_release_finds_them():
+    import ai_job_hunter.sectors.engine as engine
+
+    assert engine.SECTORS_DIR.parent == Path(engine.__file__).resolve().parent
+    assert (engine.SECTORS_DIR / "software.json").is_file()

@@ -1,4 +1,4 @@
-"""Write config/sectors/software.json from the vocabulary and cascade currently hard-coded in prefilter.py.
+"""Write src/ai_job_hunter/sectors/templates/software.json from the vocabulary and cascade currently hard-coded in prefilter.py.
 
 One-off migration helper: the word sets are dumped straight from the existing constants (no retyping) and the cascade of
 ``_clearly_non_technical_role`` / ``_classify_role_family`` is written as ordered rules. The equivalence test compares the
@@ -207,7 +207,7 @@ def build() -> dict:
 
 
 if __name__ == "__main__":
-    target = ROOT / "config" / "sectors" / "software.json"
+    target = ROOT / "src" / "ai_job_hunter" / "sectors" / "templates" / "software.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(build(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"wrote {target}")

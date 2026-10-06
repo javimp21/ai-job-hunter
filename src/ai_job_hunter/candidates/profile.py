@@ -104,7 +104,7 @@ class CandidatePreferences(BaseModel):
     relocation_preferred_locations: list[str] = Field(default_factory=list)
     remote_preference: RemotePreference = RemotePreference.ANY
     relocation_willingness: bool = False
-    # Sector template that classifies job titles (``config/sectors/<sector>.json``).
+    # Sector template that classifies job titles (``src/ai_job_hunter/sectors/templates/<sector>.json``).
     sector: str = Field(default="software", pattern=r"^[a-z][a-z0-9_-]{0,40}$")
     acceptable_employment_types: list[EmploymentType] = Field(default_factory=list)
     preferred_technologies: list[str] = Field(default_factory=list)

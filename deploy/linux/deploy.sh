@@ -65,6 +65,7 @@ else
     (cd "$release" && .venv/bin/pip install -q --no-cache-dir ".[jev,llm]")
     ln -s "$SHARED_DIR/.env" "$release/.env"   # pydantic and alembic read .env from the cwd
     "$release/.venv/bin/ai-job-hunter" --help >/dev/null
+    "$release/.venv/bin/python" -c "from ai_job_hunter.sectors.engine import classify_role_family as c; assert c(\"Backend Engineer\").fit == \"TARGET\"" || die "installed release cannot load its sector template"
     touch "$release/.complete"
 fi
 
