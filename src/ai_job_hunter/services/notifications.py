@@ -34,6 +34,7 @@ from ai_job_hunter.models import (
 )
 from ai_job_hunter.services.direct_postings import DirectPosting, paywalled_portal, search_link
 from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
+from ai_job_hunter.services.salary_guide import expectation_hint
 
 
 TELEGRAM_CHANNEL = "TELEGRAM"
@@ -989,8 +990,10 @@ def format_notification_message(item: Opportunity, *, direct_url: str | None = N
         f"📍 {_html(item.location, 120) if item.location else 'Ubicación no indicada'}"
         f" · {_WORK_MODE_LABELS.get(item.remote_policy or '', 'modalidad no indicada')}",
         f"💰 {_format_salary(item) or 'Salario no publicado'}",
-        f"🎓 {_format_experience(item)}",
     ]
+    if _format_salary(item) is None and (hint := expectation_hint(item.location)):
+        lines.append(f"🎯 Si te piden expectativa: {hint}")
+    lines.append(f"🎓 {_format_experience(item)}")
     technologies = list(dict.fromkeys((*item.required_technologies, *item.technologies)))
     if technologies:
         lines.append("🧰 " + ", ".join(_html(technology, 45) for technology in technologies[:6]))

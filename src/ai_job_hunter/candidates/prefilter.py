@@ -1179,3 +1179,9 @@ def _assess_country_restriction(
         SignalStatus.UNKNOWN,
         f"The {mode} country restriction cannot be checked without candidate country data.",
     )
+
+
+def countries_in_text(*values: str | None) -> set[str]:
+    """Countries named (directly or through a known city/region) in free location text."""
+
+    return _countries_in(values)

@@ -628,3 +628,20 @@ def test_apply_jobs_are_not_held_back_by_the_company_cap(db_session, monkeypatch
     previews = preview_notifications(db_session, _candidate())
 
     assert [item.title for item in previews] == ["Backend Engineer", "Platform Engineer", "Java Developer"]
+
+
+def test_alert_suggests_a_salary_answer_only_when_no_salary_is_published():
+    from dataclasses import replace
+    from uuid import uuid4
+
+    base = _opportunity(uuid4(), FinalDecision.REVIEW, 75)
+    unpublished = replace(base, salary_min=None, salary_max=None, currency=None, salary_period=None)
+
+    swiss = format_notification_message(replace(unpublished, location="Bioggio, Ticino"))
+    spanish = format_notification_message(replace(unpublished, location="Madrid, Community of Madrid"))
+    mixed = format_notification_message(replace(unpublished, location="Madrid; Dublin"))
+    published = format_notification_message(replace(base, location="Bioggio, Ticino"))
+
+    assert "🎯 Si te piden expectativa: 80.000 CHF (rango 70.000 CHF a 90.000 CHF)" in swiss
+    assert "🎯 Si te piden expectativa: 32.000 €" in spanish
+    assert "expectativa" not in mixed and "expectativa" not in published
