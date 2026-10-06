@@ -78,6 +78,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Measure TheirStack coverage against the stored jobs.")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("count", help="matches for the default filters (1 credit)")
+    sub.add_parser("balance", help="API credits left on the account (free)")
     sample = sub.add_parser("sample", help="fetch N postings (N credits) and compare them with the database")
     sample.add_argument("n", type=int, help="postings to fetch (1-25)")
     sample.add_argument("--page", type=int, default=0, help="page of N results to read (0 = newest)")
@@ -88,6 +89,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         budget=CreditBudget(DEFAULT_CREDITS_PATH, settings.theirstack_daily_credits),
     )
     try:
+        if args.command == "balance":
+            print(f"THEIRSTACK CREDITS LEFT: {connector.credit_balance()}")
+            return 0
         if args.command == "count":
             print(f"THEIRSTACK MATCHES (default filters, last day): {connector.count_matches()}")
             return 0

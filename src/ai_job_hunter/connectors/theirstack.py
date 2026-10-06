@@ -32,6 +32,7 @@ from ai_job_hunter.connectors._portal_http import new_client, post_json
 from ai_job_hunter.domain.normalized_job import EmploymentType, NormalizedJob, RemotePolicy
 
 SEARCH_URL = "https://api.theirstack.com/v1/jobs/search"
+BALANCE_URL = "https://api.theirstack.com/v0/billing/credit-balance"
 DEFAULT_COUNTRIES = ("ES", "NL", "CH", "IE", "LU")
 DEFAULT_TITLES = (
     "backend engineer", "back-end engineer", "backend developer", "java developer", "software engineer",
@@ -130,6 +131,7 @@ class TheirStackConnector:
         countries: Sequence[str] = DEFAULT_COUNTRIES,
         titles: Sequence[str] = DEFAULT_TITLES,
         seniority: Sequence[str] = DEFAULT_SENIORITY,
+        check_balance: bool = False,
     ) -> None:
         if not 1 <= page_size <= MAX_PAGE_SIZE:
             raise ValueError(f"page_size must be between 1 and {MAX_PAGE_SIZE}")
@@ -138,6 +140,7 @@ class TheirStackConnector:
         self._page_size = page_size
         self._watch = tuple(name.strip() for name in watch_companies if name.strip())
         self._countries, self._titles, self._seniority = tuple(countries), tuple(titles), tuple(seniority)
+        self._check_balance = check_balance  # production only: stop quietly once the account's credits are gone
         self.page = 0  # only the measurement probe moves it, to read a page it has not paid for yet
         self._client = client
         self._timeout = timeout
@@ -155,6 +158,7 @@ class TheirStackConnector:
             countries=_csv(settings.theirstack_countries, DEFAULT_COUNTRIES),
             titles=_csv(settings.theirstack_titles, DEFAULT_TITLES),
             seniority=_csv(settings.theirstack_seniority, DEFAULT_SENIORITY),
+            check_balance=True,
         )
 
     def fetch_jobs(self) -> list[NormalizedJob]:
@@ -165,6 +169,10 @@ class TheirStackConnector:
         # Watched companies first: a handful of jobs that would not match the country filter.
         for body in self._bodies():
             limit = min(body.pop("limit"), self._budget.remaining())
+            if self._check_balance:
+                balance = self.credit_balance()
+                if balance is not None:
+                    limit = min(limit, balance)
             if limit <= 0:
                 break  # today's credit budget is spent
             payload = self._search({**body, "limit": limit})
@@ -196,6 +204,26 @@ class TheirStackConnector:
             )
         )
         return bodies
+
+    def credit_balance(self) -> int | None:
+        """API credits left on the account (free to ask), or None when it cannot be read."""
+
+        client = self._client or new_client(self._timeout)
+        try:
+            response = client.get(
+                BALANCE_URL, headers={"Authorization": f"Bearer {self._key}"}, timeout=self._timeout
+            )
+            data = response.json() if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return None
+        finally:
+            if self._client is None:
+                client.close()
+        if not isinstance(data, Mapping):
+            return None
+        total, used = data.get("api_credits"), data.get("used_api_credits")
+        ok = all(isinstance(v, int) and not isinstance(v, bool) for v in (total, used))
+        return max(0, total - used) if ok else None
 
     def count_matches(self) -> int | None:
         """Total postings matching the default filters.

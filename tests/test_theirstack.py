@@ -194,3 +194,25 @@ def test_watched_companies_are_searched_in_any_country_before_the_general_query(
     assert "job_country_code_or" not in watched and "job_seniority_or" not in watched and watched["limit"] == 10
     assert "job_country_code_or" in general and "company_name_case_insensitive_or" not in general
     assert {job.external_id for job in jobs} == {"theirstack:9", "theirstack:1"} and budget.used() == 2
+
+
+def test_the_account_balance_stops_the_search_quietly_when_credits_are_gone(tmp_path):
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"api_credits": 200, "used_api_credits": 195})
+        return httpx.Response(200, json={"data": [raw_job(n) for n in range(json.loads(request.content)["limit"])]})
+
+    connector, requests, budget = make(handler, tmp_path, daily=50, check_balance=True)
+
+    assert connector.credit_balance() == 5
+    assert len(connector.fetch_jobs()) == 5  # only the 5 credits that are left
+    post = [r for r in requests if r.method == "POST"][0]
+    assert json.loads(post.content)["limit"] == 5
+
+    empty, requests, _ = make(
+        lambda r: httpx.Response(200, json={"api_credits": 200, "used_api_credits": 200}), tmp_path, check_balance=True
+    )
+    assert empty.fetch_jobs() == [] and all(r.method == "GET" for r in requests)  # no search was paid for
+
+    broken, _, _ = make(lambda r: httpx.Response(500), tmp_path, check_balance=True)
+    assert broken.credit_balance() is None
