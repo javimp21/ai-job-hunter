@@ -26,6 +26,7 @@ from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.models import Job
 from ai_job_hunter.services.cover_letter_documents import render_docx, render_pdf
+from ai_job_hunter.services.text_cleanup import clean_letter_text
 
 COVER_LETTER_MODEL = "claude-opus-5-5"
 LANGUAGES = ("auto", "es", "en")
@@ -140,6 +141,7 @@ def generate_cover_letter(
     text = "".join(
         block.text for block in getattr(response, "content", []) if getattr(block, "type", None) == "text"
     ).strip()
+    text = clean_letter_text(text)
     if not text:
         raise CoverLetterError("Claude returned an empty letter.")
 
