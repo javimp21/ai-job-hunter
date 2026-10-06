@@ -879,3 +879,18 @@ def test_relocation_destination_cities_imply_their_country(location):
     from ai_job_hunter.candidates.prefilter import _location_matches
 
     assert _location_matches(location, ["Madrid", "Switzerland", "Netherlands", "Ireland"]) is True
+
+
+def test_a_sector_without_a_stack_does_not_compare_technologies():
+    offer = make_offer(
+        title="Accountant", description="Month-end close. Requires SQL and Python.",
+    )
+    for sector, expects_gap in (("software", True), ("finance", False)):
+        config = make_config(
+            profile={"primary_skills": ["Accounting"], "technologies": ["Excel"]},
+            preferences={"sector": sector, "remote_preference": "ANY", "willing_to_learn_technologies": []},
+        )
+        result = evaluate_job(JobFacts.from_normalized_job(offer), config)
+        has_gap = bool(result.signals.technology.missing_technologies or result.signals.technology.critical_mismatches)
+        assert has_gap is expects_gap
+        assert (not any("technolog" in reason for reason in result.reasons)) is (not expects_gap)

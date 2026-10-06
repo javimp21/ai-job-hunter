@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Iterable
 
-from ai_job_hunter.sectors.engine import classify_role_family
+from ai_job_hunter.sectors.engine import classify_role_family, get_template
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome, assess_experience
 from ai_job_hunter.candidates.facts import JobFacts
 from ai_job_hunter.candidates.profile import (
@@ -86,6 +86,9 @@ class TechnologyMatch:
     learnable_technologies: tuple[str, ...]
     transferable_technologies: tuple[str, ...]
     critical_mismatches: tuple[str, ...]
+
+
+_NO_TECHNOLOGY = TechnologyMatch((), (), (), (), (), (), (), ())
 
 
 @dataclass(frozen=True, slots=True)
@@ -393,7 +396,9 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     role = _evaluate_role(facts.title, preferences)
     role_family = _classify_role_family(facts.title, preferences.sector)
     location =_evaluate_preferred_location(facts.location, preferences)
-    technology = _evaluate_technology(facts, profile, preferences)
+    # The technology vocabulary is software's: a sector without a stack neither compares nor penalizes technologies.
+    compares_technology = get_template(preferences.sector).template.stack is not None
+    technology = _evaluate_technology(facts, profile, preferences) if compares_technology else _NO_TECHNOLOGY
     experience = assess_experience(
         facts.experience_requirements,
         profile.years_of_experience,
@@ -447,7 +452,9 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     ):
         review_reasons.append(salary.reason)
 
-    if technology.critical_mismatches:
+    if not compares_technology:
+        pass
+    elif technology.critical_mismatches:
         hard_mismatches.extend(
             f"Explicit required technology '{tech}' is absent and has no recorded transferable or learnable match."
             for tech in technology.critical_mismatches
