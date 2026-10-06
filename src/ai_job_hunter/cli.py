@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import html
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -197,6 +199,20 @@ def _add_notification_and_run_parsers(subparsers) -> None:
 # `run` finished but some sources (or portals) could not be fetched; the
 # scheduler logs it without sending a Telegram failure notice.
 RUN_PARTIAL_EXIT = 3
+
+
+def _arm_stack_dump() -> None:
+    """If a run is still going after RUN_STACK_DUMP_SECONDS (default 40 min), print every thread's stack once.
+
+    Scheduled runs are killed at 55 minutes; when one hangs, this shows in the journal where it was stuck.
+    """
+
+    try:
+        seconds = int(os.environ.get("RUN_STACK_DUMP_SECONDS", "2400"))
+    except ValueError:
+        return
+    if seconds > 0:
+        faulthandler.dump_traceback_later(seconds, exit=False, file=sys.stderr)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -418,6 +434,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.max_jev_jobs < 0:
             parser.error("--max-jev-jobs cannot be negative")
     if args.command == "run":
+        _arm_stack_dump()
         if args.limit_companies < 1:
             parser.error("--limit-companies must be positive")
         if args.max_jobs_per_company < 1:
