@@ -1222,3 +1222,30 @@ def test_fetch_targets_records_the_connector_error_message_as_failure_detail() -
     assert jobs == []
     assert [(f.company, f.provider, f.error_type) for f in failures] == [("Acme", "WORKDAY", "WorkdayConnectorError")]
     assert failures[0].detail == "Workday career site API returned HTTP 429."
+
+
+GERMAN_AD = (
+    "Wir suchen einen Entwickler für unser Team in Berlin. Sie arbeiten mit Java und Spring und entwickeln mit uns "
+    "die Plattform. Das Team ist international und wir bieten Ihnen eine flexible Arbeitszeit mit der Möglichkeit "
+    "von zu Hause zu arbeiten. Sie bringen Erfahrung mit und haben Spaß an der Arbeit im Team und der Entwicklung "
+    "von Software."
+)
+
+
+@pytest.mark.parametrize(
+    ("description", "points", "label"),
+    [
+        ("Build Java services. Fluent German is required.", -opportunities.LANGUAGE_REQUIRED_PENALTY, "pide alemán"),
+        ("Build Java services. German is a plus.", 0, None),
+        (GERMAN_AD, -opportunities.LANGUAGE_WRITTEN_PENALTY, "anuncio en alemán"),
+        ("Build Java services with a friendly team in Madrid.", 0, None),
+    ],
+)
+def test_postings_that_need_another_spoken_language_lose_review_priority(description, points, label) -> None:
+    offer = _offer("role-language").model_copy(update={"description": description})
+    prepared = opportunities._prepare_offer(offer, _candidate(), engine_identity="offline")
+
+    adjustments = opportunities._language_adjustment(prepared.context)
+
+    assert sum(value for value, _label in adjustments) == points
+    assert (label is None) or label in adjustments[0][1]

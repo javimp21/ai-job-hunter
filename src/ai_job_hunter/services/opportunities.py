@@ -96,6 +96,7 @@ from ai_job_hunter.services.company_intelligence import (
     get_company_facts_for_job,
 )
 from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, candidate_jobs, ingest_job
+from ai_job_hunter.services.job_language import required_foreign_language, written_language
 from ai_job_hunter.services.job_portals import (
     DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
     due_portals,
@@ -1554,7 +1555,12 @@ SALARY_BONUS_HIGH = 10
 def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
     """Soft preferences that change review order (never eligibility)."""
 
-    return _relocation_adjustment(context) + _salary_adjustment(context) + _stack_adjustment(context)
+    return (
+        _relocation_adjustment(context)
+        + _language_adjustment(context)
+        + _salary_adjustment(context)
+        + _stack_adjustment(context)
+    )
 
 
 STACK_CORE = frozenset({"java", "spring", "spring boot", "kotlin"})
@@ -1586,6 +1592,29 @@ def _stack_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...
     if required and not required & (STACK_CORE | STACK_ADJACENT):
         adjustments.append((-STACK_REQUIRED_PENALTY, f"exige tecnologías que no usas (−{STACK_REQUIRED_PENALTY})"))
     return tuple(adjustments)
+
+
+LANGUAGE_REQUIRED_PENALTY = 25
+LANGUAGE_WRITTEN_PENALTY = 15
+_LANGUAGE_NAMES_ES = {
+    "german": "alemán", "dutch": "neerlandés", "french": "francés", "swedish": "sueco", "danish": "danés",
+    "norwegian": "noruego", "finnish": "finlandés", "italian": "italiano", "portuguese": "portugués",
+}
+
+
+def _language_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
+    """Demote postings that need a spoken language the candidate does not have (only Spanish and English)."""
+
+    text = context.offer.description
+    required = required_foreign_language(text)
+    if required is not None:
+        label = _LANGUAGE_NAMES_ES.get(required, required)
+        return ((-LANGUAGE_REQUIRED_PENALTY, f"pide {label} (−{LANGUAGE_REQUIRED_PENALTY})"),)
+    written = written_language(text)
+    if written is not None:
+        label = _LANGUAGE_NAMES_ES.get(written, written)
+        return ((-LANGUAGE_WRITTEN_PENALTY, f"anuncio en {label} (−{LANGUAGE_WRITTEN_PENALTY})"),)
+    return ()
 
 
 def _relocation_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
