@@ -1,0 +1,26 @@
+{
+  "leads": [
+    {
+      "company_name": "Supabase",
+      "website_url": "https://supabase.com",
+      "careers_url": "https://jobs.ashbyhq.com/supabase",
+      "source_type": "manual",
+      "source_label": "remote_first_2026_10",
+      "source_url": "https://jobs.ashbyhq.com/supabase",
+      "location_hint": "Remote, global",
+      "hiring_hint": "Public Ashby board, 49 postings on 2026-10-06, mostly remote global.",
+      "notes": "Board verified through Ashby's public API."
+    },
+    {
+      "company_name": "Canonical",
+      "website_url": "https://canonical.com",
+      "careers_url": "https://job-boards.greenhouse.io/canonical",
+      "source_type": "manual",
+      "source_label": "remote_first_2026_10",
+      "source_url": "https://job-boards.greenhouse.io/canonical",
+      "location_hint": "Home based, worldwide and EMEA",
+      "hiring_hint": "Public Greenhouse board, 311 postings on 2026-10-06, most home based.",
+      "notes": "Board verified through Greenhouse's public API."
+    }
+  ]
+}
