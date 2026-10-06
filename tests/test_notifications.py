@@ -653,3 +653,18 @@ def test_alert_suggests_a_salary_answer_only_when_no_salary_is_published():
     assert "🎯 Si te piden expectativa: 80.000 CHF (rango 70.000 CHF a 90.000 CHF)" in swiss
     assert "🎯 Si te piden expectativa: 32.000 €" in spanish
     assert "expectativa" not in mixed and "expectativa" not in published and "expectativa" not in no_guide
+
+
+def test_alert_links_keep_the_parameter_that_identifies_the_posting_and_nothing_else():
+    from ai_job_hunter.services.notifications import _safe_public_url
+
+    assert _safe_public_url("https://careers.nebius.com/?gh_jid=4960679101&utm_source=x&email=a@b.test#apply") == (
+        "https://careers.nebius.com/?gh_jid=4960679101"
+    )
+    assert _safe_public_url("https://careers.toasttab.com/jobs?gh_jid=8174263") == (
+        "https://careers.toasttab.com/jobs?gh_jid=8174263"
+    )
+    assert _safe_public_url("https://jobs.example.test/role?email=candidate@example.test#apply") == (
+        "https://jobs.example.test/role"
+    )
+    assert _safe_public_url("https://jobs.example.test/role?gh_jid=") == "https://jobs.example.test/role"

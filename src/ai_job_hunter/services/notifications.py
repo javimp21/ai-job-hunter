@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
 
 import httpx
@@ -24,7 +24,11 @@ from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.candidates.experience import ExperienceOutcome
 from ai_job_hunter.candidates.profile import SalaryGuideEntry
 from ai_job_hunter.decision_engine import FinalDecision
-from ai_job_hunter.deduplication.normalization import normalize_company_name, normalize_job_title
+from ai_job_hunter.deduplication.normalization import (
+    STABLE_JOB_QUERY_KEYS,
+    normalize_company_name,
+    normalize_job_title,
+)
 from ai_job_hunter.models import (
     Company,
     HumanReviewStatus,
@@ -1244,7 +1248,12 @@ def _safe_public_url(value: str | None) -> str | None:
         host = parsed.hostname
         if parsed.port is not None:
             host = f"{host}:{parsed.port}"
-        return urlunsplit((parsed.scheme, host, parsed.path, "", ""))[:1500]
+        # Everything is dropped (tracking ids, e-mail addresses) except the parameters that identify the posting:
+        # on a company domain "?gh_jid=123" is the only thing that opens the job instead of the careers page.
+        keep = urlencode(
+            [(key, val) for key, val in parse_qsl(parsed.query) if key.casefold() in STABLE_JOB_QUERY_KEYS and val.strip()]
+        )
+        return urlunsplit((parsed.scheme, host, parsed.path, keep, ""))[:1500]
     except ValueError:
         return None
 

@@ -159,6 +159,10 @@ def normalize_location(location: str | None) -> str | None:
     return normalized or None
 
 
+# Query parameters that identify a posting (Greenhouse on a company domain: ?gh_jid=...). Alerts keep these.
+STABLE_JOB_QUERY_KEYS = frozenset(_STABLE_QUERY_KEYS)
+
+
 def normalize_job_url(url: str | None) -> str | None:
     """Canonicalize URL casing and tracking parameters without a network lookup."""
 
