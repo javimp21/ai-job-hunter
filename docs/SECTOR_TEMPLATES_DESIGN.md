@@ -92,6 +92,33 @@ cuántos títulos quedan sin clasificar y qué reglas faltan.
 5. Mover stack, rúbrica de Jev, cargos del Company Hunter y títulos de portales a la plantilla (3 días).
 6. Segunda plantilla y prueba con ofertas reales (3 a 5 días).
 
+## 8. Ajustes tras la revisión (2026-10-06)
+
+1. **Dos niveles: sector y puestos.** Un sector entero es demasiado amplio (en software, DevOps no encaja con todo el
+   mundo). La plantilla define el vocabulario del sector y, dentro, una lista de **familias de puesto** (por ejemplo, en
+   software y datos: backend, frontend, DevOps/SRE, ingeniería de datos, analítica, ciencia de datos, IA/ML, móvil, QA,
+   seguridad). El usuario elige cuáles le cuadran y el resto pasa a "no encaja para este usuario". Es la idea que ya existe
+   en el perfil con `preferred_roles`, pero con una lista cerrada de la que se elige.
+2. **Cómo se elige.** En el alta, el bot propone sector y puestos a partir del CV (con un modelo) y el usuario los confirma o
+   cambia tocando botones. Si el CV no aclara, el usuario elige a mano. Los sectores con puestos muy claros (por ejemplo
+   sanidad) tendrán listas cortas; los amplios, listas largas.
+3. **Hoy DevOps y SRE cuentan como puesto objetivo** (`_CORE_SOFTWARE_TOKENS`). La selección de familias lo resuelve: quien
+   no quiera DevOps lo desmarca.
+4. **Catálogo de empresas por sector y país.** Criterio, verificable y sin valoraciones subjetivas: empresa con tablero público
+   legible, país y ciudad, y al menos una oferta en una familia de puesto del sector en los últimos 90 días; con etiquetas
+   de tamaño y de si contrata a juniors. Se construye con investigaciones en la nube por sector y país. En sectores donde las
+   ofertas no están en ATS (sanidad pública, hostelería, construcción), el catálogo apunta a portales y organismos, y hacen
+   falta conectores distintos: el sistema actual cubre bien los sectores corporativos y tecnológicos, y peor el resto.
+5. **Añadir empresas por nombre.** El usuario escribe el nombre; el sistema lo busca primero en el catálogo y, si no está,
+   prueba los identificadores habituales de los ATS (como ya hace la búsqueda del enlace directo de una oferta). Si no la
+   encuentra, queda en una cola de revisión del propietario. Con límite por usuario.
+6. **Sectores de la beta:** (a) software y datos, para un ingeniero de datos que lo ha pedido, con familias de datos
+   bien cubiertas; (b) finanzas y administración (contabilidad, análisis financiero, control de gestión, administración),
+   un sector corporativo con tableros en Workday, SuccessFactors y Greenhouse, que sí encaja con la lectura actual y es
+   muy distinto del software.
+7. **Formato y ubicación (por defecto, a menos que se diga otra cosa):** JSON, una plantilla por sector con todos los idiomas,
+   en `config/sectors/` y con posibilidad de sobreescribirlas desde la carpeta privada.
+
 ## 8. Decisiones que necesito
 
 - **Formato:** JSON (recomendado, sin dependencias nuevas) o YAML (más legible, una dependencia).
