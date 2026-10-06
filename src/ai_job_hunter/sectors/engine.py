@@ -58,11 +58,39 @@ class Rule(BaseModel):
     focus: str = ""
 
 
+class StackProfile(BaseModel):
+    """Technologies that raise or lower a posting's review priority (omit for sectors without a tech stack)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    core: list[str]  # the candidate's own stack: small bonus
+    adjacent: list[str] = Field(default_factory=list)  # neighbouring stack: neutral
+    penalized: list[str] = Field(default_factory=list)  # a different discipline: penalty
+    core_bonus: int = 5
+    penalty: int = 15
+    required_penalty: int = 10  # extra when the posting REQUIRES technologies outside core and adjacent
+    core_label: str
+    penalized_label: str
+
+
+class RubricSpec(BaseModel):
+    """The questions Jev answers about a posting, in this sector's words."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    question_types: dict[str, str]
+    questions: dict[str, str]
+    score_criteria: dict[str, list[str]]
+
+
 class SectorTemplate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     label: str
+    stack: StackProfile | None = None
+    rubric: RubricSpec | None = None
     sets: dict[str, list[str]] = Field(default_factory=dict)
     regexes: dict[str, str] = Field(default_factory=dict)
     compounds: list[Compound] = Field(default_factory=list)

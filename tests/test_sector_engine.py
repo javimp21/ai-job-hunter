@@ -72,3 +72,14 @@ def test_templates_ship_inside_the_package_so_an_installed_release_finds_them():
 
     assert engine.SECTORS_DIR.parent == Path(engine.__file__).resolve().parent
     assert (engine.SECTORS_DIR / "software.json").is_file()
+
+
+def test_the_software_template_carries_the_stack_and_the_jev_rubric():
+    from ai_job_hunter.rubric import RUBRIC_SPEC, RUBRIC_VERSION
+    from ai_job_hunter.sectors.engine import get_template
+
+    spec = get_template("software").template
+    assert spec.stack is not None and {"java", "spring boot", "kotlin"} <= set(spec.stack.core)
+    assert spec.stack.penalized and not set(spec.stack.penalized) & set(spec.stack.core)
+    assert spec.rubric is not None and RUBRIC_VERSION == spec.rubric.version == "job_decision_v1"
+    assert set(RUBRIC_SPEC["questions"]) == set(RUBRIC_SPEC["question_types"])

@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, selectinload
 from ai_job_hunter.candidates.technologies import extract_job_technologies
 from ai_job_hunter.domain.company_intelligence import FactStatus, company_facts
 from ai_job_hunter.domain.normalized_job import RemoteEligibility
+from ai_job_hunter.sectors.engine import get_template
 from ai_job_hunter.models import (
     Application,
     ApplicationStatus,
@@ -46,9 +47,11 @@ GEOGRAPHY_POINTS = 20
 STACK_POINTS = 30
 SIZE_POINTS = 20
 
-# Stack tiers requested by the candidate: Java/Spring/Kotlin first, then Python/Go.
-PRIMARY_STACK = frozenset({"java", "spring", "spring boot", "kotlin"})
-SECONDARY_STACK = frozenset({"python", "go"})
+# Stack tiers come from the sector template: the candidate's own stack first, then the neighbouring one.
+_STACK = get_template("software").template.stack
+assert _STACK is not None
+PRIMARY_STACK = frozenset(name.casefold() for name in _STACK.core)
+SECONDARY_STACK = frozenset(name.casefold() for name in _STACK.adjacent)
 
 _SECTORS: dict[str, re.Pattern[str]] = {
     "fintech": re.compile(

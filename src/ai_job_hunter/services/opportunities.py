@@ -121,6 +121,7 @@ from ai_job_hunter.services.monitored_sources import (
 )
 from ai_job_hunter.jev import JevJobDecisionEngine
 from ai_job_hunter.rubric import RUBRIC_SPEC
+from ai_job_hunter.sectors.engine import get_template
 
 
 _ENGINE_NAME = "typesafe-jev"
@@ -1760,34 +1761,31 @@ def _priority_adjustments(context: JobDecisionContext) -> tuple[tuple[int, str],
     )
 
 
-STACK_CORE = frozenset({"java", "spring", "spring boot", "kotlin"})
-# Backend languages the candidate wants to grow into: neutral, never penalized.
-STACK_ADJACENT = frozenset({"python", "go", "golang", "scala"})
-STACK_FRONTEND = frozenset({"javascript", "typescript", "node.js", "nodejs", "react", "angular", "vue", "vue.js", "next.js"})
-STACK_CORE_BONUS = 5
-STACK_FRONTEND_PENALTY = 15
-STACK_REQUIRED_PENALTY = 10
-
-
 def _stack_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:
-    """Favour the candidate's Java/Spring/Kotlin stack; demote JavaScript-centric roles.
+    """Favour the candidate's own stack and demote a different discipline's; both lists come from the sector template.
 
-    Uses only technologies the posting explicitly names. Python/Go/Scala
-    backend roles are neutral (they fit the AI and forward deployed targets).
+    Uses only technologies the posting explicitly names. The neighbouring stack (Python/Go/Scala for the software
+    template) is neutral: it fits the AI and forward deployed targets. A sector without a stack has no adjustment.
     """
 
+    stack = get_template(context.candidate.preferences.sector).template.stack
+    if stack is None:
+        return ()
     facts = context.facts
     mentioned = {name.casefold() for name in (*facts.technologies, *facts.required_technologies)}
     required = {name.casefold() for name in facts.required_technologies}
     if not mentioned:
         return ()
-    if mentioned & STACK_CORE:
-        return ((STACK_CORE_BONUS, f"usa tu stack Java/Spring/Kotlin (+{STACK_CORE_BONUS})"),)
-    if mentioned & STACK_ADJACENT or not mentioned & STACK_FRONTEND:
+    core = {name.casefold() for name in stack.core}
+    adjacent = {name.casefold() for name in stack.adjacent}
+    penalized = {name.casefold() for name in stack.penalized}
+    if mentioned & core:
+        return ((stack.core_bonus, f"usa tu stack {stack.core_label} (+{stack.core_bonus})"),)
+    if mentioned & adjacent or not mentioned & penalized:
         return ()
-    adjustments = [(-STACK_FRONTEND_PENALTY, f"stack JavaScript/TypeScript (−{STACK_FRONTEND_PENALTY})")]
-    if required and not required & (STACK_CORE | STACK_ADJACENT):
-        adjustments.append((-STACK_REQUIRED_PENALTY, f"exige tecnologías que no usas (−{STACK_REQUIRED_PENALTY})"))
+    adjustments = [(-stack.penalty, f"stack {stack.penalized_label} (−{stack.penalty})")]
+    if required and not required & (core | adjacent):
+        adjustments.append((-stack.required_penalty, f"exige tecnologías que no usas (−{stack.required_penalty})"))
     return tuple(adjustments)
 
 
