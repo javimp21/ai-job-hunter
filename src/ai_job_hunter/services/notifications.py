@@ -43,6 +43,7 @@ from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 from ai_job_hunter.services.salary_guide import expectation_hint
 
 
+DIGEST_CHANNEL = "TELEGRAM_DIGEST"
 TELEGRAM_CHANNEL = "TELEGRAM"
 # (job_id, company, title) -> the employer's own posting for a paywalled-portal job.
 DirectPostingLookup = Callable[[UUID, str, str], DirectPosting | None]
@@ -541,6 +542,7 @@ def _current_opportunities(
     }
     sent_decisions = _sent_decisions_by_job(session, {item.job_id for item in current_rows})
     sent_identities = _sent_job_identities(session)
+    in_digest = _jobs_listed_in_digest(session, {item.job_id for item in current_rows})
     batch_identities: set[tuple[str, frozenset[str], frozenset[str]]] = set()
     batch_per_company: dict[str, int] = {}
     # Postings we also have from a free source (e.g. the employer's board): the
@@ -563,6 +565,7 @@ def _current_opportunities(
         if eligible:
             reason = (
                 _foreign_language_suppression(item)
+                or _already_in_digest_suppression(item, fingerprint, in_digest)
                 or _paywalled_copy_suppression(item, free_identities)
                 or _snippet_only_suppression(item)
                 or _onsite_suppression(item, decision)
@@ -634,6 +637,32 @@ def _paywalled_copy_suppression(
     if paywalled_portal(item.url) and _job_identity(item) in free_identities:
         return "paywalled_copy_of_free_posting"
     return None
+
+
+def _jobs_listed_in_digest(session: Session, job_ids: set[UUID]) -> set[tuple[UUID, str, str | None]]:
+    found: set[tuple[UUID, str, str | None]] = set()
+    ids = list(job_ids)
+    for offset in range(0, len(ids), 400):
+        found.update(
+            (row.job_id, row.evaluation_fingerprint, row.decision)
+            for row in session.scalars(
+                select(OpportunityNotification).where(
+                    OpportunityNotification.job_id.in_(ids[offset : offset + 400]),
+                    OpportunityNotification.channel == DIGEST_CHANNEL,
+                    OpportunityNotification.status == OpportunityNotificationStatus.SENT.value,
+                )
+            ).all()
+        )
+    return found
+
+
+def _already_in_digest_suppression(
+    item: Opportunity, fingerprint: str, in_digest: set[tuple[UUID, str, str | None]]
+) -> str | None:
+    """A posting already shown in a digest does not alert again unless its evaluation or decision changed."""
+
+    decision = item.decision.value if item.decision is not None else None
+    return "already_in_digest" if (item.job_id, fingerprint, decision) in in_digest else None
 
 
 def _foreign_language_suppression(item: Opportunity) -> str | None:
@@ -720,12 +749,18 @@ def _older_than(item: Opportunity, days: int) -> bool:
 
     if item.is_baseline:
         return True
-    moment = (item.first_seen_at if item.from_board else None) or item.published_at or item.first_seen_at
-    if moment is None:
-        return False
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=UTC)
-    return moment < datetime.now(UTC) - timedelta(days=days)
+    limit = datetime.now(UTC) - timedelta(days=days)
+
+    def before_limit(moment: datetime | None) -> bool:
+        if moment is None:
+            return False
+        return (moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)) < limit
+
+    if item.from_board:
+        # Seen for the first time long ago, or published long ago (a careers site read a few pages per run
+        # keeps importing its old postings for days): not new either way.
+        return before_limit(item.first_seen_at) or before_limit(item.published_at)
+    return before_limit(item.published_at or item.first_seen_at)
 
 
 def _job_identity(item: Opportunity) -> tuple[str, frozenset[str], frozenset[str]]:

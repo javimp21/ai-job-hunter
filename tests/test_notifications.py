@@ -693,7 +693,9 @@ def test_board_postings_count_from_when_they_were_first_seen_and_a_first_import_
     item = replace(_opportunity(uuid4(), FinalDecision.REVIEW, 80), published_at=now - timedelta(days=30), first_seen_at=now - timedelta(hours=2))
 
     assert _older_than(item, 3) is True  # a portal posting published 30 days ago
-    assert _older_than(replace(item, from_board=True), 3) is False  # a board posting that appeared 2 hours ago
+    fresh = replace(item, from_board=True, published_at=now - timedelta(hours=5))
+    assert _older_than(fresh, 3) is False  # a board posting that appeared 2 hours ago and was published today
+    assert _older_than(replace(item, from_board=True), 3) is True  # but one published 30 days ago is not new
     assert _older_than(replace(item, from_board=True, is_baseline=True), 3) is True  # it was in the first import
     assert _older_than(replace(item, from_board=True, first_seen_at=now - timedelta(days=5)), 3) is True
 
@@ -712,3 +714,28 @@ def test_alerts_show_the_work_mode_and_salary_the_text_states_marked_as_such():
     assert "modalidad no indicada" in plain and "Salario no publicado" in plain
     assert "híbrido (según el texto)" in from_text and "25.000–35.000 € (según el texto)" in from_text
     assert "según el texto" not in stated  # the stated work mode wins and is not annotated
+
+
+def test_incrementally_imported_board_postings_published_long_ago_are_not_new_and_digest_items_never_alert():
+    from dataclasses import replace
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    from ai_job_hunter.services.notifications import _already_in_digest_suppression, _older_than
+
+    now = datetime.now(UTC)
+    # A careers site that imports a few pages per run: first seen today, but published a week ago.
+    item = replace(
+        _opportunity(uuid4(), FinalDecision.REVIEW, 92),
+        from_board=True, first_seen_at=now - timedelta(hours=2), published_at=now - timedelta(days=7),
+    )
+    assert _older_than(item, 3) is True
+    assert _older_than(replace(item, published_at=now - timedelta(days=1)), 3) is False
+    assert _older_than(replace(item, published_at=None), 3) is False
+
+    listed = {(item.job_id, "fp-1", "REVIEW")}
+    assert _already_in_digest_suppression(item, "fp-1", listed) == "already_in_digest"
+    assert _already_in_digest_suppression(item, "fp-2", listed) is None  # evaluation changed
+    upgraded = replace(item, decision=FinalDecision.APPLY)
+    assert _already_in_digest_suppression(upgraded, "fp-1", listed) is None  # decision upgraded: alert
+    assert _already_in_digest_suppression(item, "fp-1", set()) is None

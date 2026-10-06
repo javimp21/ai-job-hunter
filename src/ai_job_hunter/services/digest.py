@@ -26,6 +26,7 @@ from ai_job_hunter.services.notifications import (
     APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
     FEEDBACK_DISMISS_PREFIX,
+    DIGEST_CHANNEL,
     FEEDBACK_SAVE_PREFIX,
     TELEGRAM_CHANNEL,
     NotificationProvider,
@@ -42,7 +43,6 @@ from ai_job_hunter.services.notifications import (
 from ai_job_hunter.services.direct_postings import paywalled_portal
 from ai_job_hunter.services.opportunities import Opportunity
 
-DIGEST_CHANNEL = "TELEGRAM_DIGEST"
 DIGEST_MIN_PRIORITY = 50
 # On-site roles below the alert bar only make the digest when clearly good.
 DIGEST_ONSITE_MIN_PRIORITY = 70
