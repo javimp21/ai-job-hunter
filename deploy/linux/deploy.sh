@@ -27,7 +27,7 @@ exec 9>"$LOCK_FILE"
 
 if [ "${1:-}" = "--rollback" ]; then
     [ -L "$PREVIOUS_LINK" ] || die "no previous release recorded"
-    flock -w 1200 9 || die "a run still holds the lock after 20 minutes"
+    flock -w "${DEPLOY_LOCK_WAIT:-1200}" 9 || die "a run still holds the lock after 20 minutes"
     cur="$(readlink -f "$CURRENT_LINK")"; prev="$(readlink -f "$PREVIOUS_LINK")"
     ln -sfn "$prev" "$CURRENT_LINK.new" && mv -T "$CURRENT_LINK.new" "$CURRENT_LINK"
     ln -sfn "$cur" "$PREVIOUS_LINK"
@@ -70,7 +70,7 @@ fi
 
 # Hold the run lock so no scheduled run sees a half-switched state.
 log "waiting for the run lock (up to 20 minutes)"
-flock -w 1200 9 || die "a run still holds the lock after 20 minutes; nothing was changed"
+flock -w "${DEPLOY_LOCK_WAIT:-1200}" 9 || die "a run still holds the lock after 20 minutes; nothing was changed"
 
 if [ "${SKIP_BACKUP:-0}" != "1" ] && [ -f "$CURRENT_LINK/.complete" ]; then
     "$here/backup-db.sh"
