@@ -19,11 +19,11 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Collection, Iterable, Sequence
 from uuid import UUID
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -172,6 +172,8 @@ class RefreshSummary:
     skip: int = 0
     dry_run: bool = False
     failures: list[SourceFailure] = field(default_factory=list)
+    # Jobs that can newly deserve an alert after this refresh: created, materially changed, or evaluated now.
+    alert_candidate_job_ids: set[UUID] = field(default_factory=set)
 
 
 class EvaluationOutcome(StrEnum):
@@ -426,7 +428,7 @@ def refresh_opportunities(
     summary.known_jobs = len(touched_ids - created_ids)
     summary.changed_jobs = len(changed_existing)
 
-    _evaluate_prepared(
+    results = _evaluate_prepared(
         session,
         (item for snapshots in prepared_by_job.values() for item in snapshots.values()),
         summary,
@@ -437,6 +439,12 @@ def refresh_opportunities(
         no_jev=no_jev,
         retry_pending=retry_pending,
     )
+    # An unchanged job with a current evaluation, or a hard reject, cannot become an alert now.
+    summary.alert_candidate_job_ids = created_ids | changed_existing | {
+        result.job_id
+        for result in results
+        if result.outcome not in {EvaluationOutcome.CURRENT, EvaluationOutcome.DETERMINISTIC_SKIP}
+    }
     return summary
 
 
@@ -708,21 +716,24 @@ def list_opportunities(
     include_skip: bool = False,
     include_dismissed: bool = False,
     include_closed: bool = False,
+    job_ids: Collection[UUID] | None = None,
 ) -> list[Opportunity]:
-    """Build a stable feed without invoking Jev or changing persistent state."""
+    """Build a stable feed without invoking Jev or changing persistent state.
+
+    ``job_ids`` restricts the feed to those jobs (much cheaper than building all of them).
+    """
 
     if limit < 1:
         raise OpportunityServiceError("limit must be positive.")
     identity = _engine_identity(engine)
     config_fp = _config_fingerprint(candidate, identity)
-    jobs = session.scalars(
-        select(Job)
-        .options(
-            joinedload(Job.company).selectinload(Company.evidence_items),
-            selectinload(Job.sources),
-        )
-        .order_by(Job.id)
-    ).unique().all()
+    job_query = select(Job).options(
+        joinedload(Job.company).selectinload(Company.evidence_items),
+        selectinload(Job.sources),
+    )
+    if job_ids is not None:
+        job_query = job_query.where(Job.id.in_(list(job_ids)))
+    jobs = session.scalars(job_query.order_by(Job.id)).unique().all()
     reviews = {
         row.job_id: row
         for row in session.scalars(select(JobReview)).all()
@@ -754,7 +765,9 @@ def list_opportunities(
     ).all():
         evaluations_by_job.setdefault(row.job_id, []).append(row)
 
-    arrival = _board_arrival_flags(jobs)
+    arrival = _board_arrival_flags(
+        jobs, board_first_seen=_board_first_seen(session, jobs) if job_ids is not None else None
+    )
     output: list[tuple[tuple[Any, ...], Opportunity]] = []
     company_filter = normalize_company_name(company) if company else None
     tech_filter = technology.casefold().strip() if technology else None
@@ -1076,7 +1089,24 @@ BOARD_PROVIDERS = frozenset(
 BASELINE_WINDOW = timedelta(hours=24)
 
 
-def _board_arrival_flags(jobs: Sequence[Job]) -> dict[UUID, tuple[bool, bool]]:
+def _board_first_seen(session: Session, jobs: Sequence[Job]) -> dict[tuple[UUID, str], datetime]:
+    """When each (company, board provider) of these jobs first had a job: the board's first read."""
+
+    company_ids = {job.company_id for job in jobs if job.company_id is not None}
+    if not company_ids:
+        return {}
+    rows = session.execute(
+        select(Job.company_id, JobSource.provider, func.min(Job.created_at))
+        .join(JobSource, JobSource.job_id == Job.id)
+        .where(Job.company_id.in_(company_ids), JobSource.provider.in_(BOARD_PROVIDERS))
+        .group_by(Job.company_id, JobSource.provider)
+    ).all()
+    return {(company_id, provider): _utc_aware(first) for company_id, provider, first in rows}
+
+
+def _board_arrival_flags(
+    jobs: Sequence[Job], *, board_first_seen: dict[tuple[UUID, str], datetime] | None = None
+) -> dict[UUID, tuple[bool, bool]]:
     """Per job: (read from a company board, part of that board's first import).
 
     A board's first read lists everything it already had; those postings are not "new" however recent their
@@ -1084,7 +1114,7 @@ def _board_arrival_flags(jobs: Sequence[Job]) -> dict[UUID, tuple[bool, bool]]:
     Postings of portals (Adzuna, remote portals...) stream continuously and have no such first import.
     """
 
-    first_seen: dict[tuple[UUID, str], datetime] = {}
+    first_seen: dict[tuple[UUID, str], datetime] = dict(board_first_seen or {})
     for job in jobs:
         if job.company_id is None:
             continue

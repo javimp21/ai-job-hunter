@@ -104,6 +104,7 @@ from ai_job_hunter.services.notifications import (
     TelegramProvider,
     list_notification_history,
     list_pending_notifications,
+    pending_notification_job_ids,
     preview_notifications,
     retry_failed_notifications,
     send_notifications,
@@ -636,6 +637,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     provider,
                     direct_postings=DirectPostingResolver(session),
                     liveness=PostingLiveness(),
+                    # Only what this refresh created, changed or evaluated can newly alert (plus anything pending).
+                    only_job_ids=summary.alert_candidate_job_ids | pending_notification_job_ids(session),
                     review_threshold=settings.notify_review_min_priority,
                     max_age_days=settings.notify_max_age_days,
                     limit=args.max_notifications,

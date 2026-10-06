@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from typing import Any, Protocol
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
@@ -319,13 +319,18 @@ def send_notifications(
     max_age_days: int | None = None,
     direct_postings: DirectPostingLookup | None = None,
     liveness: LivenessCheck | None = None,
+    only_job_ids: Collection[UUID] | None = None,
 ) -> NotificationBatchResult:
-    """Record selected evaluations and send pending notifications once."""
+    """Record selected evaluations and send pending notifications once.
+
+    ``only_job_ids`` limits the work to jobs that can newly alert (a scheduled run passes the jobs it created,
+    changed or evaluated, plus those with a pending notification); the full feed is rebuilt only without it.
+    """
 
     _validate_threshold(review_threshold)
     current = _current_opportunities(
         session, candidate, review_threshold, max_age_days=max_age_days, direct_postings=direct_postings,
-        liveness=liveness,
+        liveness=liveness, job_ids=only_job_ids,
     )
     sendable = _preview_current(session, current, limit=limit)
     selected_keys = {(item.job_id, item.evaluation_fingerprint) for item in sendable}
@@ -349,6 +354,24 @@ def send_notifications(
     }
     _dispatch_pending(session, provider, result, limit=limit, only_ids=pending_ids)
     return result
+
+
+def pending_notification_job_ids(session: Session) -> set[UUID]:
+    """Jobs with a notification still waiting to be sent (they must stay in a restricted run)."""
+
+    return set(
+        session.scalars(
+            select(OpportunityNotification.job_id).where(
+                OpportunityNotification.channel == TELEGRAM_CHANNEL,
+                OpportunityNotification.status.in_(
+                    (
+                        OpportunityNotificationStatus.PENDING.value,
+                        OpportunityNotificationStatus.FAILED.value,
+                    )
+                ),
+            )
+        ).all()
+    )
 
 
 def list_pending_notifications(
@@ -501,6 +524,7 @@ def _current_opportunities(
     max_age_days: int | None = None,
     direct_postings: DirectPostingLookup | None = None,
     liveness: LivenessCheck | None = None,
+    job_ids: Collection[UUID] | None = None,
 ) -> list[_CurrentOpportunity]:
     opportunities = list_opportunities(
         session,
@@ -509,6 +533,7 @@ def _current_opportunities(
         include_applied=True,
         include_skip=True,
         include_dismissed=True,
+        job_ids=job_ids,
     )
     current_rows = [
         item

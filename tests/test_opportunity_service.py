@@ -1317,3 +1317,29 @@ def test_only_postings_that_appear_after_a_boards_first_read_count_as_new() -> N
     assert flags[later.id] == (True, False)
     assert portal.id not in flags
     assert flags[other_board_first.id] == (True, True)
+
+
+def test_a_feed_restricted_to_some_jobs_keeps_each_boards_first_import_baseline(db_session) -> None:
+    from datetime import timedelta
+
+    from ai_job_hunter.models import Company, Job, JobSource
+
+    company = Company(name="Acme")
+    db_session.add(company)
+    db_session.flush()
+    first = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+    old = Job(company_id=company.id, title="Backend Engineer", created_at=first)
+    new = Job(company_id=company.id, title="Platform Engineer", created_at=first + timedelta(days=5))
+    db_session.add_all([old, new])
+    db_session.flush()
+    db_session.add_all(
+        [JobSource(job_id=old.id, provider="greenhouse", external_id="1", original_url="https://x.test/1"),
+         JobSource(job_id=new.id, provider="greenhouse", external_id="2", original_url="https://x.test/2")]
+    )
+    db_session.flush()
+
+    first_seen = opportunities._board_first_seen(db_session, [new])
+    flags = opportunities._board_arrival_flags([new], board_first_seen=first_seen)
+
+    assert first_seen[(company.id, "greenhouse")] == first
+    assert flags[new.id] == (True, False)  # not part of the first import even though only it was loaded
