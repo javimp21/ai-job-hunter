@@ -680,3 +680,19 @@ def test_postings_in_a_language_the_candidate_does_not_speak_never_alert():
 
     assert _foreign_language_suppression(item) is None
     assert _foreign_language_suppression(replace(item, foreign_language="portuguese")) == "foreign_language"
+
+
+def test_board_postings_count_from_when_they_were_first_seen_and_a_first_import_is_never_new():
+    from dataclasses import replace
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    from ai_job_hunter.services.notifications import _older_than
+
+    now = datetime.now(UTC)
+    item = replace(_opportunity(uuid4(), FinalDecision.REVIEW, 80), published_at=now - timedelta(days=30), first_seen_at=now - timedelta(hours=2))
+
+    assert _older_than(item, 3) is True  # a portal posting published 30 days ago
+    assert _older_than(replace(item, from_board=True), 3) is False  # a board posting that appeared 2 hours ago
+    assert _older_than(replace(item, from_board=True, is_baseline=True), 3) is True  # it was in the first import
+    assert _older_than(replace(item, from_board=True, first_seen_at=now - timedelta(days=5)), 3) is True

@@ -13,7 +13,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -233,6 +233,10 @@ class Opportunity:
     first_seen_at: datetime | None = None
     # A language the posting is written in that the candidate does not speak (alerts skip these postings).
     foreign_language: str | None = None
+    # Read from a company board (ATS / careers site) rather than a portal.
+    from_board: bool = False
+    # Part of the first import of its board: it was already listed when the board began to be monitored.
+    is_baseline: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -743,6 +747,7 @@ def list_opportunities(
     ).all():
         evaluations_by_job.setdefault(row.job_id, []).append(row)
 
+    arrival = _board_arrival_flags(jobs)
     output: list[tuple[tuple[Any, ...], Opportunity]] = []
     company_filter = normalize_company_name(company) if company else None
     tech_filter = technology.casefold().strip() if technology else None
@@ -870,6 +875,8 @@ def list_opportunities(
             foreign_language=written_language(
                 snapshot.context.offer.description, spoken=spoken_languages(candidate.profile.languages)
             ),
+            from_board=arrival.get(job.id, (False, False))[0],
+            is_baseline=arrival.get(job.id, (False, False))[1],
             deterministic_result=_prefilter_payload(snapshot.context.deterministic),
             experience=experience,
             jev_signals=answers if isinstance(answers, dict) else None,
@@ -1041,6 +1048,48 @@ def transition_application(
 # 55-minute kill of run-scheduled.sh never throws a whole run away because one site hung.
 FETCH_DEADLINE_SECONDS = 35 * 60
 SLOW_SOURCE_SECONDS = 60
+
+
+BOARD_PROVIDERS = frozenset(
+    {
+        "greenhouse", "lever", "ashby", "teamtailor", "recruitee", "smartrecruiters", "workable", "personio",
+        "workday", "factorial", "careers_site", "amazon_jobs",
+    }
+)
+BASELINE_WINDOW = timedelta(hours=24)
+
+
+def _board_arrival_flags(jobs: Sequence[Job]) -> dict[UUID, tuple[bool, bool]]:
+    """Per job: (read from a company board, part of that board's first import).
+
+    A board's first read lists everything it already had; those postings are not "new" however recent their
+    dates look. Postings that appear afterwards, between two reads, are the new ones the hunter is for.
+    Postings of portals (Adzuna, remote portals...) stream continuously and have no such first import.
+    """
+
+    first_seen: dict[tuple[UUID, str], datetime] = {}
+    for job in jobs:
+        if job.company_id is None:
+            continue
+        for source in job.sources:
+            if source.provider in BOARD_PROVIDERS:
+                key = (job.company_id, source.provider)
+                created = _utc_aware(job.created_at)
+                if key not in first_seen or created < first_seen[key]:
+                    first_seen[key] = created
+    flags: dict[UUID, tuple[bool, bool]] = {}
+    for job in jobs:
+        providers = {source.provider for source in job.sources if source.provider in BOARD_PROVIDERS}
+        if not providers or job.company_id is None:
+            continue
+        created = _utc_aware(job.created_at)
+        baseline = any(created - first_seen[(job.company_id, provider)] <= BASELINE_WINDOW for provider in providers)
+        flags[job.id] = (True, baseline)
+    return flags
+
+
+def _utc_aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
 def _fetch_targets(

@@ -1293,3 +1293,27 @@ def test_tuning_is_not_part_of_the_evaluation_fingerprint() -> None:
     )
 
     assert opportunities._config_fingerprint(base, "offline") == opportunities._config_fingerprint(tuned, "offline")
+
+
+def test_only_postings_that_appear_after_a_boards_first_read_count_as_new() -> None:
+    from datetime import timedelta
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    company = uuid4()
+    first = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+
+    def job(created, provider="greenhouse", company_id=company):
+        return SimpleNamespace(id=uuid4(), company_id=company_id, created_at=created, sources=[SimpleNamespace(provider=provider)])
+
+    initial_a, initial_b = job(first), job(first + timedelta(hours=3))  # the first import of the board
+    later = job(first + timedelta(days=5))  # appeared between two reads
+    portal = job(first + timedelta(days=5), provider="adzuna")  # portals have no first import
+    other_board_first = job(first + timedelta(days=5), company_id=uuid4())  # another company's first read
+
+    flags = opportunities._board_arrival_flags([initial_a, initial_b, later, portal, other_board_first])
+
+    assert flags[initial_a.id] == (True, True) and flags[initial_b.id] == (True, True)
+    assert flags[later.id] == (True, False)
+    assert portal.id not in flags
+    assert flags[other_board_first.id] == (True, True)

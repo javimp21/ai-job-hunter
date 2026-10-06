@@ -712,9 +712,15 @@ MAX_ALERTS_PER_COMPANY_PER_RUN = 2
 
 
 def _older_than(item: Opportunity, days: int) -> bool:
-    """Publication date when the source gives one, otherwise when the hunter first saw it."""
+    """Whether the posting is not new.
 
-    moment = item.published_at or item.first_seen_at
+    Board postings count from the moment the hunter first saw them (a board edit can bump a publication date),
+    and the first import of a board is never new. Portal postings use the publication date when given.
+    """
+
+    if item.is_baseline:
+        return True
+    moment = (item.first_seen_at if item.from_board else None) or item.published_at or item.first_seen_at
     if moment is None:
         return False
     if moment.tzinfo is None:
