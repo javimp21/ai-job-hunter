@@ -21,6 +21,15 @@ responde unas preguntas y empieza a recibir alertas. Sin instalar nada y sin mon
 5. **Nada se envía solo.** Cartas, notas y candidaturas son borradores que la persona revisa.
 6. **Una beta pequeña antes de abrir.** 5 a 10 personas, de sectores distintos al tuyo.
 
+## Modelo de acceso (decidido)
+
+- Durante la beta y al principio: **gratis con cuota de prueba**, sin cobrar nada todavía.
+- La cuota se mide en **días de uso y en acciones con coste** (cartas y candidaturas preparadas); las alertas de ofertas
+  nuevas, que casi no cuestan, van incluidas durante la prueba.
+- Al agotarse la prueba, las alertas se **pausan** (el perfil se conserva un tiempo y luego se borra, según el aviso de
+  privacidad) y el bot lo dice con claridad. El cobro se decidirá más adelante con los datos de la beta.
+- Telegram sigue siendo el canal. Una web sencilla para ver el historial y editar el perfil es opcional y posterior.
+
 ## Fases
 
 | # | Fase | Resultado | Esfuerzo |
