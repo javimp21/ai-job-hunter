@@ -33,6 +33,7 @@ from ai_job_hunter.models import (
     OpportunityNotificationStatus,
 )
 from ai_job_hunter.services.direct_postings import DirectPosting, paywalled_portal, search_link
+from ai_job_hunter.services.liveness import LivenessCheck
 from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 from ai_job_hunter.services.salary_guide import expectation_hint
 
@@ -311,12 +312,14 @@ def send_notifications(
     limit: int | None = None,
     max_age_days: int | None = None,
     direct_postings: DirectPostingLookup | None = None,
+    liveness: LivenessCheck | None = None,
 ) -> NotificationBatchResult:
     """Record selected evaluations and send pending notifications once."""
 
     _validate_threshold(review_threshold)
     current = _current_opportunities(
-        session, candidate, review_threshold, max_age_days=max_age_days, direct_postings=direct_postings
+        session, candidate, review_threshold, max_age_days=max_age_days, direct_postings=direct_postings,
+        liveness=liveness,
     )
     sendable = _preview_current(session, current, limit=limit)
     selected_keys = {(item.job_id, item.evaluation_fingerprint) for item in sendable}
@@ -491,6 +494,7 @@ def _current_opportunities(
     *,
     max_age_days: int | None = None,
     direct_postings: DirectPostingLookup | None = None,
+    liveness: LivenessCheck | None = None,
 ) -> list[_CurrentOpportunity]:
     opportunities = list_opportunities(
         session,
@@ -584,6 +588,9 @@ def _current_opportunities(
                 batch_identities.add(identity)
                 batch_per_company[company] = batch_per_company.get(company, 0) + 1
             eligible = reason is None
+        if eligible and (closed := _closed_posting_suppression(item, liveness)):
+            reason = closed
+            eligible = False
         direct_url = None
         if eligible and direct_postings is not None and paywalled_portal(item.url):
             found = direct_postings(item.job_id, item.company, item.title)
@@ -618,6 +625,12 @@ def _paywalled_copy_suppression(
 ) -> str | None:
     if paywalled_portal(item.url) and _job_identity(item) in free_identities:
         return "paywalled_copy_of_free_posting"
+    return None
+
+
+def _closed_posting_suppression(item: Opportunity, liveness: LivenessCheck | None) -> str | None:
+    if liveness is not None and item.url and liveness(item.url) is False:
+        return "posting_no_longer_available"
     return None
 
 
