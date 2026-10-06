@@ -1,6 +1,6 @@
 """Is a posting still open? A cheap check before an alert is sent.
 
-Aggregator postings (LinkedIn through TheirStack, Adzuna, remote portals) can stay in a feed after the
+Aggregator postings (Adzuna, remote portals) can stay in a feed after the
 employer closed the role. Just before an alert is sent, the posting page is read once: a 404/410 or
 closing wording ("no longer accepting applications") means closed. Anything else, including a blocked
 or failing request, is unknown and the alert goes out as before. Only public https pages are read,
@@ -19,9 +19,9 @@ import httpx
 
 from ai_job_hunter.company_leads import CareerPageDiscoveryError, _resolve_host, _validate_public_url
 
-# Hosts whose postings can outlive the vacancy.
+# Hosts whose postings can outlive the vacancy. LinkedIn is deliberately absent: its terms forbid automated access.
 AGGREGATOR_HOSTS = (
-    "linkedin.com", "adzuna.es", "adzuna.nl", "adzuna.ch", "himalayas.app", "manfred.com", "remotive.com",
+    "adzuna.es", "adzuna.nl", "adzuna.ch", "himalayas.app", "manfred.com", "remotive.com",
     "jobicy.com", "arbeitnow.com", "4dayweek.io", "weworkremotely.com", "remoteok.com", "remoteok.io",
 )
 MAX_BYTES = 400_000

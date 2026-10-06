@@ -25,29 +25,30 @@ def test_closing_wording_in_several_languages_is_recognised_and_live_copy_is_not
 
 
 def test_only_aggregator_hosts_are_checked():
-    assert needs_check("https://www.linkedin.com/jobs/view/1/") and needs_check("https://www.adzuna.es/details/1")
+    assert needs_check("https://www.adzuna.es/details/1") and needs_check("https://remotive.com/remote-jobs/1")
+    assert not needs_check("https://www.linkedin.com/jobs/view/1/")  # its terms forbid automated access
     assert not needs_check("https://job-boards.greenhouse.io/acme/jobs/1") and not needs_check(None)
 
 
 def test_status_and_page_text_decide_and_everything_else_is_unknown():
-    url = "https://www.linkedin.com/jobs/view/1/"
+    url = "https://www.adzuna.es/details/1"
     assert check(lambda r: httpx.Response(404), url) is False
     assert check(lambda r: httpx.Response(200, text="<p>No longer accepting applications</p>"), url) is False
     assert check(lambda r: httpx.Response(200, text="<p>Apply for Backend Engineer</p>"), url) is True
-    assert check(lambda r: httpx.Response(999), url) is None  # LinkedIn blocks bots
+    assert check(lambda r: httpx.Response(429), url) is None  # rate limited
     assert check(lambda r: httpx.Response(503), url) is None
     assert check(lambda r: (_ for _ in ()).throw(httpx.ConnectError("x")), url) is None
     assert PostingLiveness(resolver=PUBLIC)("https://job-boards.greenhouse.io/acme/jobs/1") is None  # not an aggregator
 
 
 def test_redirects_are_followed_a_few_hops_and_private_targets_are_never_fetched():
-    url = "https://www.linkedin.com/jobs/view/1/"
+    url = "https://www.adzuna.es/details/1"
     seen = []
 
     def handler(request):
         seen.append(str(request.url))
-        if request.url.path.startswith("/jobs/view"):
-            return httpx.Response(302, headers={"location": "https://www.linkedin.com/gone"})
+        if request.url.path.startswith("/details"):
+            return httpx.Response(302, headers={"location": "https://www.adzuna.es/gone"})
         return httpx.Response(410)
 
     assert check(handler, url) is False and len(seen) == 2
@@ -66,7 +67,7 @@ def test_a_closed_posting_is_suppressed_and_unknown_or_open_ones_are_not():
 
     from ai_job_hunter.services.notifications import _closed_posting_suppression
 
-    item = replace(_opportunity(uuid4(), FinalDecision.REVIEW, 80), url="https://www.linkedin.com/jobs/view/1/")
+    item = replace(_opportunity(uuid4(), FinalDecision.REVIEW, 80), url="https://www.adzuna.es/details/1")
 
     assert _closed_posting_suppression(item, lambda url: False) == "posting_no_longer_available"
     assert _closed_posting_suppression(item, lambda url: True) is None
