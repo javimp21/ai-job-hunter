@@ -19,13 +19,25 @@ if ! flock -n 9; then
     exit 0
 fi
 
+# Offers unchanged since the last read are skipped to keep runs short. Once a night (03:00 to 06:00 Madrid time)
+# the run re-processes everything (--full-refresh), the safety net after configuration or rule changes.
+hour=$(TZ="$TIMEZONE" date +%H)
+today=$(TZ="$TIMEZONE" date +%F)
+full_marker="$SHARED_DIR/data/local/full-refresh.date"
+full_args=()
+if [ "$((10#$hour))" -ge 3 ] && [ "$((10#$hour))" -lt 6 ] && [ "$(cat "$full_marker" 2>/dev/null)" != "$today" ]; then
+    full_args=(--full-refresh)
+    echo "$today" > "$full_marker"
+    log "full refresh tonight"
+fi
+
 log "run start"
 timeout --kill-after=30s "${RUN_TIMEOUT:-55m}" "$exe" run \
     --limit-companies 1000 \
     --max-jobs-per-company 500 \
     --max-jev-jobs "${MAX_JEV_JOBS:-40}" \
     --max-notifications "${MAX_NOTIFICATIONS:-10}" \
-    --retry-pending
+    --retry-pending "${full_args[@]}"
 code=$?
 log "exit=$code"
 if [ "$code" -eq 3 ]; then

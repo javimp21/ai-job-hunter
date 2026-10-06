@@ -140,3 +140,44 @@ def test_outgoing_experience_never_discloses_fractional_candidate_gap(db_session
     message = format_notification_message(replace(item, experience=personal))
     assert "Experiencia: piden 3 años" in message
     assert "1.25" not in message and "1.75" not in message
+
+
+def test_refresh_skips_unchanged_offers_with_a_current_evaluation_and_a_full_refresh_processes_them(
+    db_session, monkeypatch, tmp_path
+):
+    candidate, job, _evaluation = seed(db_session, monkeypatch, "Build modern backend systems.")
+    prepared = opportunities._prepare_from_source(job, job.sources[0], candidate, "offline")
+    source_id = job.sources[0].id
+    monkeypatch.setattr(
+        opportunities, "active_monitor_targets",
+        lambda *a, **k: [type("Target", (), {"company_id": job.company_id, "source_id": None})()],
+    )
+    monkeypatch.setattr(opportunities, "_fetch_targets", lambda *a, **k: ([(prepared.offer, None)], []))
+    ingested = []
+    real_ingest = opportunities.ingest_job
+    monkeypatch.setattr(opportunities, "ingest_job", lambda session, offer: ingested.append(offer) or real_ingest(session, offer))
+
+    class OfflineEngine:
+        cache_identity = "offline"
+
+        def evaluate(self, context):
+            pytest.fail("a current evaluation must not call Jev")
+
+    cache = DecisionCache(tmp_path / "offline.json")
+    db_session.rollback()
+
+    skipped = opportunities.refresh_opportunities(
+        db_session, candidate, engine=OfflineEngine(), cache=cache, no_jev=True, skip_unchanged=True
+    )
+
+    assert ingested == [] and skipped.known_jobs == 1 and skipped.new_jobs == 0
+    assert skipped.alert_candidate_job_ids == set()
+    from ai_job_hunter.models import JobSource
+
+    assert db_session.get(JobSource, source_id).last_seen_at is not None  # still recorded as seen
+
+    full = opportunities.refresh_opportunities(
+        db_session, candidate, engine=OfflineEngine(), cache=cache, no_jev=True, skip_unchanged=False
+    )
+
+    assert len(ingested) == 1 and full.known_jobs == 1

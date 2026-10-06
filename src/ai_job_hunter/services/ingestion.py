@@ -1,5 +1,6 @@
 """Transactional persistence for normalized job offers."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
@@ -348,6 +349,55 @@ def _remember(
     if index is not None:
         index.add(job, offer)
         index.counts = (index.counts[0] + new_jobs, index.counts[1] + new_sources)
+
+
+def known_unchanged_sources(
+    session: Session, offers: Sequence[NormalizedJob]
+) -> dict[tuple[str, str], tuple[UUID, UUID]]:
+    """Offers that match a stored, open source with exactly the same provider-supplied content.
+
+    Returns ``(provider, external_id) -> (job_id, source_id)``. Only offers with a provider id qualify; a closed source
+    is never listed (it must be reopened by a normal ingestion). This is a read-only, cheap comparison that lets a
+    refresh skip re-processing postings that did not change since the last read.
+    """
+
+    wanted: dict[str, dict[str, NormalizedJob]] = {}
+    for offer in offers:
+        if offer.external_id is not None:
+            wanted.setdefault(offer.provider, {})[offer.external_id] = offer
+    found: dict[tuple[str, str], tuple[UUID, UUID]] = {}
+    for provider, by_id in wanted.items():
+        ids = list(by_id)
+        for start in range(0, len(ids), 1000):
+            rows = session.execute(
+                select(JobSource, Job.title)
+                .join(Job, Job.id == JobSource.job_id)
+                .where(
+                    JobSource.provider == provider,
+                    JobSource.external_id.in_(ids[start : start + 1000]),
+                    JobSource.closed_at.is_(None),
+                )
+            ).all()
+            for source, job_title in rows:
+                offer = by_id.get(source.external_id)
+                if offer is None:
+                    continue
+                stored = (
+                    source.source_title or job_title,
+                    source.source_description,
+                    source.source_location,
+                    source.remote_policy,
+                    source.remote_eligibility,
+                    _amount_key(source.salary_min),
+                    _amount_key(source.salary_max),
+                    source.salary_currency,
+                    source.salary_period,
+                    source.employment_type,
+                )
+                if stored == _offer_material_inputs(offer):
+                    found[(provider, source.external_id)] = (source.job_id, source.id)
+    session.rollback()
+    return found
 
 
 def _find_source(session: Session, offer: NormalizedJob) -> JobSource | None:

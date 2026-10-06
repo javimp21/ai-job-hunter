@@ -187,6 +187,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     run.add_argument("--no-jev", action="store_true", help="use cached evaluations and leave misses pending")
     run.add_argument("--retry-pending", action="store_true", help="retry work deferred by an earlier Jev budget")
     run.add_argument(
+        "--full-refresh",
+        action="store_true",
+        help="re-process every fetched offer (by default offers unchanged since the last read are skipped)",
+    )
+    run.add_argument(
         "--dry-run",
         action="store_true",
         help="fetch and prefilter only; do not persist refresh/evaluation/notification changes or send messages",
@@ -607,6 +612,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     dry_run=args.dry_run,
                     candidate_filters=_monitor_filters(args),
                     portals=parse_portal_names(settings.job_portals),
+                    skip_unchanged=not args.full_refresh,
                 )
                 _print_refresh_summary(summary)
                 if args.no_notifications:

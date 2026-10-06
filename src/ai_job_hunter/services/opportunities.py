@@ -23,7 +23,7 @@ from typing import Any, Callable, Collection, Iterable, Sequence
 from uuid import UUID
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -99,7 +99,13 @@ from ai_job_hunter.services.company_intelligence import (
     CompanyMonitorFilters,
     get_company_facts_for_job,
 )
-from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, candidate_jobs, ingest_job
+from ai_job_hunter.services.ingestion import (
+    IngestionResult,
+    IngestionStatus,
+    candidate_jobs,
+    ingest_job,
+    known_unchanged_sources,
+)
 from ai_job_hunter.services.job_language import required_foreign_language, spoken_languages, written_language
 from ai_job_hunter.services.job_portals import (
     DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
@@ -273,8 +279,13 @@ def refresh_opportunities(
     client: httpx.Client | None = None,
     portals: Sequence[str] = (),
     portal_state_path: Path = DEFAULT_PORTAL_STATE_PATH,
+    skip_unchanged: bool = False,
 ) -> RefreshSummary:
     """Fetch monitored ATS boards and due job portals, ingest, then evaluate new/stale snapshots.
+
+    ``skip_unchanged`` leaves out the offers that match a stored open source exactly and whose job already has a
+    current evaluation (they only get their last-seen time refreshed). A full refresh (without it) is the safety net
+    that re-processes everything, for example after a configuration change.
 
     The caller supplies a clean SQLAlchemy Session. The existing ``ingest_job``
     function owns its per-offer transaction, so reads are ended before ingestion
@@ -354,8 +365,33 @@ def refresh_opportunities(
     created_ids: set[UUID] = set()
     touched_ids: set[UUID] = set()
     seen_source_ids: set[UUID] = set()
+    unchanged: dict[tuple[str, str], tuple[UUID, UUID]] = {}
+    skipped_source_ids: set[UUID] = set()
+    if skip_unchanged:
+        evaluated_current = set(
+            session.scalars(
+                select(JobEvaluation.job_id)
+                .where(
+                    JobEvaluation.status == EvaluationStatus.EVALUATED.value,
+                    JobEvaluation.config_fingerprint == _config_fingerprint(candidate, engine_identity),
+                )
+                .distinct()
+            ).all()
+        )
+        session.rollback()
+        unchanged = {
+            key: ids
+            for key, ids in known_unchanged_sources(session, [offer for offer, _target in offers]).items()
+            if ids[0] in evaluated_current
+        }
 
     for offer, _target in offers:
+        known = unchanged.get((offer.provider, offer.external_id)) if offer.external_id is not None else None
+        if known is not None:
+            touched_ids.add(known[0])
+            seen_source_ids.add(known[1])
+            skipped_source_ids.add(known[1])
+            continue
         old_match_id, _old_fingerprints = _find_existing_match_fingerprints(
             session,
             offer,
@@ -415,6 +451,8 @@ def refresh_opportunities(
             prepared_by_job.setdefault(job_id, {})[prepared.fingerprint] = prepared
         session.rollback()
 
+    if skipped_source_ids:
+        _touch_seen(session, skipped_source_ids)
     if not dry_run:
         summary.closed_postings = mark_closed_postings(
             session,
@@ -1087,6 +1125,16 @@ BOARD_PROVIDERS = frozenset(
     }
 )
 BASELINE_WINDOW = timedelta(hours=24)
+
+
+def _touch_seen(session: Session, source_ids: Collection[UUID]) -> None:
+    """Record that these unchanged sources were seen again now (what a full ingestion would have written)."""
+
+    ids = list(source_ids)
+    moment = datetime.now(UTC)
+    for start in range(0, len(ids), 1000):
+        session.execute(update(JobSource).where(JobSource.id.in_(ids[start : start + 1000])).values(last_seen_at=moment))
+    session.commit()
 
 
 def _board_first_seen(session: Session, jobs: Sequence[Job]) -> dict[tuple[UUID, str], datetime]:
