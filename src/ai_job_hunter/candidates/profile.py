@@ -165,6 +165,43 @@ class CandidatePreferences(BaseModel):
         return self
 
 
+class SalaryGuideEntry(BaseModel):
+    """What to answer when a form asks for salary expectations in one country."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    low: int = Field(ge=0)
+    answer: int = Field(ge=0)
+    high: int = Field(ge=0)
+    currency: str = Field(min_length=1, max_length=5)
+
+    @model_validator(mode="after")
+    def ordered(self) -> SalaryGuideEntry:
+        if not self.low <= self.answer <= self.high:
+            raise ValueError("salary guide needs low <= answer <= high")
+        return self
+
+
+class CandidateTuning(BaseModel):
+    """Personal weights that only reorder results (never change eligibility).
+
+    They are read when a feed is shown, so changing them never forces a re-evaluation, and they are
+    left out of the evaluation fingerprint. Every field has a neutral default.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Priority points lost by an on-site/hybrid role that needs a move: to an acceptable place and to
+    # a destination listed in ``relocation_preferred_locations``.
+    relocation_penalty: int = Field(default=15, ge=0, le=100)
+    preferred_relocation_penalty: int = Field(default=5, ge=0, le=100)
+    # Priority points lost by a posting that requires, or is written in, a language the candidate lacks.
+    language_required_penalty: int = Field(default=25, ge=0, le=100)
+    language_written_penalty: int = Field(default=15, ge=0, le=100)
+    # Country name (as the prefilter spells it: "Spain", "Netherlands"...) -> suggested salary answer.
+    salary_guide: dict[str, SalaryGuideEntry] = Field(default_factory=dict)
+
+
 class CandidateConfig(BaseModel):
     """A complete, validated local candidate profile and its preferences."""
 
@@ -172,6 +209,7 @@ class CandidateConfig(BaseModel):
 
     profile: CandidateProfile
     preferences: CandidatePreferences = Field(default_factory=CandidatePreferences)
+    tuning: CandidateTuning = Field(default_factory=CandidateTuning)
 
 
 class CandidateConfigError(ValueError):

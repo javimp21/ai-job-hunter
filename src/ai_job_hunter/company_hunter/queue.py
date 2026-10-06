@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -46,7 +46,6 @@ SKIP_DAYS = 60
 RESUGGEST_AFTER_DAYS = 14
 MAX_CONTACTED_PER_COMPANY = 2
 MAX_PER_COMPANY_PER_DAY = 1
-SCHEDULE_TZ = ZoneInfo("Europe/Madrid")
 
 _OPEN_STATES = (
     ConnectionRequestStatus.SENT.value,
@@ -70,12 +69,23 @@ def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
+def _schedule_timezone() -> ZoneInfo:
+    """The candidate's time zone (SCHEDULE_TIMEZONE); an unknown name falls back to UTC."""
+
+    from ai_job_hunter.config import get_settings
+
+    try:
+        return ZoneInfo(get_settings().schedule_timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
 def local_day(value: datetime) -> str:
-    return _utc(value).astimezone(SCHEDULE_TZ).date().isoformat()
+    return _utc(value).astimezone(_schedule_timezone()).date().isoformat()
 
 
 def is_weekday(now: datetime) -> bool:
-    return _utc(now).astimezone(SCHEDULE_TZ).weekday() < 5
+    return _utc(now).astimezone(_schedule_timezone()).weekday() < 5
 
 
 def contact_relevance(contact: Contact, *, small_known: bool) -> int | None:

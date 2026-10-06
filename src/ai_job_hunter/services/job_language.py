@@ -1,9 +1,9 @@
-"""Spoken-language requirements of a posting, for a candidate who speaks only Spanish and English.
+"""Spoken-language requirements of a posting, relative to the languages the candidate speaks.
 
 Two soft signals, never a rejection (they only lower the review priority):
 
 * the posting asks for another language as a requirement ("fluent German", "Dutch required"), unless
-  the wording marks it as optional ("German is a plus");
+  the wording marks it as optional ("German is a plus") or the candidate speaks that language;
 * the posting itself is written in another language (German, Dutch, French, a Nordic language), which
   almost always means the team works in it.
 """
@@ -11,6 +11,8 @@ Two soft signals, never a rejection (they only lower the review priority):
 from __future__ import annotations
 
 import re
+import unicodedata
+from collections.abc import Iterable
 
 LANGUAGES = ("german", "dutch", "french", "swedish", "danish", "norwegian", "finnish", "italian", "portuguese")
 _NAMES = "|".join(LANGUAGES)
@@ -38,14 +40,43 @@ _WORD = re.compile(r"[a-zà-ÿäöåüß]+", re.IGNORECASE)
 MIN_WORDS = 40
 
 
-def required_foreign_language(description: str | None) -> str | None:
-    """A spoken language the posting requires (not marked optional), or None."""
+_ALIASES = {
+    "aleman": "german", "deutsch": "german", "german": "german",
+    "neerlandes": "dutch", "holandes": "dutch", "nederlands": "dutch", "dutch": "dutch",
+    "frances": "french", "francais": "french", "french": "french",
+    "sueco": "swedish", "svenska": "swedish", "swedish": "swedish",
+    "danes": "danish", "dansk": "danish", "danish": "danish",
+    "noruego": "norwegian", "norsk": "norwegian", "norwegian": "norwegian",
+    "finlandes": "finnish", "suomi": "finnish", "finnish": "finnish",
+    "italiano": "italian", "italian": "italian",
+    "portugues": "portuguese", "portuguese": "portuguese",
+}
+
+
+def spoken_languages(entries: Iterable[str]) -> frozenset[str]:
+    """Languages from a profile list such as ``["Spanish (native)", "alemán B1"]`` that postings may ask for."""
+
+    found: set[str] = set()
+    for entry in entries:
+        folded = "".join(
+            ch for ch in unicodedata.normalize("NFKD", entry.casefold()) if not unicodedata.combining(ch)
+        )
+        for word in re.findall(r"[a-z]+", folded):
+            if word in _ALIASES:
+                found.add(_ALIASES[word])
+    return frozenset(found)
+
+
+def required_foreign_language(description: str | None, *, spoken: frozenset[str] = frozenset()) -> str | None:
+    """A spoken language the posting requires (not marked optional) and the candidate lacks, or None."""
 
     if not description:
         return None
     for pattern in (_REQUIRED_BEFORE, _REQUIRED_AFTER):
         for match in pattern.finditer(description):
             language = next(group for group in match.groups() if group and group.casefold() in LANGUAGES)
+            if language.casefold() in spoken:
+                continue
             window = description[max(0, match.start() - 60) : match.end() + 60]
             if _OPTIONAL.search(window):
                 continue
@@ -53,8 +84,8 @@ def required_foreign_language(description: str | None) -> str | None:
     return None
 
 
-def written_language(description: str | None) -> str | None:
-    """The foreign language the posting is written in, or None when English, Spanish or unclear."""
+def written_language(description: str | None, *, spoken: frozenset[str] = frozenset()) -> str | None:
+    """The foreign language the posting is written in, or None when English, Spanish, spoken or unclear."""
 
     if not description:
         return None
@@ -66,6 +97,6 @@ def written_language(description: str | None) -> str | None:
         for language, vocabulary in _FUNCTION_WORDS.items()
     }
     best = max(scores, key=lambda language: scores[language])
-    if best == "english" or scores[best] < 0.12 or scores[best] < 1.6 * scores["english"]:
+    if best == "english" or best in spoken or scores[best] < 0.12 or scores[best] < 1.6 * scores["english"]:
         return None
     return best

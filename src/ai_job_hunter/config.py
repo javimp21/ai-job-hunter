@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
     notify_review_min_priority: int = Field(default=70, ge=0, le=100)
+    # IANA time zone of the candidate: decides the day (and weekdays) of the Company Hunter queue.
+    schedule_timezone: str = "Europe/Madrid"
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
@@ -35,6 +37,11 @@ class Settings(BaseSettings):
     # Companies whose recent postings are always searched (any country), e.g. employers that publish
     # only on LinkedIn. Comma-separated names as TheirStack spells them ("Bizneo HR").
     theirstack_watch_companies: str = ""
+    # Optional TheirStack search filters, comma-separated; empty keeps the built-in defaults
+    # (countries ES, NL, CH, IE, LU; junior/mid seniority; backend/software/AI title keywords).
+    theirstack_countries: str = ""
+    theirstack_titles: str = ""
+    theirstack_seniority: str = ""
 
 
 def get_settings() -> Settings:

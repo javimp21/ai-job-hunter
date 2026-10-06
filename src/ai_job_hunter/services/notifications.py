@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.candidates.experience import ExperienceOutcome
+from ai_job_hunter.candidates.profile import SalaryGuideEntry
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.deduplication.normalization import normalize_company_name, normalize_job_title
 from ai_job_hunter.models import (
@@ -603,7 +604,9 @@ def _current_opportunities(
             title=_clean_label(item.title, 200),
             location=_clean_label(item.location, 120) if item.location else None,
             priority=item.priority,
-            message=format_notification_message(item, direct_url=direct_url),
+            message=format_notification_message(
+                item, direct_url=direct_url, salary_guide=candidate.tuning.salary_guide
+            ),
         )
         result.append(_CurrentOpportunity(item, fingerprint, preview, eligible, reason))
     result.sort(
@@ -982,7 +985,12 @@ def _dispatch_pending(
         session.commit()
 
 
-def format_notification_message(item: Opportunity, *, direct_url: str | None = None) -> str:
+def format_notification_message(
+    item: Opportunity,
+    *,
+    direct_url: str | None = None,
+    salary_guide: Mapping[str, SalaryGuideEntry] | None = None,
+) -> str:
     """Build a Telegram HTML message from public job fields and fixed labels.
 
     Every dynamic value is length-bounded and HTML-escaped; raw Jev text and
@@ -1004,7 +1012,7 @@ def format_notification_message(item: Opportunity, *, direct_url: str | None = N
         f" · {_WORK_MODE_LABELS.get(item.remote_policy or '', 'modalidad no indicada')}",
         f"💰 {_format_salary(item) or 'Salario no publicado'}",
     ]
-    if _format_salary(item) is None and (hint := expectation_hint(item.location)):
+    if _format_salary(item) is None and (hint := expectation_hint(item.location, salary_guide or {})):
         lines.append(f"🎯 Si te piden expectativa: {hint}")
     lines.append(f"🎓 {_format_experience(item)}")
     technologies = list(dict.fromkeys((*item.required_technologies, *item.technologies)))

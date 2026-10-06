@@ -1249,3 +1249,47 @@ def test_postings_that_need_another_spoken_language_lose_review_priority(descrip
 
     assert sum(value for value, _label in adjustments) == points
     assert (label is None) or label in adjustments[0][1]
+
+
+def test_tuning_changes_the_penalties_and_the_candidates_languages_remove_the_language_penalty() -> None:
+    from ai_job_hunter.candidates.profile import CandidateTuning
+
+    base = _candidate()
+    tuned = base.model_copy(
+        update={
+            "profile": base.profile.model_copy(update={"languages": ["Spanish", "English", "alemán B1"]}),
+            "preferences": base.preferences.model_copy(
+                update={"preferred_locations": ["Madrid"], "acceptable_locations": ["Madrid", "Málaga"]}
+            ),
+            "tuning": CandidateTuning(relocation_penalty=7, language_required_penalty=40),
+        }
+    )
+    plain = base.model_copy(update={"preferences": tuned.preferences})
+    offer = _offer("role-tuned", location="Málaga, Spain", remote_policy="HYBRID").model_copy(
+        update={"description": "Build Java services. Fluent French is required."}
+    )
+
+    prepared = opportunities._prepare_offer(offer, tuned, engine_identity="offline")
+    assert sum(v for v, _ in opportunities._relocation_adjustment(prepared.context)) == -7
+    assert sum(v for v, _ in opportunities._language_adjustment(prepared.context)) == -40
+
+    german = offer.model_copy(update={"description": "Build Java services. Fluent German is required."})
+    prepared_german = opportunities._prepare_offer(german, tuned, engine_identity="offline")
+    assert opportunities._language_adjustment(prepared_german.context) == ()  # the candidate speaks German
+    prepared_plain = opportunities._prepare_offer(german, plain, engine_identity="offline")
+    assert sum(v for v, _ in opportunities._language_adjustment(prepared_plain.context)) == -25
+
+
+def test_tuning_is_not_part_of_the_evaluation_fingerprint() -> None:
+    from ai_job_hunter.candidates.profile import CandidateTuning, SalaryGuideEntry
+
+    base = _candidate()
+    tuned = base.model_copy(
+        update={
+            "tuning": CandidateTuning(
+                relocation_penalty=3, salary_guide={"Spain": SalaryGuideEntry(low=1, answer=2, high=3, currency="€")}
+            )
+        }
+    )
+
+    assert opportunities._config_fingerprint(base, "offline") == opportunities._config_fingerprint(tuned, "offline")

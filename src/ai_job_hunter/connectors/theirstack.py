@@ -127,6 +127,9 @@ class TheirStackConnector:
         client: httpx.Client | None = None,
         timeout: float = 30.0,
         watch_companies: Sequence[str] = (),
+        countries: Sequence[str] = DEFAULT_COUNTRIES,
+        titles: Sequence[str] = DEFAULT_TITLES,
+        seniority: Sequence[str] = DEFAULT_SENIORITY,
     ) -> None:
         if not 1 <= page_size <= MAX_PAGE_SIZE:
             raise ValueError(f"page_size must be between 1 and {MAX_PAGE_SIZE}")
@@ -134,6 +137,7 @@ class TheirStackConnector:
         self._budget = budget or CreditBudget(DEFAULT_CREDITS_PATH, 100)
         self._page_size = page_size
         self._watch = tuple(name.strip() for name in watch_companies if name.strip())
+        self._countries, self._titles, self._seniority = tuple(countries), tuple(titles), tuple(seniority)
         self.page = 0  # only the measurement probe moves it, to read a page it has not paid for yet
         self._client = client
         self._timeout = timeout
@@ -148,6 +152,9 @@ class TheirStackConnector:
             budget=CreditBudget(DEFAULT_CREDITS_PATH, settings.theirstack_daily_credits),
             client=client,
             watch_companies=settings.theirstack_watch_companies.split(","),
+            countries=_csv(settings.theirstack_countries, DEFAULT_COUNTRIES),
+            titles=_csv(settings.theirstack_titles, DEFAULT_TITLES),
+            seniority=_csv(settings.theirstack_seniority, DEFAULT_SENIORITY),
         )
 
     def fetch_jobs(self) -> list[NormalizedJob]:
@@ -178,8 +185,16 @@ class TheirStackConnector:
     def _bodies(self) -> list[dict[str, Any]]:
         bodies = []
         if self._watch:
-            bodies.append(build_search_body(limit=10, max_age_days=7, companies=self._watch))
-        bodies.append(build_search_body(limit=self._page_size, page=self.page))
+            bodies.append(build_search_body(limit=10, max_age_days=7, companies=self._watch, titles=self._titles))
+        bodies.append(
+            build_search_body(
+                limit=self._page_size,
+                page=self.page,
+                countries=self._countries,
+                titles=self._titles,
+                seniority=self._seniority,
+            )
+        )
         return bodies
 
     def count_matches(self) -> int | None:
@@ -193,7 +208,13 @@ class TheirStackConnector:
             raise TheirStackNotConfigured("TheirStack skipped: set THEIRSTACK_API_KEY in .env to enable it.")
         if self._budget.remaining() < 1:
             raise TheirStackConnectorError("TheirStack daily credit budget is spent.")
-        payload = self._search(build_search_body(limit=1, include_total=True))
+        payload = self._search(build_search_body(
+                limit=1,
+                include_total=True,
+                countries=self._countries,
+                titles=self._titles,
+                seniority=self._seniority,
+            ))
         self._budget.spend(1)
         metadata = payload.get("metadata") if isinstance(payload, Mapping) else None
         total = metadata.get("total_results") if isinstance(metadata, Mapping) else None
@@ -214,6 +235,11 @@ class TheirStackConnector:
         finally:
             if self._client is None:
                 client.close()
+
+
+def _csv(value: str, default: Sequence[str]) -> tuple[str, ...]:
+    items = tuple(part.strip() for part in value.split(",") if part.strip())
+    return items or tuple(default)
 
 
 def _normalize_job(raw: Mapping[str, Any], *, discovered_at: datetime) -> NormalizedJob:

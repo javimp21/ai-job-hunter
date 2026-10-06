@@ -4,32 +4,84 @@
     "current_role": "Backend Engineer",
     "current_salary": 60000,
     "salary_currency": "EUR",
-    "primary_skills": ["Python", "Backend engineering", "API design"],
-    "secondary_skills": ["PostgreSQL", "Docker"],
-    "technologies": ["Python", "PostgreSQL", "Docker"],
-    "languages": ["English", "Spanish"],
+    "primary_skills": [
+      "Python",
+      "Backend engineering",
+      "API design"
+    ],
+    "secondary_skills": [
+      "PostgreSQL",
+      "Docker"
+    ],
+    "technologies": [
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "languages": [
+      "English",
+      "Spanish"
+    ],
     "education": "Example BSc in Computer Science",
     "current_country": "Spain",
     "current_city": "Sample City",
-    "work_authorization": ["Spain"],
-    "eligible_countries": ["Spain"],
+    "work_authorization": [
+      "Spain"
+    ],
+    "eligible_countries": [
+      "Spain"
+    ],
     "remote_work_capability": true
   },
   "preferences": {
-    "preferred_roles": ["Backend Engineer", "Platform Engineer"],
+    "preferred_roles": [
+      "Backend Engineer",
+      "Platform Engineer"
+    ],
     "minimum_salary": 50000,
     "target_salary": 65000,
     "salary_currency": "EUR",
     "salary_period": "YEAR",
-    "preferred_locations": ["Spain", "EU"],
-    "acceptable_locations": ["Spain"],
+    "preferred_locations": [
+      "Spain",
+      "EU"
+    ],
+    "acceptable_locations": [
+      "Spain"
+    ],
     "remote_preference": "REMOTE_ONLY",
     "relocation_willingness": false,
-    "acceptable_employment_types": ["FULL_TIME"],
-    "preferred_technologies": ["Python", "PostgreSQL", "Docker", "AWS"],
-    "willing_to_learn_technologies": ["Go", "Kotlin", "Node.js", "Kubernetes"],
+    "acceptable_employment_types": [
+      "FULL_TIME"
+    ],
+    "preferred_technologies": [
+      "Python",
+      "PostgreSQL",
+      "Docker",
+      "AWS"
+    ],
+    "willing_to_learn_technologies": [
+      "Go",
+      "Kotlin",
+      "Node.js",
+      "Kubernetes"
+    ],
     "minimum_seniority": "JUNIOR",
     "maximum_seniority": "SENIOR",
     "international_remote_openness": true
+  },
+  "tuning": {
+    "relocation_penalty": 15,
+    "preferred_relocation_penalty": 5,
+    "language_required_penalty": 25,
+    "language_written_penalty": 15,
+    "salary_guide": {
+      "Spain": {
+        "low": 40000,
+        "answer": 55000,
+        "high": 70000,
+        "currency": "EUR"
+      }
+    }
   }
 }

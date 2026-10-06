@@ -97,7 +97,7 @@ from ai_job_hunter.services.company_intelligence import (
     get_company_facts_for_job,
 )
 from ai_job_hunter.services.ingestion import IngestionResult, IngestionStatus, candidate_jobs, ingest_job
-from ai_job_hunter.services.job_language import required_foreign_language, written_language
+from ai_job_hunter.services.job_language import required_foreign_language, spoken_languages, written_language
 from ai_job_hunter.services.job_portals import (
     DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
     due_portals,
@@ -1357,7 +1357,7 @@ def _canonical_decimal(value: Any) -> str | None:
 def _config_fingerprint(candidate: CandidateConfig, engine_identity: str) -> str:
     return _hash_payload(
         {
-            "candidate": candidate.model_dump(mode="json"),
+            "candidate": candidate.model_dump(mode="json", exclude={"tuning"}),
             "prefilter_version": _PREFILTER_VERSION,
             "rubric_version": RUBRIC_VERSION,
             "rubric": RUBRIC_SPEC,
@@ -1545,7 +1545,7 @@ def _evaluation_order(item: _PreparedOffer) -> tuple[Any, ...]:
     )
 
 
-RELOCATION_PENALTY = 15
+RELOCATION_PENALTY = 15  # defaults of CandidateTuning; the candidate's own values are used
 PREFERRED_RELOCATION_PENALTY = 5
 _REMOTE_LOCATION_TEXT = re.compile(r"\b(?:remote|remoto|remota|anywhere|worldwide)\b", re.IGNORECASE)
 
@@ -1596,7 +1596,7 @@ def _stack_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...
     return tuple(adjustments)
 
 
-LANGUAGE_REQUIRED_PENALTY = 25
+LANGUAGE_REQUIRED_PENALTY = 25  # defaults of CandidateTuning
 LANGUAGE_WRITTEN_PENALTY = 15
 _LANGUAGE_NAMES_ES = {
     "german": "alemán", "dutch": "neerlandés", "french": "francés", "swedish": "sueco", "danish": "danés",
@@ -1608,14 +1608,16 @@ def _language_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], 
     """Demote postings that need a spoken language the candidate does not have (only Spanish and English)."""
 
     text = context.offer.description
-    required = required_foreign_language(text)
+    spoken = spoken_languages(context.candidate.profile.languages)
+    tuning = context.candidate.tuning
+    required = required_foreign_language(text, spoken=spoken)
     if required is not None:
         label = _LANGUAGE_NAMES_ES.get(required, required)
-        return ((-LANGUAGE_REQUIRED_PENALTY, f"pide {label} (−{LANGUAGE_REQUIRED_PENALTY})"),)
-    written = written_language(text)
+        return ((-tuning.language_required_penalty, f"pide {label} (−{tuning.language_required_penalty})"),)
+    written = written_language(text, spoken=spoken)
     if written is not None:
         label = _LANGUAGE_NAMES_ES.get(written, written)
-        return ((-LANGUAGE_WRITTEN_PENALTY, f"anuncio en {label} (−{LANGUAGE_WRITTEN_PENALTY})"),)
+        return ((-tuning.language_written_penalty, f"anuncio en {label} (−{tuning.language_written_penalty})"),)
     return ()
 
 
@@ -1638,9 +1640,11 @@ def _relocation_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str]
     if preferences.relocation_preferred_locations and _location_matches(
         offer.location, preferences.relocation_preferred_locations
     ):
-        return ((-PREFERRED_RELOCATION_PENALTY, f"mudanza a un destino que te interesa (−{PREFERRED_RELOCATION_PENALTY})"),)
+        penalty = context.candidate.tuning.preferred_relocation_penalty
+        return ((-penalty, f"mudanza a un destino que te interesa (−{penalty})"),)
     places = ", ".join(preferences.preferred_locations)
-    return ((-RELOCATION_PENALTY, f"fuera de {places}, requiere mudanza (−{RELOCATION_PENALTY})"),)
+    penalty = context.candidate.tuning.relocation_penalty
+    return ((-penalty, f"fuera de {places}, requiere mudanza (−{penalty})"),)
 
 
 def _salary_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], ...]:

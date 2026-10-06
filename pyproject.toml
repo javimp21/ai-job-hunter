@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 ai-job-hunter = "ai_job_hunter.cli:main"
+ai-job-hunter-init = "ai_job_hunter.init_wizard:main"
 
 [project.optional-dependencies]
 dev = [
