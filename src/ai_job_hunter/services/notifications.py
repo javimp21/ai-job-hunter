@@ -562,7 +562,8 @@ def _current_opportunities(
         reason = None if eligible else "review_priority_below_threshold"
         if eligible:
             reason = (
-                _paywalled_copy_suppression(item, free_identities)
+                _foreign_language_suppression(item)
+                or _paywalled_copy_suppression(item, free_identities)
                 or _snippet_only_suppression(item)
                 or _onsite_suppression(item, decision)
                 or _uncertain_location_suppression(item, decision)
@@ -633,6 +634,12 @@ def _paywalled_copy_suppression(
     if paywalled_portal(item.url) and _job_identity(item) in free_identities:
         return "paywalled_copy_of_free_posting"
     return None
+
+
+def _foreign_language_suppression(item: Opportunity) -> str | None:
+    """Postings written in a language the candidate cannot work in never alert or reach the digest."""
+
+    return "foreign_language" if item.foreign_language else None
 
 
 def _closed_posting_suppression(item: Opportunity, liveness: LivenessCheck | None) -> str | None:

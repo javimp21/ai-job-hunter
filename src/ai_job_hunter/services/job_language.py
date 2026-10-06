@@ -28,6 +28,15 @@ _OPTIONAL = re.compile(
 # the English ones by a wide margin.
 _FUNCTION_WORDS = {
     "english": {"the", "and", "with", "you", "for", "our", "will", "are", "your", "have", "this", "that", "from", "team"},
+    "spanish": {"el", "la", "los", "las", "de", "del", "en", "y", "que", "con", "para", "por", "una", "un", "se", "su",
+                "sus", "es", "al", "como", "más", "no", "experiencia", "trabajo", "equipo", "empresa", "desarrollo"},
+    "portuguese": {"não", "você", "vocês", "uma", "são", "também", "nós", "seu", "sua", "está", "ao", "aos", "às", "dos",
+                   "das", "pelo", "pela", "empresa", "vaga", "trabalho", "experiência", "conhecimento", "desenvolvimento",
+                   "equipa", "equipe", "e", "o", "os", "em", "na", "no", "com"},
+    "italian": {"il", "lo", "gli", "della", "delle", "per", "con", "una", "che", "sono", "nel", "nella", "dei", "degli",
+                "anche", "non", "più", "lavoro", "azienda", "esperienza", "squadra", "e", "di", "la", "le"},
+    "polish": {"i", "w", "na", "z", "do", "się", "jest", "dla", "oraz", "nie", "jako", "pracy", "firma", "doświadczenie",
+               "zespół", "będziesz", "naszym", "lub"},
     "german": {"und", "der", "die", "das", "mit", "für", "von", "sie", "wir", "ein", "eine", "nicht", "auf", "den", "zu"},
     "dutch": {"en", "het", "een", "van", "voor", "met", "wij", "je", "jij", "ons", "bij", "ook", "te", "naar", "zijn"},
     "french": {"et", "les", "des", "pour", "avec", "vous", "nous", "une", "dans", "sur", "votre", "notre", "est", "du"},
@@ -97,6 +106,7 @@ def written_language(description: str | None, *, spoken: frozenset[str] = frozen
         for language, vocabulary in _FUNCTION_WORDS.items()
     }
     best = max(scores, key=lambda language: scores[language])
-    if best == "english" or best in spoken or scores[best] < 0.12 or scores[best] < 1.6 * scores["english"]:
+    home = max(scores["english"], scores["spanish"])
+    if best in {"english", "spanish"} or best in spoken or scores[best] < 0.12 or scores[best] < 1.6 * home:
         return None
     return best

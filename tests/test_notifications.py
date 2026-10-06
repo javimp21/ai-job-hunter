@@ -668,3 +668,15 @@ def test_alert_links_keep_the_parameter_that_identifies_the_posting_and_nothing_
         "https://jobs.example.test/role"
     )
     assert _safe_public_url("https://jobs.example.test/role?gh_jid=") == "https://jobs.example.test/role"
+
+
+def test_postings_in_a_language_the_candidate_does_not_speak_never_alert():
+    from dataclasses import replace
+    from uuid import uuid4
+
+    from ai_job_hunter.services.notifications import _foreign_language_suppression
+
+    item = _opportunity(uuid4(), FinalDecision.REVIEW, 90)
+
+    assert _foreign_language_suppression(item) is None
+    assert _foreign_language_suppression(replace(item, foreign_language="portuguese")) == "foreign_language"

@@ -155,18 +155,18 @@ def test_digest_message_escapes_job_text(db_session, monkeypatch):
     assert "A&lt;B" in message
 
 
-def test_newly_discovered_older_postings_reach_the_digest_up_to_30_days(db_session, monkeypatch):
+def test_the_digest_only_lists_new_postings_even_when_a_company_was_just_added(db_session, monkeypatch):
     now = datetime.now(UTC)
     rows = [
-        _item(db_session, 60, title="Recently found", published_at=now - timedelta(days=20), first_seen_at=now - timedelta(hours=3)),
-        _item(db_session, 60, title="Too old", published_at=now - timedelta(days=31), first_seen_at=now - timedelta(hours=3)),
+        _item(db_session, 60, title="Fresh", published_at=now - timedelta(days=1), first_seen_at=now - timedelta(hours=3)),
+        _item(db_session, 60, title="Old but just discovered", published_at=now - timedelta(days=20), first_seen_at=now - timedelta(hours=3)),
         _item(db_session, 60, title="Old and known", published_at=now - timedelta(days=20), first_seen_at=now - timedelta(days=10)),
     ]
     _install_opportunities(monkeypatch, rows)
 
     entries = select_digest_entries(db_session, _candidate(), **OPTIONS)
 
-    assert [entry.item.title for entry in entries] == ["Recently found"]
+    assert [entry.item.title for entry in entries] == ["Fresh"]
 
 
 def test_digest_lists_sources_that_keep_failing():

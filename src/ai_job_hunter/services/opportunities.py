@@ -231,6 +231,8 @@ class Opportunity:
     priority_adjustments: tuple[str, ...] = ()
     # When this job was first seen by the hunter (fallback when a source gives no date).
     first_seen_at: datetime | None = None
+    # A language the posting is written in that the candidate does not speak (alerts skip these postings).
+    foreign_language: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -865,6 +867,9 @@ def list_opportunities(
             priority=score,
             priority_adjustments=tuple(label for _points, label in adjustments),
             first_seen_at=job.created_at,
+            foreign_language=written_language(
+                snapshot.context.offer.description, spoken=spoken_languages(candidate.profile.languages)
+            ),
             deterministic_result=_prefilter_payload(snapshot.context.deterministic),
             experience=experience,
             jev_signals=answers if isinstance(answers, dict) else None,

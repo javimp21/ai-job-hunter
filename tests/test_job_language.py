@@ -31,3 +31,29 @@ def test_the_language_a_posting_is_written_in():
     assert written_language(dutch) == "dutch"
     assert written_language(english) is None and written_language(spanish) is None
     assert written_language("Too short to tell") is None
+
+
+def test_postings_in_portuguese_italian_or_polish_are_foreign_and_spanish_or_english_never_are():
+    portuguese = (
+        "Estamos à procura de um programador para a nossa equipa em Lisboa. Vais trabalhar com Java e Spring e "
+        "desenvolver a plataforma connosco. Não é necessária experiência anterior, mas gostamos de quem está "
+        "motivado e também de quem conhece bem o desenvolvimento de software e o trabalho em equipa na empresa. "
+        "A nossa empresa oferece um horário flexível e a possibilidade de trabalhar em casa."
+    )
+    italian = (
+        "Cerchiamo uno sviluppatore per il nostro team a Milano. Lavorerai con Java e Spring e svilupperai la "
+        "piattaforma con noi. Non è necessaria esperienza precedente, ma cerchiamo persone che sono motivate e "
+        "che conoscono anche il lavoro in squadra. La nostra azienda offre un orario flessibile e più benefici "
+        "per il lavoro da casa nella sede."
+    )
+    spanish = (
+        "Buscamos un desarrollador para nuestro equipo en Madrid. Trabajarás con Java y Spring y construirás la "
+        "plataforma con nosotros. No es necesaria experiencia previa, pero buscamos personas motivadas que "
+        "conozcan el desarrollo de software y el trabajo en equipo. Nuestra empresa ofrece horario flexible y "
+        "la posibilidad de trabajar desde casa con un salario acorde a la experiencia."
+    )
+
+    assert written_language(portuguese) == "portuguese"
+    assert written_language(italian) == "italian"
+    assert written_language(spanish) is None
+    assert written_language(portuguese, spoken=frozenset({"portuguese"})) is None

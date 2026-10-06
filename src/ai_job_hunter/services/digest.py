@@ -1,10 +1,11 @@
 """Once-a-day Telegram digest of second-tier opportunities.
 
-Strong opportunities alert immediately (see ``notifications``). Everything
-that is still worth a glance but did not earn an alert — a REVIEW below the
-alert threshold, an on-site role, a city with no stated work mode, a good job
-first seen too late to alert — is listed once in a compact evening digest so
-it is not invisible without a UI. Each job appears in at most one digest.
+Strong opportunities alert immediately (see ``notifications``). Every NEW posting that is still
+worth a glance but did not earn an alert (a REVIEW below the alert threshold, an on-site role, a
+city with no stated work mode, an incomplete description) is listed once in a compact evening
+digest so it is not invisible without a UI. Only new postings are listed: older ones, and
+postings written in a language the candidate does not speak, never are. Each job appears in at
+most one digest.
 """
 
 from __future__ import annotations
@@ -46,11 +47,8 @@ DIGEST_MIN_PRIORITY = 50
 # On-site roles below the alert bar only make the digest when clearly good.
 DIGEST_ONSITE_MIN_PRIORITY = 70
 DIGEST_MAX_ITEMS = 12
-DIGEST_MAX_AGE_DAYS = 7
-# Postings published long ago but discovered only now (a newly monitored
-# company) are still news to the candidate, up to this hard limit.
-DIGEST_NEWLY_SEEN_HOURS = 48
-DIGEST_HARD_MAX_AGE_DAYS = 30
+# The digest, like the alerts, is only about new postings: published (or first seen) within this many days.
+DIGEST_MAX_AGE_DAYS = 3
 DIGEST_MIN_INTERVAL = timedelta(hours=20)
 # Suppression reasons that mean "worth a look, but not an alert". Jobs held
 # back by the per-company cap or still pending alert later, so they are left out.
@@ -58,7 +56,6 @@ _DIGEST_REASONS = {
     "review_priority_below_threshold",
     "onsite_not_exceptional",
     "uncertain_location",
-    "older_than_max_age",
     "incomplete_description",
 }
 
@@ -286,13 +283,7 @@ def _jobs_with_rows(session: Session, job_ids: set[UUID]) -> set[UUID]:
 
 
 def _too_old(item: Opportunity) -> bool:
-    if not _older_than(item, DIGEST_MAX_AGE_DAYS):
-        return False
-    published = item.published_at
-    if published is not None and _aware(published) <= datetime.now(UTC) - timedelta(days=DIGEST_HARD_MAX_AGE_DAYS):
-        return True
-    first_seen = item.first_seen_at
-    return first_seen is None or _aware(first_seen) < datetime.now(UTC) - timedelta(hours=DIGEST_NEWLY_SEEN_HOURS)
+    return _older_than(item, DIGEST_MAX_AGE_DAYS)
 
 
 def _aware(moment: datetime) -> datetime:
