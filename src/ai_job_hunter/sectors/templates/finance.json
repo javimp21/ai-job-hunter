@@ -1,0 +1,1070 @@
+{
+ "id": "finance",
+ "label": "Finanzas y administración",
+ "sets": {
+  "finance_words": [
+   "finance",
+   "financial",
+   "financiero",
+   "financiera",
+   "financieros",
+   "finanzas",
+   "finanzen",
+   "financier",
+   "financiers",
+   "finanziario",
+   "finanziaria",
+   "financeiro",
+   "financeira",
+   "financas"
+  ],
+  "accounting": [
+   "accountant",
+   "accountants",
+   "accounting",
+   "accountancy",
+   "bookkeeper",
+   "bookkeeping",
+   "ledger",
+   "r2r",
+   "contable",
+   "contables",
+   "contabilidad",
+   "contabilidade",
+   "contabilista",
+   "contabile",
+   "contabili",
+   "comptable",
+   "comptables",
+   "comptabilite",
+   "buchhalter",
+   "buchhalterin",
+   "buchhaltung",
+   "boekhouder",
+   "boekhouding",
+   "payable",
+   "payables",
+   "receivable",
+   "receivables",
+   "accountspayable",
+   "accountsreceivable"
+  ],
+  "controlling": [
+   "controller",
+   "controllers",
+   "controlling",
+   "controleur",
+   "controleuse",
+   "contralor",
+   "controllo"
+  ],
+  "fpa": [
+   "fpa",
+   "budgeting",
+   "forecasting",
+   "budget"
+  ],
+  "tax": [
+   "tax",
+   "taxes",
+   "fiscal",
+   "fiscalista",
+   "fiscaliste",
+   "fiscalite",
+   "fiscalidad",
+   "fiscalidade",
+   "tributario",
+   "tributaria",
+   "tributacao",
+   "vat",
+   "iva",
+   "fiscalist",
+   "steuerberater",
+   "steuerreferent"
+  ],
+  "payroll": [
+   "payroll",
+   "nomina",
+   "nominas",
+   "paie",
+   "paghe",
+   "paye",
+   "salarisadministrateur",
+   "salarisadministratie",
+   "entgeltabrechner",
+   "lohnbuchhalter",
+   "lohnbuchhaltung"
+  ],
+  "treasury": [
+   "treasury",
+   "treasurer",
+   "tesoreria",
+   "tesorero",
+   "tesorera",
+   "tesouraria",
+   "tesoureiro",
+   "tesoriere",
+   "tresorerie",
+   "tresorier",
+   "tresoriere",
+   "liquidity"
+  ],
+  "audit": [
+   "audit",
+   "auditor",
+   "auditors",
+   "auditoria",
+   "auditeur",
+   "auditrice",
+   "revisor",
+   "revisore",
+   "revisione",
+   "commissaire",
+   "wirtschaftsprufer",
+   "prufungsleiter",
+   "prufer",
+   "auditing"
+  ],
+  "procurement": [
+   "procurement",
+   "purchasing",
+   "compras",
+   "comprador",
+   "compradora",
+   "aprovisionamiento",
+   "aprovisionamento",
+   "acheteur",
+   "acheteuse",
+   "achats",
+   "einkauf",
+   "einkaufer",
+   "einkauferin",
+   "inkoop",
+   "inkoper",
+   "acquisti",
+   "sourcing",
+   "buyer",
+   "abastecimiento"
+  ],
+  "credit_risk": [
+   "credit",
+   "credito",
+   "creditos",
+   "risk",
+   "riesgo",
+   "riesgos",
+   "risque",
+   "risques",
+   "risico",
+   "risiko",
+   "rischio",
+   "risco",
+   "collections",
+   "cobros",
+   "recouvrement",
+   "cobranzas",
+   "kreditsachbearbeiter"
+  ],
+  "bank_ops": [
+   "kyc",
+   "kyb",
+   "kycb",
+   "aml",
+   "sanctions",
+   "sanciones",
+   "securities",
+   "settlement",
+   "custody",
+   "custodia",
+   "titres",
+   "valores",
+   "wertpapierabwicklung",
+   "middleoffice",
+   "wealth",
+   "fraud"
+  ],
+  "consolidation": [
+   "consolidation",
+   "consolidations",
+   "consolidacion",
+   "consolidatie",
+   "consolideur",
+   "consolidamento",
+   "corep",
+   "finrep",
+   "konzernbuchhalter"
+  ],
+  "admin": [
+   "administrativo",
+   "administrativa",
+   "administratif",
+   "administrative",
+   "administration",
+   "administracion",
+   "administratief",
+   "administratieve",
+   "amministrativo",
+   "amministrativa",
+   "amministrazione",
+   "backoffice",
+   "sachbearbeiter",
+   "segreteria",
+   "verwaltungsangestellter",
+   "secretaria",
+   "secretary",
+   "receptionist",
+   "recepcionista"
+  ],
+  "admin_roles": [
+   "assistant",
+   "assistente",
+   "asistente",
+   "auxiliar",
+   "gestionnaire",
+   "specialist",
+   "officer",
+   "clerk",
+   "coordinator",
+   "coordinador",
+   "responsable",
+   "manager",
+   "tecnico",
+   "tecnica",
+   "analyst",
+   "executive"
+  ],
+  "finance_core": [
+   "controller",
+   "controllers",
+   "controlling",
+   "accountant",
+   "accounting",
+   "contable",
+   "contabilidad",
+   "comptable",
+   "buchhalter",
+   "finance",
+   "financial",
+   "financiero",
+   "financiera",
+   "tax",
+   "payroll",
+   "treasury",
+   "audit",
+   "auditor"
+  ],
+  "sales": [
+   "sales",
+   "ventas",
+   "vendedor",
+   "vendedora",
+   "vertrieb",
+   "vente",
+   "ventes",
+   "verkauf",
+   "comercial",
+   "commercial",
+   "sdr",
+   "bdr",
+   "salesperson"
+  ],
+  "sales_roles": [
+   "executive",
+   "manager",
+   "director",
+   "representative",
+   "specialist",
+   "associate",
+   "agent",
+   "agente",
+   "advisor",
+   "consultant",
+   "consultor",
+   "development",
+   "developer",
+   "representante"
+  ],
+  "client_facing": [
+   "customer",
+   "cliente",
+   "clientes",
+   "clientele",
+   "clientele",
+   "client",
+   "atencion",
+   "kundenservice",
+   "kundenberater",
+   "relationship"
+  ],
+  "tech": [
+   "engineer",
+   "engineering",
+   "developer",
+   "programmer",
+   "devops",
+   "software",
+   "frontend",
+   "backend",
+   "fullstack",
+   "architect",
+   "scientist",
+   "sre",
+   "qa",
+   "it",
+   "sistemas",
+   "systems",
+   "infrastructure",
+   "network",
+   "cloud",
+   "salesforce",
+   "ai",
+   "ml",
+   "llm",
+   "swe",
+   "cybersecurity"
+  ],
+  "legal": [
+   "legal",
+   "lawyer",
+   "attorney",
+   "counsel",
+   "abogado",
+   "abogada",
+   "avvocato",
+   "juridique",
+   "jurista",
+   "juriste",
+   "jurist",
+   "rechtsanwalt",
+   "paralegal"
+  ],
+  "hr": [
+   "hr",
+   "hrbp",
+   "rrhh",
+   "recruiter",
+   "recruiting",
+   "recruitment",
+   "reclutador",
+   "reclutadora",
+   "talent",
+   "personalberater",
+   "compensation",
+   "benefits",
+   "humanos",
+   "rh"
+  ],
+  "insurance_claims": [
+   "siniestros",
+   "siniestro",
+   "perito",
+   "claims",
+   "sinistres",
+   "actuary",
+   "actuarial",
+   "actuario",
+   "actuaire"
+  ],
+  "operations_other": [
+   "plant",
+   "hse",
+   "prl",
+   "logistics",
+   "logistica",
+   "warehouse",
+   "almacen",
+   "production",
+   "produccion",
+   "planner",
+   "marketing",
+   "marketer",
+   "designer",
+   "writer",
+   "copywriter",
+   "press",
+   "attache",
+   "pmo",
+   "crm",
+   "ehs"
+  ],
+  "audit_other": [
+   "quality",
+   "calidad",
+   "energy",
+   "energia",
+   "energie",
+   "milieu",
+   "environmental",
+   "ambiental",
+   "security",
+   "seguridad",
+   "cyber",
+   "cybersecurity",
+   "safety",
+   "iso",
+   "sap",
+   "grc",
+   "energetique"
+  ],
+  "role_nouns": [
+   "manager",
+   "director",
+   "head",
+   "analyst",
+   "assistant",
+   "officer",
+   "specialist",
+   "partner",
+   "associate",
+   "executive",
+   "coordinator",
+   "responsable",
+   "gerente",
+   "directeur",
+   "directrice",
+   "leiter",
+   "teamleiter",
+   "controller",
+   "expert",
+   "lead",
+   "tecnico",
+   "tecnica",
+   "analista",
+   "analyste",
+   "coordinador",
+   "cfo",
+   "chief"
+  ]
+ },
+ "regexes": {
+  "accounting_compound": "buchh[aä]lt|buchf[uü]hr|rechnungswesen|kreditoren|debitoren|boekhoud|contabil|comptab|comptabilit",
+  "tax_compound": "steuer|belasting|fiscali|impuesto|imposta",
+  "payroll_compound": "lohn(?:buch|abrech)|entgelt|salarisadmin|gestionnaire\\s+de\\s+paie|n[oó]minas?\\b",
+  "treasury_compound": "tr[eé]sor|tesorer|tesour|liquidit[aä]t",
+  "audit_compound": "\\baudit|pr[uü]fung|revisi[oó]n|commissaire\\s+aux\\s+comptes|wirtschaftspr",
+  "procurement_compound": "einkauf|inkoop|\\bachats?\\b|\\bcompras\\b|aprovision|abastecimiento|procurement|purchasing",
+  "credit_compound": "\\bkredit(?!oren)|credit(?:o|\\b)|\\brisk|riesg|risque|risico|risiko|rischio|\\brisco",
+  "controlling_compound": "controll|contr[oô]le(?:ur)?\\s+(?:de\\s+)?gestion|control\\s+de\\s+gesti[oó]n",
+  "consolidation_compound": "consolid|konsolid|konzernrechnung|konzernabschluss",
+  "bank_ops": "\\bkyc\\b|\\bkyb\\b|\\baml\\b|sanction|wertpapier|middle\\s*office|back\\s*office\\s+(?:financ|titres|valeurs|bancari|valores)|fund\\s+(?:admin|operations)|securities|settlement|transfer\\s+agen|trading\\s+operations|financial\\s+operations|banking\\s+operations|investment\\s+data|financial\\s+crime|moyens\\s+de\\s+paiement",
+  "reporting": "accounting\\s*(?:and|&)\\s*reporting|(?:financial|regulatory|group|statutory|management|esg)\\s+reporting|reporting\\s+(?:and|&)\\s+controls|\\breporting\\b.*\\b(?:ifrs|finance|financial)\\b",
+  "generic_finance_head": "\\b(?:cfo|chief\\s+financial|head\\s+of\\s+finance|finance\\s+(?:manager|director|lead)|director(?:a)?\\s+financier|directeur\\s+financier|finanzleiter|leiter\\s+finanzen)",
+  "admin_compound": "administrativ|administratie|administraci[oó]n|amministrativ|verwaltung|office\\s+(?:assistant|manager)|segreter|back[\\s-]?office|backoffice",
+  "erp_it": "\\berp\\b|sap\\s+(?:fi|co|fico|mm|sd|s/4)\\b|consult\\w*\\s+sap|sap\\s+consult|finance\\s+systems|administrateur\\s+sap|sap\\s+finance|systems?\\s+(?:analyst|specialist|administrator)",
+  "it_audit": "\\bit[-\\s]?audit|audit\\s+(?:it|informatique)|auditor\\s+it\\b|\\bgrc\\b",
+  "media_buyer": "media\\s+buyer|buyer\\s+(?:media|fashion)|fashion\\s+buyer|visual\\s+merch",
+  "executive_assistant": "executive\\s+assistant|personal\\s+assistant|asistente\\s+de\\s+direcci|assistant(?:e)?\\s+de\\s+direction|secretar\\w+\\s+de\\s+direcci|\\bea\\s+to\\b",
+  "key_account": "key\\s+account|account\\s+(?:executive|manager|director|representative)|business\\s+develop|agente\\s+comercial",
+  "customer_service": "customer\\s+(?:service|support|success|care)|atenci[oó]n\\s+al\\s+cliente|servicio\\s+al\\s+cliente|call\\s+cent|conseiller(?:e|\\(\\w+\\))?\\s+(?:client|banque|en\\s+gestion)|relationship\\s+manager|chargé\\s+de\\s+service",
+  "branch": "directeur\\s+d['’]agence|responsable\\s+d['’]agence|bank\\s+branch|oficina\\s+bancaria|director\\s+de\\s+oficina",
+  "quality_or_energy_audit": "auditor(?:\\s+de|\\s+of)?\\s+calidad|quality\\s+audit|energy\\s+audit|audit\\s+(?:energ|qualit)|milieumeting|auditeur\\s+energie|iso\\s*\\d{4,5}",
+  "supplier_quality": "procurement\\s+engineer|supplier\\s+quality|compras\\s+ingenier|\\bapqp\\b|\\bppap\\b",
+  "occupational_risk": "riesgos\\s+laborales|prevenci[oó]n\\s+de\\s+riesgos|health\\s+and\\s+safety",
+  "tax_technology": "tax\\s+(?:technology|tech|software|systems)",
+  "hr_not_payroll": "\\bhr\\b|rrhh|recursos\\s+humanos|human\\s+resources|ressources\\s+humaines|personal(?:wesen|berater)|recruit|c&b\\b|compensation"
+ },
+ "compounds": [
+  {
+   "parts": [
+    "back",
+    "office"
+   ],
+   "word": "backoffice",
+   "expand_back": true
+  },
+  {
+   "parts": [
+    "mid",
+    "office"
+   ],
+   "word": "middleoffice",
+   "expand_back": false
+  },
+  {
+   "parts": [
+    "fp",
+    "a"
+   ],
+   "word": "fpa",
+   "expand_back": false
+  },
+  {
+   "parts": [
+    "accounts",
+    "payable"
+   ],
+   "word": "accountspayable",
+   "expand_back": false
+  },
+  {
+   "parts": [
+    "accounts",
+    "receivable"
+   ],
+   "word": "accountsreceivable",
+   "expand_back": false
+  }
+ ],
+ "rules": [
+  {
+   "id": "legal",
+   "when": {
+    "tokens_any": [
+     "@legal"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "executive_assistant",
+   "when": {
+    "regex": "executive_assistant"
+   },
+   "fit": "NON_TARGET",
+   "family": "executive assistant",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "insurance_claims",
+   "when": {
+    "tokens_any": [
+     "@insurance_claims"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "insurance claims / actuarial",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "media_buyer",
+   "when": {
+    "regex": "media_buyer"
+   },
+   "fit": "NON_TARGET",
+   "family": "marketing / merchandising",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "it_audit",
+   "when": {
+    "regex": "it_audit"
+   },
+   "fit": "NON_TARGET",
+   "family": "IT audit / governance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "quality_or_energy_audit",
+   "when": {
+    "regex": "quality_or_energy_audit"
+   },
+   "fit": "NON_TARGET",
+   "family": "quality / energy / environmental audit",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "supplier_quality",
+   "when": {
+    "regex": "supplier_quality"
+   },
+   "fit": "NON_TARGET",
+   "family": "supplier quality engineering",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "erp_it",
+   "when": {
+    "regex": "erp_it"
+   },
+   "fit": "NON_TARGET",
+   "family": "ERP / finance systems",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "tax_technology",
+   "when": {
+    "regex": "tax_technology"
+   },
+   "fit": "NON_TARGET",
+   "family": "tax technology",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "product",
+   "when": {
+    "any": [
+     {
+      "tokens_all": [
+       "product",
+       "manager"
+      ]
+     },
+     {
+      "tokens_all": [
+       "product",
+       "owner"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "product management",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "key_account",
+   "when": {
+    "regex": "key_account"
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "customer_service",
+   "when": {
+    "regex": "customer_service"
+   },
+   "fit": "NON_TARGET",
+   "family": "customer service / relationship management",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "branch",
+   "when": {
+    "regex": "branch"
+   },
+   "fit": "NON_TARGET",
+   "family": "bank branch / commercial banking",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "sales",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@sales"
+      ]
+     },
+     {
+      "not": {
+       "tokens_any": [
+        "controller",
+        "controllers",
+        "controlling",
+        "accountant",
+        "accounting"
+       ]
+      }
+     },
+     {
+      "not": {
+       "tokens_any": [
+        "administrativo",
+        "administrativa",
+        "backoffice"
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "tech",
+   "when": {
+    "tokens_any": [
+     "@tech"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "software / engineering",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "security_risk",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@audit_other"
+      ]
+     },
+     {
+      "tokens_any": [
+       "risk",
+       "riesgo",
+       "riesgos",
+       "risque",
+       "compliance"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "security / safety risk",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "occupational_risk",
+   "when": {
+    "regex": "occupational_risk"
+   },
+   "fit": "NON_TARGET",
+   "family": "occupational health and safety",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "operations_other",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@operations_other"
+      ]
+     },
+     {
+      "not": {
+       "tokens_any": [
+        "@finance_core"
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "operations / marketing / other",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "g11_consolidation",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@consolidation"
+      ]
+     },
+     {
+      "regex": "consolidation_compound"
+     },
+     {
+      "regex": "reporting"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "financial reporting and consolidation",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g6_payroll",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@payroll"
+      ]
+     },
+     {
+      "regex": "payroll_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "payroll",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "hr",
+   "when": {
+    "regex": "hr_not_payroll"
+   },
+   "fit": "NON_TARGET",
+   "family": "human resources",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "g4_audit",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@audit"
+      ]
+     },
+     {
+      "regex": "audit_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "audit",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g5_tax",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@tax"
+      ]
+     },
+     {
+      "regex": "tax_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "tax",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g3_treasury",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@treasury"
+      ]
+     },
+     {
+      "regex": "treasury_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "treasury",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g7_procurement",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@procurement"
+      ]
+     },
+     {
+      "regex": "procurement_compound"
+     },
+     {
+      "tokens_all": [
+       "category",
+       "management"
+      ]
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "procurement",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g10_banking_operations",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@bank_ops"
+      ]
+     },
+     {
+      "regex": "bank_ops"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "banking and investment operations",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g9_credit_and_risk",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@credit_risk"
+      ]
+     },
+     {
+      "regex": "credit_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "credit and risk",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g1_accounting",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@accounting"
+      ]
+     },
+     {
+      "regex": "accounting_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "accounting",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g2_fpa_and_controlling",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@controlling",
+       "@fpa"
+      ]
+     },
+     {
+      "regex": "controlling_compound"
+     },
+     {
+      "tokens_all": [
+       "finance",
+       "partner"
+      ]
+     },
+     {
+      "tokens_all": [
+       "financial",
+       "analyst"
+      ]
+     },
+     {
+      "tokens_all": [
+       "finance",
+       "analyst"
+      ]
+     },
+     {
+      "tokens_all": [
+       "analista",
+       "financiero"
+      ]
+     },
+     {
+      "tokens_all": [
+       "analyste",
+       "financier"
+      ]
+     },
+     {
+      "tokens_all": [
+       "financial",
+       "planning"
+      ]
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "FP&A and controlling",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "g8_finance_administrator",
+   "when": {
+    "tokens_all": [
+     "finance",
+     "administrator"
+    ]
+   },
+   "fit": "TARGET",
+   "family": "administration and back office",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "general_finance",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@finance_words"
+      ]
+     },
+     {
+      "regex": "generic_finance_head"
+     }
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "general finance",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "in the finance function (accounting, planning, treasury...) rather than finance sales or systems"
+  },
+  {
+   "id": "g8_administration",
+   "when": {
+    "any": [
+     {
+      "tokens_any": [
+       "@admin"
+      ]
+     },
+     {
+      "regex": "admin_compound"
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "administration and back office",
+   "reason": "Title names a {family} role.",
+   "focus": ""
+  },
+  {
+   "id": "no_sector_term",
+   "when": {
+    "true": true
+   },
+   "fit": "NON_TARGET",
+   "family": "outside finance and administration (no sector term in title)",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  }
+ ]
+}
