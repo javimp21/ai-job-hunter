@@ -93,16 +93,21 @@ def build_search_body(
     page: int = 0,
     preview: bool = False,
     include_total: bool = False,
+    companies: Sequence[str] = (),
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "posted_at_max_age_days": max_age_days,
-        "job_country_code_or": list(countries),
         "job_title_or": list(titles),
-        "job_seniority_or": list(seniority),
         "order_by": [{"desc": True, "field": "date_posted"}],
         "limit": limit,
         "page": page,
     }
+    if companies:
+        # Watched employers: any country and seniority; the prefilter decides.
+        body["company_name_case_insensitive_or"] = list(companies)
+    else:
+        body["job_country_code_or"] = list(countries)
+        body["job_seniority_or"] = list(seniority)
     if preview:
         body["blur_company_data"] = True  # no credits are consumed in preview mode
     if include_total:
@@ -121,12 +126,14 @@ class TheirStackConnector:
         page_size: int = MAX_PAGE_SIZE,
         client: httpx.Client | None = None,
         timeout: float = 30.0,
+        watch_companies: Sequence[str] = (),
     ) -> None:
         if not 1 <= page_size <= MAX_PAGE_SIZE:
             raise ValueError(f"page_size must be between 1 and {MAX_PAGE_SIZE}")
         self._key = _secret(api_key)
         self._budget = budget or CreditBudget(DEFAULT_CREDITS_PATH, 100)
         self._page_size = page_size
+        self._watch = tuple(name.strip() for name in watch_companies if name.strip())
         self.page = 0  # only the measurement probe moves it, to read a page it has not paid for yet
         self._client = client
         self._timeout = timeout
@@ -140,30 +147,40 @@ class TheirStackConnector:
             api_key=settings.theirstack_api_key,
             budget=CreditBudget(DEFAULT_CREDITS_PATH, settings.theirstack_daily_credits),
             client=client,
+            watch_companies=settings.theirstack_watch_companies.split(","),
         )
 
     def fetch_jobs(self) -> list[NormalizedJob]:
         if not self._key:
             raise TheirStackNotConfigured("TheirStack skipped: set THEIRSTACK_API_KEY in .env to enable it.")
-        limit = min(self._page_size, self._budget.remaining())
-        if limit <= 0:
-            return []  # today's credit budget is spent
-        payload = self._search(build_search_body(limit=limit, page=self.page))
-        data = payload.get("data") if isinstance(payload, Mapping) else None
-        if not isinstance(data, list):
-            raise TheirStackConnectorError("TheirStack returned an unexpected payload.")
         discovered_at = datetime.now(UTC)
         jobs: dict[str, NormalizedJob] = {}
-        for raw in data:
-            if not isinstance(raw, Mapping):
-                continue
-            try:
-                job = _normalize_job(raw, discovered_at=discovered_at)
-            except ValueError:
-                continue
-            jobs.setdefault(job.external_id or job.source_url or job.title, job)
-        self._budget.spend(len(data))  # one credit per job returned, valid or not
+        # Watched companies first: a handful of jobs that would not match the country filter.
+        for body in self._bodies():
+            limit = min(body.pop("limit"), self._budget.remaining())
+            if limit <= 0:
+                break  # today's credit budget is spent
+            payload = self._search({**body, "limit": limit})
+            data = payload.get("data") if isinstance(payload, Mapping) else None
+            if not isinstance(data, list):
+                raise TheirStackConnectorError("TheirStack returned an unexpected payload.")
+            for raw in data:
+                if not isinstance(raw, Mapping):
+                    continue
+                try:
+                    job = _normalize_job(raw, discovered_at=discovered_at)
+                except ValueError:
+                    continue
+                jobs.setdefault(job.external_id or job.source_url or job.title, job)
+            self._budget.spend(len(data))  # one credit per job returned, valid or not
         return list(jobs.values())
+
+    def _bodies(self) -> list[dict[str, Any]]:
+        bodies = []
+        if self._watch:
+            bodies.append(build_search_body(limit=10, max_age_days=7, companies=self._watch))
+        bodies.append(build_search_body(limit=self._page_size, page=self.page))
+        return bodies
 
     def count_matches(self) -> int | None:
         """Total postings matching the default filters.

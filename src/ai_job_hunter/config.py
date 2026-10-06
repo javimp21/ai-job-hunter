@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # opt-in `theirstack` portal and the daily credit budget caps what it can spend.
     theirstack_api_key: SecretStr | None = None
     theirstack_daily_credits: int = Field(default=100, ge=1, le=5000)
+    # Companies whose recent postings are always searched (any country), e.g. employers that publish
+    # only on LinkedIn. Comma-separated names as TheirStack spells them ("Bizneo HR").
+    theirstack_watch_companies: str = ""
 
 
 def get_settings() -> Settings:

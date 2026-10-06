@@ -177,3 +177,20 @@ def test_probe_counts_what_is_already_stored(db_session):
 
     assert (counts["fetched"], counts["known_by_url"], counts["known_by_company_and_title"], counts["new"]) == (4, 1, 1, 2)
     assert counts["with_employer_link"] == 3
+
+
+def test_watched_companies_are_searched_in_any_country_before_the_general_query(tmp_path):
+    def handler(request):
+        body = json.loads(request.content)
+        if "company_name_case_insensitive_or" in body:
+            return httpx.Response(200, json={"data": [raw_job(9, company="Bizneo HR", country_code="ES")]})
+        return httpx.Response(200, json={"data": [raw_job(1)]})
+
+    connector, requests, budget = make(handler, tmp_path, watch_companies=["Bizneo HR", " "])
+    jobs = connector.fetch_jobs()
+
+    watched, general = (json.loads(request.content) for request in requests)
+    assert watched["company_name_case_insensitive_or"] == ["Bizneo HR"] and watched["posted_at_max_age_days"] == 7
+    assert "job_country_code_or" not in watched and "job_seniority_or" not in watched and watched["limit"] == 10
+    assert "job_country_code_or" in general and "company_name_case_insensitive_or" not in general
+    assert {job.external_id for job in jobs} == {"theirstack:9", "theirstack:1"} and budget.used() == 2
