@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Iterable
 
+from ai_job_hunter.sectors.engine import classify_role_family
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome, assess_experience
 from ai_job_hunter.candidates.facts import JobFacts
 from ai_job_hunter.candidates.profile import (
@@ -390,7 +391,7 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
             "The candidate profile says remote work is not currently feasible.",
         )
     role = _evaluate_role(facts.title, preferences)
-    role_family = _classify_role_family(facts.title)
+    role_family = _classify_role_family(facts.title, preferences.sector)
     location =_evaluate_preferred_location(facts.location, preferences)
     technology = _evaluate_technology(facts, profile, preferences)
     experience = assess_experience(
@@ -518,8 +519,18 @@ def title_may_be_relevant(title: str) -> bool:
     return _classify_role_family(title).fit is not RoleFamilyFit.NON_TARGET
 
 
-def _classify_role_family(title: str) -> RoleFamilyAssessment:
-    """Classify the title's role family; ambiguous families are left for review.
+def _classify_role_family(title: str, sector: str = "software") -> RoleFamilyAssessment:
+    """The title's role family according to the sector template (``config/sectors/<sector>.json``).
+
+    Ambiguous families are left for review; the rules live in the template, see ``sectors/engine.py``.
+    """
+
+    result = classify_role_family(title, sector)
+    return RoleFamilyAssessment(RoleFamilyFit(result.fit), result.family, result.reason)
+
+
+def _classify_role_family_legacy(title: str) -> RoleFamilyAssessment:
+    """The original hard-coded cascade, kept only to prove the software template equivalent (tests).
 
     Only explicit title evidence is used. Families whose fit depends on the
     actual work (data, AI/ML, customer-facing engineering) are never rejected

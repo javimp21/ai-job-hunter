@@ -1545,7 +1545,14 @@ def _canonical_decimal(value: Any) -> str | None:
 def _config_fingerprint(candidate: CandidateConfig, engine_identity: str) -> str:
     return _hash_payload(
         {
-            "candidate": candidate.model_dump(mode="json", exclude={"tuning"}),
+            "candidate": candidate.model_dump(
+                mode="json",
+                # Tuning only reorders results; the default sector adds nothing, so existing fingerprints stay valid.
+                exclude={
+                    "tuning": True,
+                    **({"preferences": {"sector": True}} if candidate.preferences.sector == "software" else {}),
+                },
+            ),
             "prefilter_version": _PREFILTER_VERSION,
             "rubric_version": RUBRIC_VERSION,
             "rubric": RUBRIC_SPEC,

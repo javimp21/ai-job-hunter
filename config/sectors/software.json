@@ -1,0 +1,1543 @@
+{
+ "id": "software",
+ "label": "Software y datos",
+ "sets": {
+  "engineering_job": [
+   "desarrollador",
+   "desarrolladora",
+   "desenvolvedor",
+   "developpeur",
+   "developpeuse",
+   "devops",
+   "engineer",
+   "engineering",
+   "entwickler",
+   "informatiker",
+   "ingeniera",
+   "ingeniero",
+   "ingenieur",
+   "inzenjer",
+   "programador",
+   "programadora",
+   "programer",
+   "programmer",
+   "programming",
+   "softwareentwickler",
+   "sre",
+   "sviluppatore"
+  ],
+  "technical_markers": [
+   "ai",
+   "android",
+   "api",
+   "architect",
+   "architecture",
+   "back",
+   "backend",
+   "cloud",
+   "cto",
+   "data",
+   "database",
+   "developer",
+   "devops",
+   "devtools",
+   "end",
+   "engineer",
+   "engineering",
+   "frontend",
+   "full",
+   "fullstack",
+   "golang",
+   "infrastructure",
+   "ios",
+   "java",
+   "kubernetes",
+   "learning",
+   "machine",
+   "ml",
+   "mobile",
+   "network",
+   "platform",
+   "postgres",
+   "programmer",
+   "programming",
+   "python",
+   "qa",
+   "rust",
+   "security",
+   "software",
+   "sre",
+   "stack",
+   "systems",
+   "tech",
+   "technical",
+   "technology",
+   "web"
+  ],
+  "technical_context": [
+   "ai",
+   "android",
+   "api",
+   "architect",
+   "architecture",
+   "back",
+   "backend",
+   "cloud",
+   "cto",
+   "data",
+   "database",
+   "developer",
+   "devops",
+   "devtools",
+   "end",
+   "frontend",
+   "full",
+   "fullstack",
+   "golang",
+   "infrastructure",
+   "ios",
+   "java",
+   "kubernetes",
+   "learning",
+   "machine",
+   "ml",
+   "mobile",
+   "network",
+   "platform",
+   "postgres",
+   "programmer",
+   "programming",
+   "python",
+   "qa",
+   "rust",
+   "security",
+   "software",
+   "sre",
+   "stack",
+   "systems",
+   "tech",
+   "technical",
+   "technology",
+   "web"
+  ],
+  "hardware": [
+   "avionics",
+   "camera",
+   "drone",
+   "electrical",
+   "hardware",
+   "mechanical",
+   "optical"
+  ],
+  "core_software": [
+   "api",
+   "backend",
+   "devops",
+   "devtools",
+   "fullstack",
+   "software",
+   "sre"
+  ],
+  "platform": [
+   "cloud",
+   "infra",
+   "infrastructure",
+   "platform"
+  ],
+  "core_or_platform": [
+   "api",
+   "backend",
+   "cloud",
+   "devops",
+   "devtools",
+   "fullstack",
+   "infra",
+   "infrastructure",
+   "platform",
+   "software",
+   "sre"
+  ],
+  "governance": [
+   "audit",
+   "auditor",
+   "compliance",
+   "governance",
+   "grc",
+   "risk"
+  ],
+  "analyst": [
+   "analista",
+   "analyst"
+  ],
+  "science": [
+   "cientifica",
+   "cientifico",
+   "investigador",
+   "investigadora",
+   "researcher",
+   "scientist"
+  ],
+  "ai": [
+   "ai",
+   "genai",
+   "llm",
+   "llms",
+   "ml",
+   "mlops"
+  ],
+  "ml_specialty": [
+   "cv",
+   "deep",
+   "nlp",
+   "vision"
+  ],
+  "ai_or_ml_specialty": [
+   "ai",
+   "cv",
+   "deep",
+   "genai",
+   "llm",
+   "llms",
+   "ml",
+   "mlops",
+   "nlp",
+   "vision"
+  ],
+  "data": [
+   "analytics",
+   "data",
+   "datos"
+  ],
+  "customer_facing": [
+   "deployed",
+   "fde",
+   "field",
+   "forward",
+   "solution",
+   "solutions"
+  ],
+  "engineering_or_technical": [
+   "ai",
+   "android",
+   "api",
+   "architect",
+   "architecture",
+   "back",
+   "backend",
+   "cloud",
+   "cto",
+   "data",
+   "database",
+   "desarrollador",
+   "desarrolladora",
+   "desenvolvedor",
+   "developer",
+   "developpeur",
+   "developpeuse",
+   "devops",
+   "devtools",
+   "end",
+   "engineer",
+   "engineering",
+   "entwickler",
+   "frontend",
+   "full",
+   "fullstack",
+   "golang",
+   "informatiker",
+   "infrastructure",
+   "ingeniera",
+   "ingeniero",
+   "ingenieur",
+   "inzenjer",
+   "ios",
+   "java",
+   "kubernetes",
+   "learning",
+   "machine",
+   "ml",
+   "mobile",
+   "network",
+   "platform",
+   "postgres",
+   "programador",
+   "programadora",
+   "programer",
+   "programmer",
+   "programming",
+   "python",
+   "qa",
+   "rust",
+   "security",
+   "software",
+   "softwareentwickler",
+   "sre",
+   "stack",
+   "sviluppatore",
+   "systems",
+   "tech",
+   "technical",
+   "technology",
+   "web"
+  ]
+ },
+ "regexes": {
+  "legacy_unrelated": "^[\\W_]*(?:(?:senior|junior|mid|lead|staff|principal|freelance|contract|temporary|inbound|outbound|inside|field|technical|virtual|remote)\\s+)*(?:sales|ventas|account executive|business development|customer (?:support|service|success)|copywriter|writer|content creator|social media manager|office assistant|administrative assistant|executive assistant|virtual assistant|kundenservice|kundensupport|kundenbetreuung|kundendienst|atenci[oó]n al cliente|servicio al cliente|service client|assistance clientèle|assistenza clienti)\\b",
+  "business_development": "\\bbusiness\\s+develop(?:er|ment)\\b"
+ },
+ "compounds": [
+  {
+   "parts": [
+    "back",
+    "end"
+   ],
+   "word": "backend",
+   "expand_back": true
+  },
+  {
+   "parts": [
+    "full",
+    "stack"
+   ],
+   "word": "fullstack",
+   "expand_back": true
+  },
+  {
+   "parts": [
+    "learning",
+    "machine"
+   ],
+   "word": "ml",
+   "expand_back": false
+  },
+  {
+   "parts": [
+    "ai",
+    "gen"
+   ],
+   "word": "genai",
+   "expand_back": true
+  },
+  {
+   "parts": [
+    "artificial",
+    "inteligencia"
+   ],
+   "word": "ai",
+   "expand_back": false
+  },
+  {
+   "parts": [
+    "artificial",
+    "intelligence"
+   ],
+   "word": "ai",
+   "expand_back": false
+  }
+ ],
+ "rules": [
+  {
+   "id": "marker_sales",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "sales"
+      ]
+     },
+     {
+      "not": {
+       "all": [
+        {
+         "tokens_any": [
+          "@technical_markers"
+         ]
+        },
+        {
+         "not": {
+          "regex": "legacy_unrelated"
+         }
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_ventas",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "ventas"
+      ]
+     },
+     {
+      "not": {
+       "all": [
+        {
+         "tokens_any": [
+          "@technical_markers"
+         ]
+        },
+        {
+         "not": {
+          "regex": "legacy_unrelated"
+         }
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_support",
+   "when": {
+    "tokens_any": [
+     "support"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "customer support",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_success",
+   "when": {
+    "tokens_any": [
+     "success"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "customer success",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_designer",
+   "when": {
+    "tokens_any": [
+     "designer"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "design",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_legal",
+   "when": {
+    "tokens_any": [
+     "legal"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_counsel",
+   "when": {
+    "tokens_any": [
+     "counsel"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_attorney",
+   "when": {
+    "tokens_any": [
+     "attorney"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_lawyer",
+   "when": {
+    "tokens_any": [
+     "lawyer"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_marketing",
+   "when": {
+    "tokens_any": [
+     "marketing"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "marketing",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_marketer",
+   "when": {
+    "tokens_any": [
+     "marketer"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "marketing",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_recruiter",
+   "when": {
+    "tokens_any": [
+     "recruiter"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_recruiting",
+   "when": {
+    "tokens_any": [
+     "recruiting"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_recruitment",
+   "when": {
+    "tokens_any": [
+     "recruitment"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_hr",
+   "when": {
+    "tokens_any": [
+     "hr"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_hrbp",
+   "when": {
+    "tokens_any": [
+     "hrbp"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_finance",
+   "when": {
+    "tokens_any": [
+     "finance"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "finance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_accountant",
+   "when": {
+    "tokens_any": [
+     "accountant"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "finance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_accounting",
+   "when": {
+    "tokens_any": [
+     "accounting"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "finance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_community",
+   "when": {
+    "tokens_any": [
+     "community"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "community",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_producer",
+   "when": {
+    "tokens_any": [
+     "producer"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "production",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_copywriter",
+   "when": {
+    "tokens_any": [
+     "copywriter"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "content",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_writer",
+   "when": {
+    "tokens_any": [
+     "writer"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "content",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_rrhh",
+   "when": {
+    "tokens_any": [
+     "rrhh"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_reclutador",
+   "when": {
+    "tokens_any": [
+     "reclutador"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_reclutadora",
+   "when": {
+    "tokens_any": [
+     "reclutadora"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "recruiting / HR",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_abogado",
+   "when": {
+    "tokens_any": [
+     "abogado"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_abogada",
+   "when": {
+    "tokens_any": [
+     "abogada"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "legal",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_contable",
+   "when": {
+    "tokens_any": [
+     "contable"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "finance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_disenador",
+   "when": {
+    "tokens_any": [
+     "disenador"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "design",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_disenadora",
+   "when": {
+    "tokens_any": [
+     "disenadora"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "design",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_nurse",
+   "when": {
+    "tokens_any": [
+     "nurse"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_physician",
+   "when": {
+    "tokens_any": [
+     "physician"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_doctor",
+   "when": {
+    "tokens_any": [
+     "doctor"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_clinician",
+   "when": {
+    "tokens_any": [
+     "clinician"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_pharmacist",
+   "when": {
+    "tokens_any": [
+     "pharmacist"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_therapist",
+   "when": {
+    "tokens_any": [
+     "therapist"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "marker_dentist",
+   "when": {
+    "tokens_any": [
+     "dentist"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "healthcare",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "hardware",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@hardware"
+      ]
+     },
+     {
+      "not": {
+       "tokens_any": [
+        "@core_software"
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "hardware engineering",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "governance",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@engineering_job"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "@governance"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "governance / risk / compliance",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "non_engineering_analyst",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@engineering_job"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "@analyst"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "non-engineering analyst",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "science",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@engineering_job"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "@science"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "science / research",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "comercial",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@engineering_job"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "comercial"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "go_to_market",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@engineering_job"
+       ]
+      }
+     },
+     {
+      "any": [
+       {
+        "tokens_any": [
+         "gtm"
+        ]
+       },
+       {
+        "tokens_all": [
+         "go",
+         "market"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "go-to-market",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "ml_research",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "research"
+      ]
+     },
+     {
+      "tokens_any": [
+       "@ai_or_ml_specialty"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "ML research",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "product_management",
+   "when": {
+    "tokens_all": [
+     "product",
+     "manager"
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "product management",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "business_development",
+   "when": {
+    "regex": "business_development"
+   },
+   "fit": "NON_TARGET",
+   "family": "business development",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "account_sales",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "account"
+      ]
+     },
+     {
+      "tokens_any": [
+       "executive",
+       "manager"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "sales",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "unscoped_application_pool",
+   "when": {
+    "any": [
+     {
+      "tokens_all": [
+       "talent",
+       "pool"
+      ]
+     },
+     {
+      "all": [
+       {
+        "tokens_any": [
+         "spontaneous",
+         "espontanea",
+         "unsolicited"
+        ]
+       },
+       {
+        "tokens_any": [
+         "application",
+         "candidatura"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "unscoped application",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "no_technical_term",
+   "when": {
+    "not": {
+     "tokens_any": [
+      "@engineering_or_technical"
+     ]
+    }
+   },
+   "fit": "NON_TARGET",
+   "family": "non-technical (no technical term in title)",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "product",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "product"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "product",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "analyst_without_technical",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "analyst"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "non-engineering analyst",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "open_application",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "open",
+       "general"
+      ]
+     },
+     {
+      "tokens_any": [
+       "application"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "unscoped application",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "solutions_consulting",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "solution",
+       "solutions"
+      ]
+     },
+     {
+      "tokens_any": [
+       "consultant"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "solutions consulting",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "operations",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_context"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "operations"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "operations",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "growth",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_context"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "growth"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "growth",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "commercial_head",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "tokens_any": [
+       "commercial"
+      ]
+     },
+     {
+      "tokens_any": [
+       "head",
+       "director",
+       "manager"
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "commercial",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "administrative_support",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "tokens_any": [
+        "@technical_markers"
+       ]
+      }
+     },
+     {
+      "any": [
+       {
+        "tokens_all": [
+         "office",
+         "assistant"
+        ]
+       },
+       {
+        "tokens_all": [
+         "administrative",
+         "assistant"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "fit": "NON_TARGET",
+   "family": "administrative support",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "legacy_unrelated",
+   "when": {
+    "regex": "legacy_unrelated"
+   },
+   "fit": "NON_TARGET",
+   "family": "sales / customer service / administrative support",
+   "reason": "Title belongs to the non-target {family} role family.",
+   "focus": ""
+  },
+  {
+   "id": "unclassified",
+   "when": {
+    "not": {
+     "tokens_any": [
+      "@engineering_job"
+     ]
+    }
+   },
+   "fit": "UNKNOWN",
+   "family": "unclassified",
+   "reason": "Title does not name a recognized engineering role family.",
+   "focus": ""
+  },
+  {
+   "id": "ml_specialist",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@ai_or_ml_specialty"
+      ]
+     },
+     {
+      "tokens_any": [
+       "@ml_specialty"
+      ]
+     }
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "ML specialist (vision/NLP/deep learning)",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "mainly software/backend engineering"
+  },
+  {
+   "id": "ai_software",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@ai_or_ml_specialty"
+      ]
+     },
+     {
+      "tokens_any": [
+       "@core_software"
+      ]
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "software/backend engineering (AI domain)",
+   "reason": "Title names a software/backend engineering role in an AI domain.",
+   "focus": ""
+  },
+  {
+   "id": "ai_platform",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@ai_or_ml_specialty"
+      ]
+     },
+     {
+      "tokens_any": [
+       "@platform"
+      ]
+     }
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "AI/ML platform engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "platform, serving or tooling engineering"
+  },
+  {
+   "id": "ml_engineering",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@ai_or_ml_specialty"
+      ]
+     },
+     {
+      "tokens_any": [
+       "ml"
+      ]
+     },
+     {
+      "not": {
+       "tokens_any": [
+        "ai",
+        "genai",
+        "llm",
+        "llms"
+       ]
+      }
+     }
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "machine learning engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "software-heavy rather than model research"
+  },
+  {
+   "id": "ai_engineering",
+   "when": {
+    "tokens_any": [
+     "@ai_or_ml_specialty"
+    ]
+   },
+   "fit": "TARGET",
+   "family": "AI engineering",
+   "reason": "Title names an AI engineering role (software around models).",
+   "focus": ""
+  },
+  {
+   "id": "analytics_engineering",
+   "when": {
+    "all": [
+     {
+      "tokens_any": [
+       "@data"
+      ]
+     },
+     {
+      "tokens_any": [
+       "analytics"
+      ]
+     }
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "analytics engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "software-heavy (pipelines, data platform, distributed systems)"
+  },
+  {
+   "id": "data_engineering",
+   "when": {
+    "tokens_any": [
+     "@data"
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "data engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "software-heavy (pipelines, data platform, distributed systems)"
+  },
+  {
+   "id": "forward_deployed",
+   "when": {
+    "any": [
+     {
+      "tokens_all": [
+       "forward",
+       "deployed"
+      ]
+     },
+     {
+      "tokens_any": [
+       "fde"
+      ]
+     }
+    ]
+   },
+   "fit": "TARGET",
+   "family": "forward deployed engineering",
+   "reason": "Title names a forward deployed engineering role.",
+   "focus": ""
+  },
+  {
+   "id": "customer_facing",
+   "when": {
+    "tokens_any": [
+     "@customer_facing"
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "customer-facing engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "mainly software/backend engineering"
+  },
+  {
+   "id": "research_engineering",
+   "when": {
+    "tokens_any": [
+     "research"
+    ]
+   },
+   "fit": "POTENTIALLY_RELEVANT",
+   "family": "research engineering",
+   "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+   "focus": "mainly software/backend engineering"
+  },
+  {
+   "id": "software_platform",
+   "when": {
+    "tokens_any": [
+     "@core_or_platform"
+    ]
+   },
+   "fit": "TARGET",
+   "family": "software/backend/platform engineering",
+   "reason": "Title names a software, backend or platform engineering role.",
+   "focus": ""
+  },
+  {
+   "id": "other_engineering",
+   "when": {
+    "true": true
+   },
+   "fit": "UNKNOWN",
+   "family": "other engineering",
+   "reason": "Title names an engineering role outside the recognized target families.",
+   "focus": ""
+  }
+ ]
+}

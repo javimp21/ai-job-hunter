@@ -1343,3 +1343,12 @@ def test_a_feed_restricted_to_some_jobs_keeps_each_boards_first_import_baseline(
 
     assert first_seen[(company.id, "greenhouse")] == first
     assert flags[new.id] == (True, False)  # not part of the first import even though only it was loaded
+
+
+def test_the_default_sector_leaves_the_evaluation_fingerprint_alone_and_another_sector_changes_it() -> None:
+    base = _candidate()
+    explicit = base.model_copy(update={"preferences": base.preferences.model_copy(update={"sector": "software"})})
+    other = base.model_copy(update={"preferences": base.preferences.model_copy(update={"sector": "finance"})})
+
+    assert opportunities._config_fingerprint(base, "offline") == opportunities._config_fingerprint(explicit, "offline")
+    assert opportunities._config_fingerprint(base, "offline") != opportunities._config_fingerprint(other, "offline")
