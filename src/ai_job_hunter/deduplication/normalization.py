@@ -33,6 +33,28 @@ _CONTEXT_TOKENS = {
     "emea",
     "worldwide",
 }
+# Places that job sites paste at the end of a title ("Controller - Madrid", "Accountant (Tenerife)").
+_TITLE_PLACE_TOKENS = {
+    "madrid", "barcelona", "valencia", "sevilla", "seville", "bilbao", "malaga", "zaragoza", "alicante",
+    "tenerife", "canarias", "mallorca", "lisbon", "lisboa", "porto", "london", "dublin", "cork", "amsterdam",
+    "rotterdam", "utrecht", "eindhoven", "brussels", "bruxelles", "antwerp", "ghent", "berlin", "munich", "munchen",
+    "hamburg", "frankfurt", "cologne", "stuttgart", "dusseldorf", "paris", "lyon", "zurich", "geneva", "basel",
+    "lausanne", "luxembourg", "milan", "milano", "rome", "roma", "stockholm", "copenhagen", "oslo", "helsinki",
+}
+# Noise inside titles that is not part of the role: gender suffixes "(m/w/d)", "(f/h)", "(mfd)"; working time
+# "100%", "60% - 100%"; language requirements "with English", "French Speaker"; a leading "ASAP:".
+_GENDER_SUFFIX = re.compile(
+    r"[(\[]\s*(?:[mfwdxh]\s*[/\|]\s*)+[mfwdxh]\s*[)\]]|[(\[]\s*(?:mfd|mfx|mwd|fmd|mfdx)\s*[)\]]"
+)
+_WORKLOAD = re.compile(
+    r"(?<!\w)\d{2,3}\s*%(?:\s*[-–]\s*\d{2,3}\s*%)?|(?<!\w)\d{2,3}\s*[-–]\s*\d{2,3}\s*%"
+)
+_LANGUAGES = "english|spanish|french|german|dutch|italian|portuguese"
+_LANGUAGE_QUALIFIER = re.compile(
+    rf"(?<![a-z])(?:(?:with|fluent in|bilingual)\s+(?:{_LANGUAGES})(?:\s*(?:and|&|/|,)\s*(?:{_LANGUAGES}))*"
+    rf"|(?:{_LANGUAGES})\s+speaker)(?![a-z])"
+)
+_LEADING_URGENCY = re.compile(r"^\s*(?:asap|urgent)\s*[:\-]\s*")
 _TITLE_SENIORITY = {
     "intern", "graduate", "junior", "mid", "senior", "staff", "principal",
     "lead", "manager", "director", "head",
@@ -115,11 +137,15 @@ def normalize_job_title(title: str) -> NormalizedTitle:
     """Remove small location/work-mode suffixes and capture seniority tokens."""
 
     value = unicodedata.normalize("NFKC", title).casefold().strip()
+    value = _LEADING_URGENCY.sub("", value)
+    value = _GENDER_SUFFIX.sub(" ", value)
+    value = _WORKLOAD.sub(" ", value)
+    value = _LANGUAGE_QUALIFIER.sub(" ", value)
 
     def remove_context_parenthetical(match: re.Match[str]) -> str:
         raw_content = match.group(1) if match.group(1) is not None else match.group(2)
         content = _words(raw_content or "")
-        if content and all(token in _CONTEXT_TOKENS | {"on", "site", "from"} for token in content):
+        if content and all(token in _CONTEXT_TOKENS | _TITLE_PLACE_TOKENS | {"on", "site", "from"} for token in content):
             return " "
         return match.group(0)
 
@@ -127,7 +153,7 @@ def normalize_job_title(title: str) -> NormalizedTitle:
     parts = re.split(r"\s+[-–—|]\s+", value)
     while len(parts) > 1:
         trailing = _words(parts[-1])
-        if trailing and all(token in _CONTEXT_TOKENS | {"on", "site", "from"} for token in trailing):
+        if trailing and all(token in _CONTEXT_TOKENS | _TITLE_PLACE_TOKENS | {"on", "site", "from"} for token in trailing):
             parts.pop()
         else:
             break

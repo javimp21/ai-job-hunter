@@ -324,3 +324,25 @@ def test_publication_and_compatible_salary_are_secondary_explanation_signals(db_
         salary_period="YEAR",
     )
     assert match_job(incompatible_salary, candidate).signals.salary_ranges_overlap is None
+
+
+def test_gender_workload_language_and_place_noise_in_titles_does_not_change_the_normalized_title():
+    base = normalize_job_title("Backend Engineer")
+
+    for noisy in (
+        "Backend Engineer (m/w/d)", "Backend Engineer (w/m/d)", "Backend Engineer (m/f/x/d)", "Backend Engineer (f/h)",
+        "Backend Engineer (H/F)", "Backend Engineer (M/F/X)", "Backend Engineer (mfd)", "Backend Engineer [m/f/d]",
+        "Backend Engineer 100%", "Backend Engineer 80-100%", "Backend Engineer 60% - 100%",
+        "Backend Engineer with English", "Backend Engineer fluent in English and Spanish",
+        "French Speaker Backend Engineer", "ASAP: Backend Engineer",
+        "Backend Engineer - Madrid", "Backend Engineer (Tenerife)", "Backend Engineer - Berlin (m/f/d) 100%",
+    ):
+        assert normalize_job_title(noisy) == base, noisy
+
+
+def test_title_noise_removal_keeps_role_words_levels_and_a_lone_place_name():
+    assert normalize_job_title("Senior Backend Engineer (m/w/d)").seniority == frozenset({"senior"})
+    assert normalize_job_title("Madrid").tokens == frozenset({"madrid"})  # a title that is only a place stays
+    assert "madrid" in normalize_job_title("Madrid Operations Lead").tokens  # a place inside the title stays
+    assert normalize_job_title("Data Engineer (d)").tokens != normalize_job_title("Data Engineer").tokens  # no guessing
+    assert normalize_job_title("English Teacher").tokens == frozenset({"english", "teacher"})
