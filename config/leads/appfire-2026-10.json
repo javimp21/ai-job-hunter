@@ -1,0 +1,15 @@
+{
+  "leads": [
+    {
+      "company_name": "Appfire",
+      "website_url": "https://appfire.com",
+      "careers_url": "https://job-boards.greenhouse.io/appfire",
+      "source_type": "manual",
+      "source_label": "user_applied_2026_10",
+      "source_url": "https://job-boards.greenhouse.io/appfire",
+      "location_hint": "Spain, Poland, Bulgaria",
+      "hiring_hint": "Applied to the Software Engineer - Java role (closed 2026-10-06). Public Greenhouse board with 17 postings on 2026-10-06; one Site Reliability Engineer in Spain.",
+      "notes": "Board verified through Greenhouse's public API."
+    }
+  ]
+}
