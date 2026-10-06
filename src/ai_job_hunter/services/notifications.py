@@ -1026,10 +1026,10 @@ def format_notification_message(
         f"🏢 {_html(item.company, 160)}",
         "",
         f"📍 {_html(item.location, 120) if item.location else 'Ubicación no indicada'}"
-        f" · {_WORK_MODE_LABELS.get(item.remote_policy or '', 'modalidad no indicada')}",
-        f"💰 {_format_salary(item) or 'Salario no publicado'}",
+        f" · {_work_mode_label(item)}",
+        f"💰 {_format_salary(item) or _text_salary_label(item) or 'Salario no publicado'}",
     ]
-    if _format_salary(item) is None and (hint := expectation_hint(item.location, salary_guide or {})):
+    if _format_salary(item) is None and not item.text_salary and (hint := expectation_hint(item.location, salary_guide or {})):
         lines.append(f"🎯 Si te piden expectativa: {hint}")
     lines.append(f"🎓 {_format_experience(item)}")
     technologies = list(dict.fromkeys((*item.required_technologies, *item.technologies)))
@@ -1113,6 +1113,20 @@ def portal_credit(url: str | None) -> tuple[str, str] | None:
     return None
 
 _WORK_MODE_LABELS = {"REMOTE": "🏠 remoto", "HYBRID": "🏙️ híbrido", "ONSITE": "🏢 presencial"}
+
+
+def _work_mode_label(item: Opportunity) -> str:
+    """The stated work mode; failing that, the one the posting text states, marked as read from the text."""
+
+    if item.remote_policy in _WORK_MODE_LABELS:
+        return _WORK_MODE_LABELS[item.remote_policy]
+    if item.text_work_mode in _WORK_MODE_LABELS:
+        return f"{_WORK_MODE_LABELS[item.text_work_mode]} (según el texto)"
+    return "modalidad no indicada"
+
+
+def _text_salary_label(item: Opportunity) -> str | None:
+    return f"{html.escape(item.text_salary, quote=False)} (según el texto)" if item.text_salary else None
 _CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
 _PERIOD_LABELS = {"YEAR": "/año", "MONTH": "/mes", "WEEK": "/semana", "DAY": "/día", "HOUR": "/hora"}
 _SIGNAL_LABELS = {

@@ -696,3 +696,19 @@ def test_board_postings_count_from_when_they_were_first_seen_and_a_first_import_
     assert _older_than(replace(item, from_board=True), 3) is False  # a board posting that appeared 2 hours ago
     assert _older_than(replace(item, from_board=True, is_baseline=True), 3) is True  # it was in the first import
     assert _older_than(replace(item, from_board=True, first_seen_at=now - timedelta(days=5)), 3) is True
+
+
+def test_alerts_show_the_work_mode_and_salary_the_text_states_marked_as_such():
+    from dataclasses import replace
+    from uuid import uuid4
+
+    base = _opportunity(uuid4(), FinalDecision.REVIEW, 75)
+    bare = replace(base, remote_policy=None, salary_min=None, salary_max=None, currency=None, salary_period=None)
+
+    plain = format_notification_message(bare)
+    from_text = format_notification_message(replace(bare, text_work_mode="HYBRID", text_salary="25.000–35.000 €"))
+    stated = format_notification_message(replace(base, text_work_mode="REMOTE"))
+
+    assert "modalidad no indicada" in plain and "Salario no publicado" in plain
+    assert "híbrido (según el texto)" in from_text and "25.000–35.000 € (según el texto)" in from_text
+    assert "según el texto" not in stated  # the stated work mode wins and is not annotated

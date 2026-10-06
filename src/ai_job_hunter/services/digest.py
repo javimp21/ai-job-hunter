@@ -36,7 +36,7 @@ from ai_job_hunter.services.notifications import (
     _older_than,
     _safe_public_url,
     _sent_job_identities,
-    _WORK_MODE_LABELS,
+    _work_mode_label,
     portal_credit,
 )
 from ai_job_hunter.services.direct_postings import paywalled_portal
@@ -223,7 +223,7 @@ def format_digest_message(entries: list[DigestEntry], *, failing_sources: list[s
         priority = item.priority if item.priority is not None else "?"
         details = [
             _html(item.location, 60) if item.location else "ubicación no indicada",
-            _WORK_MODE_LABELS.get(item.remote_policy or "", "modalidad no indicada"),
+            _work_mode_label(item),
         ]
         tag = _REASON_TAGS.get(entry.reason)
         if tag:

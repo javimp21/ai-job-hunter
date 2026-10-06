@@ -103,6 +103,7 @@ from ai_job_hunter.services.job_portals import (
     due_portals,
     fetch_portals,
 )
+from ai_job_hunter.services.text_facts import salary_from_text, work_mode_from_text
 from ai_job_hunter.services.monitored_sources import (
     active_monitor_targets,
     mark_closed_postings,
@@ -237,6 +238,9 @@ class Opportunity:
     from_board: bool = False
     # Part of the first import of its board: it was already listed when the board began to be monitored.
     is_baseline: bool = False
+    # Hints read from the posting text (display only; never used to evaluate): see ``text_facts``.
+    text_work_mode: str | None = None
+    text_salary: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -874,6 +878,16 @@ def list_opportunities(
             first_seen_at=job.created_at,
             foreign_language=written_language(
                 snapshot.context.offer.description, spoken=spoken_languages(candidate.profile.languages)
+            ),
+            text_work_mode=(
+                work_mode_from_text(facts.title, facts.location, snapshot.context.offer.description)
+                if facts.remote_policy is None
+                else None
+            ),
+            text_salary=(
+                salary_from_text(snapshot.context.offer.description)
+                if facts.salary_min is None and facts.salary_max is None
+                else None
             ),
             from_board=arrival.get(job.id, (False, False))[0],
             is_baseline=arrival.get(job.id, (False, False))[1],
