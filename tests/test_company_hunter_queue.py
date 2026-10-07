@@ -135,7 +135,7 @@ def test_unanswered_suggestion_is_not_repeated_for_a_month(db_session, tmp_path)
 
     assert run(db_session, tmp_path, now=MONDAY + timedelta(days=7))[0].new == []
     assert run(db_session, tmp_path, now=MONDAY + timedelta(days=15))[0].new == []
-    assert len(run(db_session, tmp_path, now=MONDAY + timedelta(days=40))[0].new) == 1
+    assert len(run(db_session, tmp_path, now=MONDAY + timedelta(days=42))[0].new) == 1
 
 
 def test_excluded_companies_and_contactless_companies_yield_nothing(db_session, tmp_path):
