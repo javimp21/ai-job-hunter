@@ -205,6 +205,11 @@ _COUNTRY_PATTERNS = tuple(
     (alias, re.compile(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", re.IGNORECASE))
     for alias in sorted(_ALIAS_TO_COUNTRY, key=len, reverse=True)
 )
+_CODE_PATTERNS = {
+    alias: re.compile(rf"(?<![A-Za-z]){alias.upper()}(?![A-Za-z])")
+    for alias in _ALIAS_TO_COUNTRY
+    if len(alias) == 2
+}
 _EU_COUNTRIES = {
     "Austria",
     "Belgium",
@@ -1092,7 +1097,12 @@ def _countries_in(values: Iterable[str | None]) -> set[str]:
             continue
         folded = value.casefold()
         for alias, pattern in _COUNTRY_PATTERNS:
-            if pattern.search(folded):
+            if len(alias) == 2:
+                # A two-letter code only counts when written as one ("Berlin, DE"): the word "de" in
+                # "Esplugues de Llobregat" or "it"/"no"/"at" in free text are not countries.
+                if _CODE_PATTERNS[alias].search(value):
+                    result.add(_ALIAS_TO_COUNTRY[alias])
+            elif pattern.search(folded):
                 result.add(_ALIAS_TO_COUNTRY[alias])
         if _US_CITY.search(folded) or _US_STATE_SUFFIX.search(value):
             result.add("United States")
@@ -1123,6 +1133,16 @@ _US_CITY = re.compile(
 _FOREIGN_CITIES = tuple(
     (re.compile(rf"\b(?:{cities})\b"), country)
     for cities, country in (
+        # Spanish places as postings write them without the country ("28050, MADRID, Madrid", "Sant Cugat del Vallès").
+        (
+            "madrid|barcelona|valencia|sevilla|seville|bilbao|málaga|malaga|zaragoza|alicante|palma de mallorca|vigo|"
+            "a coruña|la coruña|las palmas|tenerife|murcia|granada|valladolid|san sebastián|san sebastian|donostia|"
+            "pamplona|cornellà|cornella|esplugues|l'hospitalet|hospitalet|sant cugat|alcobendas|pozuelo|boadilla|"
+            "getafe|leganés|leganes|majadahonda|las rozas|tres cantos|castellón|castellon|gijón|gijon|oviedo|"
+            "santiago de compostela|córdoba de españa|huelva|cádiz|cadiz|almería|almeria|logroño|logrono|salamanca|"
+            "burgos|toledo|badajoz|cáceres|caceres|tarragona|girona|lleida|reus|sabadell|terrassa|mataró|mataro",
+            "Spain",
+        ),
         ("london|manchester|edinburgh", "United Kingdom"),
         ("paris", "France"),
         ("berlin|munich|münchen|hamburg", "Germany"),

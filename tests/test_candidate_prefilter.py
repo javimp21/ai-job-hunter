@@ -894,3 +894,29 @@ def test_a_sector_without_a_stack_does_not_compare_technologies():
         has_gap = bool(result.signals.technology.missing_technologies or result.signals.technology.critical_mismatches)
         assert has_gap is expects_gap
         assert (not any("technolog" in reason for reason in result.reasons)) is (not expects_gap)
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["Madrid", "28050, MADRID, Madrid", "Sant Cugat del Valles,", "Esplugues de Llobregat", "Barcelona, ES"],
+)
+def test_spanish_places_without_the_country_match_spain(location):
+    from ai_job_hunter.candidates.prefilter import _countries_in, _location_matches
+
+    assert _countries_in([location]) == {"Spain"}
+    assert _location_matches(location, ["Spain"])
+
+
+def test_a_two_letter_country_code_only_counts_when_written_as_a_code():
+    from ai_job_hunter.candidates.prefilter import _countries_in
+
+    assert "Germany" not in _countries_in(["Alcalá de Henares"])
+    assert "Germany" in _countries_in(["Berlin, DE"])
+    assert _countries_in(["Remote, no visa needed, work at home"]) == set()
+
+
+def test_the_age_of_the_employer_is_not_an_experience_requirement():
+    from ai_job_hunter.candidates.experience import extract_experience_requirements
+
+    assert extract_experience_requirements("We are a bank with more than 160 years of history.") == ()
+    assert extract_experience_requirements("Requirements: minimum 3 years of experience in accounting.")

@@ -152,6 +152,7 @@ _WORDS = {word: Decimal(value) for value, words in enumerate((
     ("eight", "ocho"), ("nine", "nueve"), ("ten", "diez"),
 )) for word in words}
 _N = r"(?:\d+(?:[.,]\d+)?|" + "|".join(_WORDS) + r")"
+MAX_PLAUSIBLE_YEARS = 40
 _UNIT = r"(?:years?|yrs?|años?)\b"
 _RANGE = re.compile(rf"(?<!\w)(?:between\s+|entre\s+)?(?P<low>{_N})\s*(?:{_UNIT}\s*)?(?:[-–—]|to\b|through\b|and\b|a\b|y\b)\s*(?P<high>{_N})\s*(?P<plus>\+)?\s*{_UNIT}", re.I)
 _UPPER = re.compile(rf"(?P<cue>less\s+than|fewer\s+than|under|no\s+more\s+than|at\s+most|up\s+to|menos\s+de|como\s+m[aá]ximo|hasta|<=|≤|<)\s*(?P<value>{_N})\s*{_UNIT}", re.I)
@@ -223,6 +224,8 @@ def _expressions(clause: str) -> list[tuple]:
             cue = _ascii(re.sub(r"\s+", " ", values.get("cue", "")))
             low = _parse(values["low"] if kind is ExperienceExpressionKind.RANGE else values["value"]) if kind is not ExperienceExpressionKind.UPPER_BOUND else None
             high = _parse(values["high"] if kind is ExperienceExpressionKind.RANGE else values["value"]) if kind is not ExperienceExpressionKind.FLOOR else None
+            if any(value is not None and value > MAX_PLAUSIBLE_YEARS for value in (low, high)):
+                continue  # "more than 160 years of history" is the employer's age, not a requirement
             found.append((match, kind, low, high, cue in {"more than", "over", "mas de", ">"}, cue in {"less than", "fewer than", "under", "menos de", "<"}, bool(values.get("plus"))))
     return sorted(found, key=lambda entry: entry[0].start())
 
