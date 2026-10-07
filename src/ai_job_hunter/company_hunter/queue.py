@@ -44,6 +44,8 @@ DAILY_LIMIT = 5
 DEFAULT_DAILY_TARGET = 5
 SKIP_DAYS = 60
 RESUGGEST_AFTER_DAYS = 14
+# Skipping one person pauses the whole company: a different person from the same place is not what was declined.
+COMPANY_PAUSE_AFTER_SKIP_DAYS = 14
 MAX_CONTACTED_PER_COMPANY = 2
 MAX_PER_COMPANY_PER_DAY = 1
 
@@ -135,6 +137,19 @@ def _blocked_contacts(session: Session, now: datetime) -> set[UUID]:
     return blocked
 
 
+def _companies_paused_by_skip(session: Session, now: datetime) -> set[UUID]:
+    since = _utc(now) - timedelta(days=COMPANY_PAUSE_AFTER_SKIP_DAYS)
+    return {
+        company_id
+        for company_id in session.scalars(
+            select(ConnectionRequest.company_id).where(
+                ConnectionRequest.status == ConnectionRequestStatus.SKIPPED.value,
+                ConnectionRequest.skipped_at >= since,
+            )
+        ).all()
+    }
+
+
 def eligible_contacts(
     session: Session, ranked: Sequence[CompanyFit], now: datetime
 ) -> list[tuple[CompanyFit, Contact, int]]:
@@ -142,9 +157,10 @@ def eligible_contacts(
 
     blocked = _blocked_contacts(session, now)
     contacted = contacted_counts(session)
+    paused = _companies_paused_by_skip(session, now)
     out: list[tuple[CompanyFit, Contact, int]] = []
     for fit in ranked:
-        if contacted.get(fit.company_id, 0) >= MAX_CONTACTED_PER_COMPANY:
+        if contacted.get(fit.company_id, 0) >= MAX_CONTACTED_PER_COMPANY or fit.company_id in paused:
             continue
         contacts = session.scalars(
             select(Contact).where(Contact.company_id == fit.company_id).order_by(Contact.created_at, Contact.id)

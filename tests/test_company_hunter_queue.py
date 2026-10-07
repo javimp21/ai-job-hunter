@@ -249,3 +249,18 @@ def test_pipeline_survives_a_restart(tmp_path):
         second, messages = run(session, tmp_path, now=MONDAY + timedelta(hours=3))
         assert second.new == [] and messages.requests == []
     reopened.dispose()
+
+
+def test_skipping_one_person_pauses_the_whole_company_for_two_weeks(db_session, tmp_path):
+    company = add_company(db_session, "Twin Co")
+    add_contact(db_session, company, "First Person", "Backend Engineer", "ENGINEER")
+    add_contact(db_session, company, "Second Person", "Engineering Manager", "ENGINEERING_MANAGER")
+    db_session.commit()
+    first, _ = run(db_session, tmp_path)
+    mark_skipped(db_session, first.new[0].id, now=MONDAY)
+    db_session.commit()
+
+    assert run(db_session, tmp_path, now=MONDAY + timedelta(days=1))[0].new == []
+    assert run(db_session, tmp_path, now=MONDAY + timedelta(days=13))[0].new == []
+    later, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=15))
+    assert len(later.new) == 1 and later.new[0].contact_id != first.new[0].contact_id

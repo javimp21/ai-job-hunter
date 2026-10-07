@@ -74,8 +74,11 @@ if [ "${COMPANY_HUNTER_ENABLED:-0}" = 1 ] && [ "$dow" -le 5 ] && [ "$((10#$hour)
     # companies or LinkedIn.
     echo "$today" > "$hunter_marker"
     log "company hunter"
+    if [ "$dow" -eq 1 ] || [ "$dow" -eq 4 ]; then
+        # The pool of verified people is what limits the daily suggestions, so refill it twice a week.
+        "$exe" outreach find-contacts --top 40 || true
+    fi
     if [ "$dow" -eq 1 ]; then
-        "$exe" outreach find-contacts --top 15 || true
         "$exe" outreach weekly --send || true
     fi
     "$exe" outreach connections --send || true
