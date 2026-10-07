@@ -739,3 +739,17 @@ def test_incrementally_imported_board_postings_published_long_ago_are_not_new_an
     upgraded = replace(item, decision=FinalDecision.APPLY)
     assert _already_in_digest_suppression(upgraded, "fp-1", listed) is None  # decision upgraded: alert
     assert _already_in_digest_suppression(item, "fp-1", set()) is None
+
+
+def test_the_alert_bar_is_the_persons_then_the_sectors_then_the_global_setting():
+    from ai_job_hunter.services.notifications import effective_review_threshold
+    from tests.test_candidate_prefilter import make_config
+
+    software = make_config()
+    finance = make_config(preferences={"sector": "finance"})
+    own = make_config(preferences={"sector": "finance"})
+    own = own.model_copy(update={"tuning": own.tuning.model_copy(update={"notify_review_min_priority": 40})})
+
+    assert effective_review_threshold(software, 70) == 70
+    assert effective_review_threshold(finance, 70) == 55
+    assert effective_review_threshold(own, 70) == 40

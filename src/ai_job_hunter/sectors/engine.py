@@ -91,6 +91,9 @@ class SectorTemplate(BaseModel):
     label: str
     stack: StackProfile | None = None
     rubric: RubricSpec | None = None
+    # Lowest priority that alerts a REVIEW offer in this sector; unset means the global setting. Jev's answers are
+    # calibrated with software, so a sector whose scores run lower starts with a lower bar until real feedback exists.
+    alert_min_priority: int | None = Field(default=None, ge=0, le=100)
     sets: dict[str, list[str]] = Field(default_factory=dict)
     regexes: dict[str, str] = Field(default_factory=dict)
     compounds: list[Compound] = Field(default_factory=list)

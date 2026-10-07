@@ -271,6 +271,7 @@ def build() -> dict:
         "rules": rules,
         # No stack: tools in finance postings are "desirable" or in "such as" lists, so no bonus or penalty per tool.
         "rubric": load_rubric(),
+        "alert_min_priority": 55,  # first real test: the best Spanish offers scored 62-63; recalibrate with feedback
     }
 
 

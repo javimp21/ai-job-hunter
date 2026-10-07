@@ -202,6 +202,8 @@ class CandidateTuning(BaseModel):
     language_written_penalty: int = Field(default=15, ge=0, le=100)
     # Country name (as the prefilter spells it: "Spain", "Netherlands"...) -> suggested salary answer.
     salary_guide: dict[str, SalaryGuideEntry] = Field(default_factory=dict)
+    # The person's own alert bar (priority 0-100); unset: the sector's, then the global setting.
+    notify_review_min_priority: int | None = Field(default=None, ge=0, le=100)
 
 
 class CandidateConfig(BaseModel):

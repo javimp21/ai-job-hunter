@@ -1108,5 +1108,6 @@
     "The offer gives unusually clear, specific evidence about responsibilities, scope, systems or standards, level and expectations."
    ]
   }
- }
+ },
+ "alert_min_priority": 55
 }

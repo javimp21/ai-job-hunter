@@ -37,6 +37,7 @@ from ai_job_hunter.models import (
     OpportunityNotification,
     OpportunityNotificationStatus,
 )
+from ai_job_hunter.sectors.engine import get_template
 from ai_job_hunter.services.direct_postings import DirectPosting, paywalled_portal, search_link
 from ai_job_hunter.services.liveness import LivenessCheck
 from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
@@ -1381,6 +1382,15 @@ def _recover_interrupted_dispatches(session: Session) -> None:
         row.retryable = False
         row.dispatch_started = False
         row.dispatch_started_at = None
+
+
+def effective_review_threshold(candidate: CandidateConfig, default: int) -> int:
+    """The bar for alerting a REVIEW offer: the person's own, else the sector's, else the global setting."""
+
+    if candidate.tuning.notify_review_min_priority is not None:
+        return candidate.tuning.notify_review_min_priority
+    sector_bar = get_template(candidate.preferences.sector).template.alert_min_priority
+    return sector_bar if sector_bar is not None else default
 
 
 def _validate_threshold(value: int) -> None:

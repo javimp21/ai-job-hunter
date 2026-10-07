@@ -102,6 +102,7 @@ from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
     TelegramProvider,
+    effective_review_threshold,
     list_notification_history,
     list_pending_notifications,
     pending_notification_job_ids,
@@ -624,7 +625,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         session,
                         candidate,
                         direct_postings=DirectPostingResolver(session, online=False),
-                        review_threshold=settings.notify_review_min_priority,
+                        review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
                         max_age_days=settings.notify_max_age_days,
                         limit=args.max_notifications,
                     )
@@ -645,7 +646,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     liveness=PostingLiveness(),
                     # Only what this refresh created, changed or evaluated can newly alert (plus anything pending).
                     only_job_ids=summary.alert_candidate_job_ids | pending_notification_job_ids(session),
-                    review_threshold=settings.notify_review_min_priority,
+                    review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
                     max_age_days=settings.notify_max_age_days,
                     limit=args.max_notifications,
                 )
@@ -1313,7 +1314,7 @@ def _run_sources_command(args, session, candidate) -> int:
 
 def _run_digest_command(args, session, candidate, settings) -> int:
     options = {
-        "review_threshold": settings.notify_review_min_priority,
+        "review_threshold": effective_review_threshold(candidate, settings.notify_review_min_priority),
         "max_age_days": settings.notify_max_age_days,
     }
     if args.dry_run:
@@ -1393,13 +1394,13 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             session,
             candidate,
             direct_postings=DirectPostingResolver(session, online=False),
-            review_threshold=settings.notify_review_min_priority,
+            review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
             max_age_days=settings.notify_max_age_days,
             limit=args.limit,
         )
         print(
             "NOTIFICATION DRY RUN: "
-            f"{len(previews)} eligible alert(s); REVIEW threshold={settings.notify_review_min_priority}. "
+            f"{len(previews)} eligible alert(s); REVIEW threshold={effective_review_threshold(candidate, settings.notify_review_min_priority)}. "
             "Priority is a ranking score, not a probability."
         )
         _print_notification_previews(previews)
@@ -1425,7 +1426,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             provider,
             direct_postings=DirectPostingResolver(session),
             liveness=PostingLiveness(),
-            review_threshold=settings.notify_review_min_priority,
+            review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
             max_age_days=settings.notify_max_age_days,
             limit=args.limit,
         )
@@ -1434,7 +1435,7 @@ def _run_notification_command(args, session, candidate, settings) -> int:
             session,
             candidate,
             provider,
-            review_threshold=settings.notify_review_min_priority,
+            review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
             limit=args.limit,
         )
     else:
