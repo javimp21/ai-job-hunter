@@ -27,6 +27,7 @@ NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 def test_paywalled_portals_titles_and_slugs():
     assert paywalled_portal(WWR_URL) == "We Work Remotely"
     assert paywalled_portal("https://remoteok.com/remote-jobs/1") == "Remote OK"
+    assert paywalled_portal("https://4dayweek.io/job/software-engineer-at-acme-d814fac7") == "4dayweek.io"
     assert paywalled_portal("https://job-boards.greenhouse.io/acme/jobs/1") is None
     assert paywalled_portal(None) is None
     assert same_title("Backend Engineer (Python) - Remote", "Backend Engineer, Python")

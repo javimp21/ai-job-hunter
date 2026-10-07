@@ -35,9 +35,14 @@ from ai_job_hunter.connectors._portal_http import USER_AGENT
 from ai_job_hunter.deduplication.normalization import normalize_company_name, normalize_job_title
 from ai_job_hunter.models import Company, Job, JobSource
 
-# Portals where applying needs a paid candidate plan: host suffix -> display name.
-PAYWALLED_PORTALS = {"weworkremotely.com": "We Work Remotely", "remoteok.com": "Remote OK"}
-PAYWALLED_PROVIDERS = frozenset({"weworkremotely", "remoteok"})
+# Portals where applying needs a paid candidate plan: host suffix -> display name. (4dayweek.io hides every new
+# role from free visitors for 48 hours: "Unlock with Pro", read 2026-10-07.)
+PAYWALLED_PORTALS = {
+    "weworkremotely.com": "We Work Remotely",
+    "remoteok.com": "Remote OK",
+    "4dayweek.io": "4dayweek.io",
+}
+PAYWALLED_PROVIDERS = frozenset({"weworkremotely", "remoteok", "fourdayweek"})
 DEFAULT_STATE_PATH = Path("data/local/direct-postings.json")
 RECHECK_AFTER = timedelta(hours=24)
 _MAX_SLUGS = 2
