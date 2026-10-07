@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+RUBRIC_SOURCE = ROOT / "docs" / "research" / "finance-rubric-2026-10.json"
 
 SETS = {
     "finance_words": [
@@ -188,6 +189,13 @@ def target(rule_id: str, when: dict, family: str) -> dict:
     return rule(rule_id, when, "TARGET", family, TARGET_REASON)
 
 
+def load_rubric() -> dict:
+    """The Jev wording for finance, drafted from 12 real postings (docs/research/finance-rubric-2026-10.md)."""
+
+    data = json.loads(RUBRIC_SOURCE.read_text(encoding="utf-8"))["rubric"]
+    return {key: data[key] for key in ("version", "question_types", "questions", "score_criteria")}
+
+
 def build() -> dict:
     finance_core = words("@finance_core")
     rules: list[dict] = [
@@ -261,7 +269,8 @@ def build() -> dict:
             {"parts": ["accounts", "receivable"], "word": "accountsreceivable", "expand_back": False},
         ],
         "rules": rules,
-        # No stack and no Jev rubric yet: the rubric needs its own wording (see docs/SECTOR_TEMPLATES_DESIGN.md).
+        # No stack: tools in finance postings are "desirable" or in "such as" lists, so no bonus or penalty per tool.
+        "rubric": load_rubric(),
     }
 
 

@@ -32,3 +32,21 @@ RUBRIC_SPEC = {
     "questions": dict(_QUESTIONS),
     "score_criteria": {name: list(items) for name, items in _CRITERIA.items()},
 }
+
+
+def rubric_spec_for_sector(sector: str) -> dict:
+    """The rubric of a sector template; a template without its own rubric is judged with the software one."""
+
+    spec = get_template(sector).template.rubric
+    if spec is None:
+        return RUBRIC_SPEC
+    return {
+        "version": spec.version,
+        "question_types": dict(spec.question_types),
+        "questions": dict(spec.questions),
+        "score_criteria": {name: list(items) for name, items in spec.score_criteria.items()},
+    }
+
+
+def rubric_version_for_sector(sector: str) -> str:
+    return rubric_spec_for_sector(sector)["version"]

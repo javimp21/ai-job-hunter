@@ -52,7 +52,6 @@ from ai_job_hunter.connectors.workable import WorkableConnectorError
 from ai_job_hunter.connectors.workday import WorkdayConnectorError
 from ai_job_hunter.decision_engine import (
     POLICY_VERSION_V2,
-    RUBRIC_VERSION,
     DecisionCache,
     FinalDecision,
     JobDecisionContext,
@@ -120,7 +119,7 @@ from ai_job_hunter.services.monitored_sources import (
     sync_monitored_sources,
 )
 from ai_job_hunter.jev import JevJobDecisionEngine
-from ai_job_hunter.rubric import RUBRIC_SPEC
+from ai_job_hunter.rubric import rubric_spec_for_sector, rubric_version_for_sector
 from ai_job_hunter.sectors.engine import get_template
 
 
@@ -638,7 +637,7 @@ def _evaluate_prepared(
             record(item, EvaluationOutcome.DETERMINISTIC_SKIP, FinalDecision.SKIP.value)
             continue
 
-        cache_key = cache.key_for(item.context, engine_identity, RUBRIC_VERSION)
+        cache_key = cache.key_for(item.context, engine_identity)
         cached = cache.contains(cache_key)
         if cached:
             if dry_run:
@@ -1555,8 +1554,8 @@ def _config_fingerprint(candidate: CandidateConfig, engine_identity: str) -> str
                 },
             ),
             "prefilter_version": _PREFILTER_VERSION,
-            "rubric_version": RUBRIC_VERSION,
-            "rubric": RUBRIC_SPEC,
+            "rubric_version": rubric_version_for_sector(candidate.preferences.sector),
+            "rubric": rubric_spec_for_sector(candidate.preferences.sector),
             "policy_version": POLICY_VERSION_V2,
             "engine_identity": engine_identity,
         }
@@ -1582,7 +1581,7 @@ def _persist_evaluation(
             evaluation = JobEvaluation(
                 job_id=_required_job_id(prepared),
                 evaluation_fingerprint=prepared.fingerprint,
-                rubric_version=RUBRIC_VERSION,
+                rubric_version=rubric_version_for_sector(prepared.context.candidate.preferences.sector),
                 policy_version=POLICY_VERSION_V2,
                 engine_name=engine_name,
                 config_fingerprint=prepared.config_fingerprint,
@@ -1630,7 +1629,7 @@ def _persist_pending(
             evaluation = JobEvaluation(
                 job_id=_required_job_id(prepared),
                 evaluation_fingerprint=prepared.fingerprint,
-                rubric_version=RUBRIC_VERSION,
+                rubric_version=rubric_version_for_sector(prepared.context.candidate.preferences.sector),
                 policy_version=POLICY_VERSION_V2,
                 engine_name=_ENGINE_NAME,
                 engine_configuration=_safe_engine_configuration(engine_identity),
@@ -1640,7 +1639,7 @@ def _persist_pending(
             session.add(evaluation)
         evaluation.status = EvaluationStatus.PENDING.value
         evaluation.decision = None
-        evaluation.rubric_version = RUBRIC_VERSION
+        evaluation.rubric_version = rubric_version_for_sector(prepared.context.candidate.preferences.sector)
         evaluation.policy_version = POLICY_VERSION_V2
         evaluation.engine_name = _ENGINE_NAME
         evaluation.engine_configuration = _safe_engine_configuration(engine_identity)
@@ -1698,7 +1697,7 @@ def _evaluate_hard_skip(context: JobDecisionContext, engine_identity: str) -> Jo
         ),
         model_version=None,
         engine_configuration=engine_identity,
-        rubric_version=RUBRIC_VERSION,
+        rubric_version=rubric_version_for_sector(context.candidate.preferences.sector),
         policy_version=POLICY_VERSION_V2,
         evaluated_at=datetime.now(UTC),
     )

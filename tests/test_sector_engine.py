@@ -83,3 +83,38 @@ def test_the_software_template_carries_the_stack_and_the_jev_rubric():
     assert spec.stack.penalized and not set(spec.stack.penalized) & set(spec.stack.core)
     assert spec.rubric is not None and RUBRIC_VERSION == spec.rubric.version == "job_decision_v1"
     assert set(RUBRIC_SPEC["questions"]) == set(RUBRIC_SPEC["question_types"])
+
+
+def test_each_sector_is_judged_with_its_own_rubric_and_software_is_unchanged():
+    from types import SimpleNamespace
+
+    from ai_job_hunter.decision_engine import DecisionCache
+    from ai_job_hunter.jev import build_jev_questions
+    from ai_job_hunter.rubric import RUBRIC_SPEC, rubric_spec_for_sector, rubric_version_for_sector
+
+    class Question:
+        def __init__(self, **fields):
+            self.__dict__.update(fields)
+
+    sdk = SimpleNamespace(Noul=Question, Score=Question)
+    software = build_jev_questions(sdk)
+    finance = build_jev_questions(sdk, "finance")
+
+    assert set(software) == set(finance) == set(RUBRIC_SPEC["questions"])
+    assert software["role_relevance"].instructions == RUBRIC_SPEC["questions"]["role_relevance"]
+    assert "finance" in finance["role_relevance"].instructions and "backend" not in finance["role_relevance"].instructions.lower()
+    assert len(finance["backend_relevance"].criteria) == 5 and finance["backend_relevance"].criteria[0].startswith("No evidence of finance")
+    assert rubric_spec_for_sector("software") == RUBRIC_SPEC
+    assert rubric_version_for_sector("finance") == "job_decision_finance_v1" != rubric_version_for_sector("software")
+
+    from tests.test_candidate_prefilter import make_config, make_offer
+    from ai_job_hunter.decision_engine import build_decision_contexts
+
+    def context(sector):
+        config = make_config(preferences={"sector": sector})
+        return build_decision_contexts([make_offer(title="Accountant", description="Month-end close.")], config)[0]
+
+    cache = DecisionCache("unused.json")
+    keys = {cache.key_for(context(sector), "engine") for sector in ("software", "finance")}
+    assert len(keys) == 2
+    assert cache.key_for(context("finance"), "engine") == cache.key_for(context("finance"), "engine", "job_decision_finance_v1")

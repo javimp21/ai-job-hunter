@@ -26,7 +26,7 @@ from ai_job_hunter.candidates import (
 from ai_job_hunter.candidates.experience import EXPERIENCE_POLICY_VERSION, ExperienceOutcome
 from ai_job_hunter.deduplication.normalization import is_job_specific_url, normalize_job_url
 from ai_job_hunter.domain.normalized_job import NormalizedJob
-from ai_job_hunter.rubric import RUBRIC_SPEC, RUBRIC_VERSION
+from ai_job_hunter.rubric import RUBRIC_VERSION, rubric_spec_for_sector, rubric_version_for_sector
 
 DEFAULT_CACHE_PATH = Path("data/local/job-decision-cache.local.json")
 CACHE_FORMAT = "ai-job-hunter.job-decision-cache"
@@ -734,10 +734,13 @@ def evaluate_job_decision(
     engine: JobDecisionEngine,
     *,
     cache: DecisionCache | None = None,
-    rubric_version: str = RUBRIC_VERSION,
+    rubric_version: str | None = None,
     policy_version: str = POLICY_VERSION_V1,
 ) -> JobDecisionResult:
     """Apply deterministic hard gates, consult cache, then call the engine once."""
+
+    if rubric_version is None:
+        rubric_version = rubric_version_for_sector(context.candidate.preferences.sector)
 
     if policy_version not in SUPPORTED_POLICY_VERSIONS:
         raise JobDecisionError(f"Unsupported decision policy version: {policy_version}.")
@@ -816,12 +819,13 @@ class DecisionCache:
         self,
         context: JobDecisionContext,
         engine_identity: str,
-        rubric_version: str = RUBRIC_VERSION,
+        rubric_version: str | None = None,
     ) -> str:
+        sector = context.candidate.preferences.sector
         payload = {
             "engine": engine_identity,
-            "rubric_version": rubric_version,
-            "rubric": RUBRIC_SPEC,
+            "rubric_version": rubric_version or rubric_version_for_sector(sector),
+            "rubric": rubric_spec_for_sector(sector),
             "candidate": context.candidate.model_dump(mode="json"),
             "job_identity": {
                 "provider": context.offer.provider,

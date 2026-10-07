@@ -16,7 +16,7 @@ from ai_job_hunter.decision_engine import (
     JevAnswers,
     JevSignal,
 )
-from ai_job_hunter.rubric import (
+from ai_job_hunter.rubric import (  # noqa: F401  (the software wording stays importable from here)
     BACKEND_RELEVANCE_QUESTION,
     BACKEND_SCORE_CRITERIA,
     CAREER_VALUE_QUESTION,
@@ -26,16 +26,17 @@ from ai_job_hunter.rubric import (
     REQUIREMENTS_FLEXIBILITY_QUESTION,
     ROLE_QUALITY_SCORE_CRITERIA,
     ROLE_RELEVANCE_QUESTION,
-    STACK_TRANSFERABILITY_QUESTION,
     RUBRIC_VERSION,
+    STACK_TRANSFERABILITY_QUESTION,
+    rubric_spec_for_sector,
 )
 
 JEV_MODEL = "jev-latest"
 DESCRIPTION_LIMIT = 8_000
 
 
-def build_jev_questions(sdk: Any | None = None) -> dict[str, Any]:
-    """Build one typed System One request with seven independent, versioned questions."""
+def build_jev_questions(sdk: Any | None = None, sector: str = "software") -> dict[str, Any]:
+    """Build one typed System One request with seven independent, versioned questions in the sector's words."""
 
     if sdk is None:
         try:
@@ -49,24 +50,23 @@ def build_jev_questions(sdk: Any | None = None) -> dict[str, Any]:
         Noul = sdk.Noul
         Score = sdk.Score
 
-    return {
-        "role_relevance": Noul(instructions=ROLE_RELEVANCE_QUESTION),
-        "experience_accessibility": Noul(instructions=EXPERIENCE_ACCESSIBILITY_QUESTION),
-        "backend_relevance": Score(
-            instructions=BACKEND_RELEVANCE_QUESTION,
-            criteria=BACKEND_SCORE_CRITERIA,
-        ),
-        "stack_transferability": Noul(instructions=STACK_TRANSFERABILITY_QUESTION),
-        "requirements_flexibility": Noul(instructions=REQUIREMENTS_FLEXIBILITY_QUESTION),
-        "career_value": Score(
-            instructions=CAREER_VALUE_QUESTION,
-            criteria=CAREER_VALUE_SCORE_CRITERIA,
-        ),
-        "observable_role_quality": Score(
-            instructions=OBSERVABLE_ROLE_QUALITY_QUESTION,
-            criteria=ROLE_QUALITY_SCORE_CRITERIA,
-        ),
-    }
+    spec = rubric_spec_for_sector(sector)
+    questions, criteria = spec["questions"], spec["score_criteria"]
+    built: dict[str, Any] = {}
+    for key in (
+        "role_relevance",
+        "experience_accessibility",
+        "backend_relevance",
+        "stack_transferability",
+        "requirements_flexibility",
+        "career_value",
+        "observable_role_quality",
+    ):
+        if spec["question_types"][key] == "score":
+            built[key] = Score(instructions=questions[key], criteria=criteria[key])
+        else:
+            built[key] = Noul(instructions=questions[key])
+    return built
 
 
 def build_jev_state(context: JobDecisionContext) -> dict[str, Any]:
@@ -194,7 +194,7 @@ class JevJobDecisionEngine:
             with factory() as client:
                 response = client.system_one(
                     state=build_jev_state(context),
-                    questions=build_jev_questions(typesafe_sdk),
+                    questions=build_jev_questions(typesafe_sdk, context.candidate.preferences.sector),
                 )
         except JobDecisionError:
             raise
