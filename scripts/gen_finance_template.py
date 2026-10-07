@@ -66,7 +66,7 @@ SETS = {
     "admin": [
         "administrativo", "administrativa", "administratif", "administrative", "administration", "administracion",
         "administratief", "administratieve", "amministrativo", "amministrativa", "amministrazione", "backoffice", "sachbearbeiter", "segreteria",
-        "verwaltungsangestellter", "secretaria", "secretary", "receptionist", "recepcionista",
+        "verwaltungsangestellter", "secretaria", "secretary",
     ],
     "admin_roles": [
         "assistant", "assistente", "asistente", "auxiliar", "gestionnaire", "specialist", "officer", "clerk",
@@ -147,7 +147,7 @@ REGEXES = {
     "supplier_quality": r"procurement\s+engineer|supplier\s+quality|compras\s+ingenier|\bapqp\b|\bppap\b",
     "occupational_risk": r"riesgos\s+laborales|prevenci[oó]n\s+de\s+riesgos|health\s+and\s+safety",
     "tax_technology": r"tax\s+(?:technology|tech|software|systems)",
-    "hr_not_payroll": r"\bhr\b|rrhh|recursos\s+humanos|human\s+resources|ressources\s+humaines|personal(?:wesen|berater)|recruit|c&b\b|compensation",
+    "hr_not_payroll": r"\bhr\b|rr\.?hh|recursos\s+humanos|human\s+resources|ressources\s+humaines|personal(?:wesen|berater)|recruit|c&b\b|compensation",
 }
 
 

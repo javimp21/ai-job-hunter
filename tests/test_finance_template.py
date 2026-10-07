@@ -92,7 +92,7 @@ OTHER_FIELDS = [
     "Legal Counsel Banking & Finance", "Business Developer Private Banking", "Backend Engineer", "Data Scientist",
     "Senior Software Engineer - Payments & Treasury", "Salesforce Administrator", "IT-Administrator (m/w/d)",
     "Senior Security Risk Officer", "Técnico/a Superior en Prevención de Riesgos Laborales", "Enterprise Sales Director, Financial Services",
-    "Business Systems Architect (Tax)", "Plant Manager", "HSE Manager", "Marketing Manager", "Customer Service Agent", "Tax Technology Specialist with English",
+    "Business Systems Architect (Tax)", "Recepcionista Hotel", "Aux. Administrativo de RR.HH - Hotel Roca Negra", "Plant Manager", "HSE Manager", "Marketing Manager", "Customer Service Agent", "Tax Technology Specialist with English",
 ]
 
 

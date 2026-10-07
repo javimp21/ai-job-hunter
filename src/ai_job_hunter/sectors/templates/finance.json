@@ -211,9 +211,7 @@
    "segreteria",
    "verwaltungsangestellter",
    "secretaria",
-   "secretary",
-   "receptionist",
-   "recepcionista"
+   "secretary"
   ],
   "admin_roles": [
    "assistant",
@@ -461,7 +459,7 @@
   "supplier_quality": "procurement\\s+engineer|supplier\\s+quality|compras\\s+ingenier|\\bapqp\\b|\\bppap\\b",
   "occupational_risk": "riesgos\\s+laborales|prevenci[oó]n\\s+de\\s+riesgos|health\\s+and\\s+safety",
   "tax_technology": "tax\\s+(?:technology|tech|software|systems)",
-  "hr_not_payroll": "\\bhr\\b|rrhh|recursos\\s+humanos|human\\s+resources|ressources\\s+humaines|personal(?:wesen|berater)|recruit|c&b\\b|compensation"
+  "hr_not_payroll": "\\bhr\\b|rr\\.?hh|recursos\\s+humanos|human\\s+resources|ressources\\s+humaines|personal(?:wesen|berater)|recruit|c&b\\b|compensation"
  },
  "compounds": [
   {
