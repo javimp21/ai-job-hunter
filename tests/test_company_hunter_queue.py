@@ -127,14 +127,15 @@ def test_skip_blocks_a_person_for_sixty_days_then_allows_again(db_session, tmp_p
     assert [r.contact_id for r in later.new] == [person.id]
 
 
-def test_unanswered_suggestion_is_not_repeated_for_two_weeks(db_session, tmp_path):
+def test_unanswered_suggestion_is_not_repeated_for_a_month(db_session, tmp_path):
     company = add_company(db_session, "Solo Co")
     add_contact(db_session, company, "Only One", "Backend Engineer", "ENGINEER")
     db_session.commit()
     run(db_session, tmp_path)
 
     assert run(db_session, tmp_path, now=MONDAY + timedelta(days=7))[0].new == []
-    assert len(run(db_session, tmp_path, now=MONDAY + timedelta(days=15))[0].new) == 1
+    assert run(db_session, tmp_path, now=MONDAY + timedelta(days=15))[0].new == []
+    assert len(run(db_session, tmp_path, now=MONDAY + timedelta(days=40))[0].new) == 1
 
 
 def test_excluded_companies_and_contactless_companies_yield_nothing(db_session, tmp_path):
@@ -264,3 +265,31 @@ def test_skipping_one_person_pauses_the_whole_company_for_two_weeks(db_session, 
     assert run(db_session, tmp_path, now=MONDAY + timedelta(days=13))[0].new == []
     later, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=15))
     assert len(later.new) == 1 and later.new[0].contact_id != first.new[0].contact_id
+
+
+def test_unanswered_suggestions_expire_after_a_day_without_pausing_the_company(db_session, tmp_path):
+    company = add_company(db_session, "Quiet Co")
+    add_contact(db_session, company, "First Person", "Backend Engineer", "ENGINEER")
+    add_contact(db_session, company, "Second Person", "Engineering Manager", "ENGINEERING_MANAGER")
+    db_session.commit()
+    first, _ = run(db_session, tmp_path)
+    assert len(first.new) == 1
+
+    same_day, _ = run(db_session, tmp_path, now=MONDAY + timedelta(hours=2))
+    assert same_day.new == []  # today's one is still there and the company limit is one a day
+    next_day, _ = run(db_session, tmp_path, now=MONDAY + timedelta(days=1))
+    row = db_session.get(ConnectionRequest, first.new[0].id)
+    assert row.status == "SKIPPED" and row.skipped_at is None
+    assert len(next_day.new) == 1 and next_day.new[0].contact_id != first.new[0].contact_id
+
+
+def test_a_director_of_engineering_is_only_suggested_where_the_company_is_known_to_be_small():
+    from ai_job_hunter.company_hunter.queue import contact_relevance
+    from ai_job_hunter.models import Contact
+
+    director = Contact(name="D", title="Director of Engineering, Mail", contact_type="ENGINEERING_MANAGER")
+    manager = Contact(name="M", title="Engineering Manager", contact_type="ENGINEERING_MANAGER")
+
+    assert contact_relevance(director, small_known=False) is None
+    assert contact_relevance(director, small_known=True) is not None
+    assert contact_relevance(manager, small_known=False) is not None

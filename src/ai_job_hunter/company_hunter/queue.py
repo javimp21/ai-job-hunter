@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai_job_hunter.company_hunter.ranking import CompanyFit
-from ai_job_hunter.company_hunter.relevance import relevance
+from ai_job_hunter.company_hunter.relevance import RoleKind, assess_role, relevance
 from ai_job_hunter.company_hunter.service import (
     CompanyContext,
     company_context,
@@ -46,6 +46,10 @@ SKIP_DAYS = 60
 RESUGGEST_AFTER_DAYS = 14
 # Skipping one person pauses the whole company: a different person from the same place is not what was declined.
 COMPANY_PAUSE_AFTER_SKIP_DAYS = 14
+# A suggestion nobody answered within this many hours is dropped (same as skipping the person, but without
+# pausing the company: no answer is not a refusal), so the next day starts with a free queue.
+EXPIRE_UNANSWERED_AFTER_HOURS = 20
+EXPIRED_PERSON_PAUSE_DAYS = 30
 MAX_CONTACTED_PER_COMPANY = 2
 MAX_PER_COMPANY_PER_DAY = 1
 
@@ -98,7 +102,27 @@ def contact_relevance(contact: Contact, *, small_known: bool) -> int | None:
     from evidence, to have at most 50 people; for larger or unknown-size companies never.
     """
 
+    assessment = assess_role(contact.title)
+    if assessment is not None and assessment.kind is RoleKind.ENGINEERING_HEAD and not small_known:
+        return None  # a director of engineering at a company that is not known to be small rarely answers a junior
     return relevance(contact.title, small_known=small_known)
+
+
+def expire_unanswered(session: Session, now: datetime) -> int:
+    """Drop suggestions that got no answer for ``EXPIRE_UNANSWERED_AFTER_HOURS``; returns how many."""
+
+    cutoff = _utc(now) - timedelta(hours=EXPIRE_UNANSWERED_AFTER_HOURS)
+    expired = 0
+    for row in session.scalars(
+        select(ConnectionRequest).where(ConnectionRequest.status == ConnectionRequestStatus.SUGGESTED.value)
+    ).all():
+        if _utc(row.suggested_at) < cutoff:
+            row.status = ConnectionRequestStatus.SKIPPED.value
+            row.skipped_at = None
+            row.skip_until = _utc(now) + timedelta(days=EXPIRED_PERSON_PAUSE_DAYS)
+            expired += 1
+    session.flush()
+    return expired
 
 
 def requests_today(session: Session, now: datetime) -> list[ConnectionRequest]:
@@ -191,6 +215,7 @@ def suggest_connections(
 
     current = _utc(now or datetime.now(UTC))
     target = max(1, min(target, DAILY_LIMIT))
+    expire_unanswered(session, current)
     result = SuggestionResult(today=requests_today(session, current))
     if not allow_weekend and not is_weekday(current):
         result.reason = "weekend: no suggestions"
