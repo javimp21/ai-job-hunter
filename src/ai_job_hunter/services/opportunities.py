@@ -319,7 +319,9 @@ def refresh_opportunities(
 
     offers: list[tuple[NormalizedJob, CompanyMonitorTarget | None]]
     offers, failures = (
-        _fetch_targets(targets, max_jobs_per_company=max_jobs_per_company, client=client)
+        _fetch_targets(
+            targets, max_jobs_per_company=max_jobs_per_company, client=client, sector=candidate.preferences.sector
+        )
         if targets
         else ([], [])
     )
@@ -1254,6 +1256,7 @@ def _fetch_targets(
     *,
     max_jobs_per_company: int,
     client: httpx.Client | None,
+    sector: str = "software",
 ) -> tuple[list[tuple[NormalizedJob, CompanyMonitorTarget]], list[SourceFailure]]:
     specs: list[JobSourceSpec] = []
     known_urls: dict[str, frozenset[str]] = {}
@@ -1288,7 +1291,7 @@ def _fetch_targets(
     failures: list[SourceFailure] = []
     per_company_counts: dict[UUID, int] = {}
     try:
-        connectors = build_job_connectors(config, client=active_client, known_urls=known_urls)
+        connectors = build_job_connectors(config, client=active_client, known_urls=known_urls, sector=sector)
         started = time.monotonic()
         gates = _host_gates(config.sources)
         entries = [

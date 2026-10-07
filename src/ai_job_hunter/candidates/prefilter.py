@@ -520,10 +520,10 @@ def _role_tokens(title: str, *, include_seniority: bool = True) -> frozenset[str
     return frozenset(tokens)
 
 
-def title_may_be_relevant(title: str) -> bool:
-    """Cheap title gate for expensive per-job fetches: False only for non-target families."""
+def title_may_be_relevant(title: str, sector: str = "software") -> bool:
+    """Cheap title gate for expensive per-job fetches: False only for non-target families of the sector."""
 
-    return _classify_role_family(title).fit is not RoleFamilyFit.NON_TARGET
+    return _classify_role_family(title, sector).fit is not RoleFamilyFit.NON_TARGET
 
 
 def _classify_role_family(title: str, sector: str = "software") -> RoleFamilyAssessment:

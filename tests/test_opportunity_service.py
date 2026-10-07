@@ -183,7 +183,7 @@ class RecordingCache(DecisionCache):
 
 
 def _install_fetch(monkeypatch, offers: list[NormalizedJob]) -> None:
-    def fake_fetch(targets, *, max_jobs_per_company: int, client):
+    def fake_fetch(targets, *, max_jobs_per_company: int, client, sector="software"):
         assert max_jobs_per_company >= 1
         assert client is None
         target = targets[0]
@@ -1130,7 +1130,7 @@ def test_truncated_or_failed_board_fetches_never_close_postings(db_session, monk
     truncated = refresh_opportunities(db_session, candidate, max_jobs_per_company=1, **kwargs)
     assert truncated.closed_postings == 0
 
-    def failing_fetch(targets, *, max_jobs_per_company, client):
+    def failing_fetch(targets, *, max_jobs_per_company, client, sector="software"):
         return [], [opportunities.SourceFailure("Acme", "GREENHOUSE", "GreenhouseConnectorError")]
 
     monkeypatch.setattr(opportunities, "_fetch_targets", failing_fetch)

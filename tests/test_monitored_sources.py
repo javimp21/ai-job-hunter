@@ -178,7 +178,7 @@ def test_refresh_never_fetches_boards_waiting_for_review(db_session, monkeypatch
     _company(db_session, "Newcomer", "newcomer")
     fetched_companies: list[str] = []
 
-    def fake_fetch(targets, *, max_jobs_per_company, client):
+    def fake_fetch(targets, *, max_jobs_per_company, client, sector="software"):
         fetched_companies.extend(target.company_name for target in targets)
         return [], []
 
@@ -243,7 +243,7 @@ def test_preview_summarizes_board_without_ingesting(db_session, monkeypatch) -> 
             return [offer("Backend Engineer", "Remote Spain"), offer("Account Executive", "Remote Spain"),
                     offer("Backend Engineer II", "Remote US")]
 
-    monkeypatch.setattr(factory, "build_job_connectors", lambda config, client=None: [FakeConnector()])
+    monkeypatch.setattr(factory, "build_job_connectors", lambda config, client=None, sector="software": [FakeConnector()])
     stats = preview_source(db_session, row.id, load_candidate_config(Path(__file__).parents[1] / "config" / "examples" / "candidate.example.json"))
 
     assert stats["jobs"] == 3

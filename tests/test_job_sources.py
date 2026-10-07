@@ -133,7 +133,8 @@ def test_factorial_sources_build_connectors_with_title_filtered_details():
     try:
         assert all(isinstance(connector, FactorialConnector) for connector in connectors)
         assert connectors[0].region == "com" and connectors[0].max_jobs == 4
-        assert connectors[0].detail_filter is title_may_be_relevant
+        assert connectors[0].detail_filter("Backend Engineer") is True
+        assert connectors[0].detail_filter("Account Executive") is False
         assert connectors[1].region == "es" and connectors[1].base_url == "https://nextaillabs.factorial.es"
     finally:
         for connector in connectors:
@@ -169,3 +170,14 @@ def test_teamtailor_and_smartrecruiters_sources_build_connectors():
         JobSourcesConfig.model_validate(
             {"sources": [{"provider": "teamtailor", "identifier": "acme", "region": "eu"}]}
         )
+
+
+def test_detail_requests_follow_the_candidates_sector():
+    config = JobSourcesConfig.model_validate(
+        {"sources": [{"provider": "workday", "identifier": "acme/Acme", "company_name": "Acme", "region": "wd3"}]}
+    )
+    software = build_job_connectors(config)[0].detail_filter
+    finance = build_job_connectors(config, sector="finance")[0].detail_filter
+
+    assert software("Backend Engineer") and not software("Accountant")
+    assert finance("Accountant") and not finance("Backend Engineer")

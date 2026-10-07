@@ -29,12 +29,17 @@ def build_job_connectors(
     client: httpx.Client | None = None,
     timeout: float = 20.0,
     known_urls: Mapping[str, Collection[str]] | None = None,
+    sector: str = "software",
 ) -> list[JobConnector]:
     """Create one provider connector per configured company without hardcoding names.
 
     ``known_urls`` maps a careers-site identifier (lower-case) to the job page URLs the
-    caller already stores, so those pages are not fetched again.
+    caller already stores, so those pages are not fetched again. ``sector`` is the candidate's sector template: the
+    connectors that need one request per posting only read the detail of titles that sector may want.
     """
+
+    def relevant(title: str) -> bool:
+        return title_may_be_relevant(title, sector)
 
     connectors: list[JobConnector] = []
     for source in config.sources:
@@ -98,7 +103,7 @@ def build_job_connectors(
                     timeout=timeout,
                     client=client,
                     # One detail request per posting: skip clearly non-target titles.
-                    detail_filter=title_may_be_relevant,
+                    detail_filter=relevant,
                 )
             )
         elif source.provider == "workable":
@@ -132,7 +137,7 @@ def build_job_connectors(
                     timeout=timeout,
                     client=client,
                     # One detail request per posting: skip clearly non-target titles.
-                    detail_filter=title_may_be_relevant,
+                    detail_filter=relevant,
                 )
             )
         elif source.provider == "workday":
@@ -146,7 +151,7 @@ def build_job_connectors(
                     timeout=timeout,
                     client=client,
                     # One detail request per posting: skip clearly non-target titles.
-                    detail_filter=title_may_be_relevant,
+                    detail_filter=relevant,
                 )
             )
         elif source.provider == "careers_site":
@@ -159,7 +164,7 @@ def build_job_connectors(
                     client=client,
                     known_urls=(known_urls or {}).get(source.identifier.casefold(), ()),
                     # One detail request per job page: skip URLs whose slug names a non-target role.
-                    url_filter=lambda url: title_may_be_relevant(job_url_title(url) or "engineer"),
+                    url_filter=lambda url: (title := job_url_title(url)) is None or relevant(title),
                 )
             )
         elif source.provider == "amazon_jobs":

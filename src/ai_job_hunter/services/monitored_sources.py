@@ -300,7 +300,9 @@ def preview_source(
         region=row.region,
         max_jobs=max_jobs,
     )
-    (connector,) = build_job_connectors(JobSourcesConfig(sources=[spec]), client=client)
+    (connector,) = build_job_connectors(
+        JobSourcesConfig(sources=[spec]), client=client, sector=candidate.preferences.sector
+    )
     try:
         jobs = connector.fetch_jobs()
     except Exception as error:  # Connector errors never include credentials; report the type.
