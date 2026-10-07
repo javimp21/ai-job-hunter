@@ -1,0 +1,88 @@
+{
+  "version": "job_decision_finance_v1",
+  "_note": "Draft for human review. Shape copied from RUBRIC_SPEC in src/ai_job_hunter/rubric.py (software.json was not present on this branch). Keys and question types are unchanged so the decision engine can read them. Key backend_relevance means 'core of the role' here.",
+  "rubric": {
+    "version": "job_decision_finance_v1",
+    "question_types": {
+      "role_relevance": "noul",
+      "experience_accessibility": "noul",
+      "backend_relevance": "score",
+      "stack_transferability": "noul",
+      "requirements_flexibility": "noul",
+      "career_value": "score",
+      "observable_role_quality": "score"
+    },
+    "questions": {
+      "role_relevance": "Is this role substantively relevant to a finance and administration candidate (accounting, financial reporting, FP&A or controlling, treasury, audit, tax, payroll, procurement or back-office administration, credit and risk, banking operations)? Assess the work the person would actually do, not the title, the industry or the employer. Penalize selling finance software or financial products, ERP or IT implementation consulting, finance-systems support, data analyst or data engineering roles that only sit in a finance team, customer service or call-centre work in a bank, insurance claims handling, recruitment, and generic assistant or secretary roles with some invoicing on the side. Do not treat a shared word such as Controller, Audit, Treasury, Analyst or Finance as sufficient: a controller can be an industrial or IT controller, an audit can be an IT or quality audit, and a treasury data analyst writes SQL rather than managing cash.",
+      "experience_accessibility": "Given approximately this candidate's experience, qualifications and the job requirements, is this role realistically accessible enough to justify applying? Read years and level together: Analyst, Associate and Trainee roles are normally accessible, a range such as 2 to 6 years is reachable at its lower bound, and a requirement of 2 or 2-3 years is not automatically a hard blocker. Senior, Manager, Senior Manager, Controller, Lead, Director and Head roles that ask for 5 or more years are normally inaccessible, and a Senior title can ask for far more years than the Analyst title of the same team. A mandatory professional qualification or licence (for example ACCA, CPA, CIA, CFA, ROAC registration) that the candidate does not hold makes the role inaccessible, whereas 'desirable', 'or equivalent' or 'part-qualified welcome' does not. Graduate, trainee and intern programmes are accessible only if the candidate meets their stated eligibility (student status, graduation year, start date). Consider the offer's actual requirements and stated flexibility.",
+      "backend_relevance": "How central is professional finance or administration work to this role? Consider the work described, not title keywords: closing the books, reconciliations, consolidation and statutory reporting, budgeting, forecasting and variance analysis, cash and liquidity management, audit testing and reporting, tax computation and filing, payroll processing, purchase-to-pay and sourcing, credit analysis and limits, and regulated banking operations. Routine data entry or invoice matching with no judgement counts as peripheral, not central. Work that mainly sells, supports customers, recruits, configures software or analyses data for finance counts as peripheral or absent.",
+      "stack_transferability": "Can the candidate's current finance foundation plausibly transfer to this job's core tools, standards and regulatory regime? Treat as transferable: one ERP or accounting package to another (SAP, Oracle, NetSuite, Dynamics, Sage, A3 and similar), Excel to other spreadsheet, BI or planning tools (Power BI, Tableau, Anaplan, Pigment, Adaptive and similar), consolidation tools among themselves, and Spanish GAAP, IFRS and US GAAP at the level of double-entry, close discipline and reconciliation when the offer lists the standard as a preference. Do not imply transfer across legal or regulatory regimes or licensed disciplines: Spanish tax law (IVA, IRPF, Impuesto sobre Sociedades) to another country's tax system, corporate accounting to audit sign-off, corporate treasury to bank treasury, ALM or capital regulation (CRR, ICAAP), front-office trading tools such as Bloomberg, or payroll in one country to payroll in another. If the offer makes a certification or licence mandatory, a tool match does not compensate for its absence. If the offer lists only generic tools without naming a standard or regime, answer unknown rather than yes.",
+      "requirements_flexibility": "Do the stated requirements appear flexible enough that the candidate could reasonably apply despite not matching every listed tool, standard, certification or year requirement? Distinguish hard requirements (mandatory qualification or licence, a minimum number of years stated with 'at least' or 'minimum', a named regulatory regime, a required language) from wish lists ('desirable', 'valued', 'a plus', 'ideally', 'or equivalent'), broad tool catalogues introduced by 'such as' or 'or', and generic mentions of Excel or ERP. Years that are specific to a narrow context (for example 5 years supporting go-to-market teams at a B2B SaaS company) are rigid even when the total number looks moderate.",
+      "career_value": "How much professional growth value could this role offer this candidate, based only on evidence in the offer? Consider progression towards senior finance roles, exposure to audit methodology, IFRS or statutory reporting and consolidation, multi-entity or international scope, regulated environments (banking, insurance, listed companies), ownership of the close, forecast or filing, mentoring, structured training and sponsorship of qualifications such as ACCA, CPA or CFA, and a stated career path. A Big 4 or audit-firm employer counts only when the offer itself describes the training, rotation or career structure. If the offer does not provide enough information, reflect that uncertainty through low answer confidence.",
+      "observable_role_quality": "How strong is the observable quality of this role description and role scope for this candidate? Use only information present in the offer. Do not use prior knowledge of the company name or infer company reputation, funding, culture, salary, or other company facts that are not stated. Look for named processes and deliverables, entities or markets covered, systems and standards, reporting line, team context, seniority and years stated consistently with the title, and compensation or hours when given. A list that mixes unrelated functions (accounting, HR, reception, customer calls) signals an unclear scope. Sparse or generic information should have low confidence."
+    },
+    "score_criteria": {
+      "backend_relevance": [
+        "No evidence of finance or administration work: the role is sales, customer support, recruitment, software configuration or generic assistance.",
+        "Finance is peripheral: mostly routine data entry, document handling, customer-facing service or data work for finance teams, with little judgement or ownership of a finance output.",
+        "Some real finance work (for example invoice review, reconciliations, expense control or tax document preparation), but it is support work and not the central deliverable of the role.",
+        "Substantial finance work is central: the role owns named processes such as close tasks, cash positions, forecasts, filings, audit procedures or credit analyses.",
+        "Finance is the primary responsibility and the role produces judgement-heavy outputs in a recognised finance discipline, such as consolidated statements, forecast models, audit workpapers and reports, tax filings and positions, or credit decisions."
+      ],
+      "career_value": [
+        "No concrete evidence of professional growth or increasing responsibility in the offer.",
+        "Limited growth: narrow, routine or single-ledger work with no training, mentoring or progression described.",
+        "Some relevant learning or ownership is described, such as month-end tasks, reconciliations or a defined team, but exposure is limited in scope.",
+        "Strong evidence of a recognised skill path: IFRS or statutory reporting, audit exposure, multi-entity close, a regulated environment, structured training or qualification support, or a stated progression.",
+        "Strong evidence across several growth areas, for example audit methodology plus international standards plus structured training and mentoring, or consolidation plus group audit plus a regulated entity with a defined career path."
+      ],
+      "observable_role_quality": [
+        "The offer gives almost no concrete information about the role or its work.",
+        "The offer is mostly generic and gives little evidence about responsibilities, standards or expectations.",
+        "The offer gives some concrete role details, but important scope, level or requirements remain unclear.",
+        "The offer clearly describes relevant responsibilities, scope and reasonable expectations consistent with the stated level.",
+        "The offer gives unusually clear, specific evidence about responsibilities, scope, systems or standards, level and expectations."
+      ]
+    }
+  },
+  "stack": {
+    "_note": "Shape NOT verified against software.json (file absent on this branch). Deliberately has no numeric bonus or penalty per tool: in the 12 sampled postings tools appear as 'desirable' or inside 'such as' lists, and only Bloomberg and A3 behave as practical requirements. Use these groups as hints for the stack_transferability prompt or for the deterministic extractor, not as score modifiers.",
+    "groups": {
+      "erp_accounting": {
+        "members": ["SAP", "Oracle", "NetSuite", "Microsoft Dynamics", "Sage", "A3", "Holded", "Workday Financials"],
+        "transfers_within": true,
+        "note": "Posting, ledgers, close and reconciliation logic transfer. Local-market packages such as A3 matter in tax and accounting firms where the posting calls them advanced."
+      },
+      "analysis_and_planning": {
+        "members": ["Excel", "Google Sheets", "Power BI", "Tableau", "Anaplan", "Pigment", "Adaptive Insights", "Hyperion", "OneStream"],
+        "transfers_within": true,
+        "note": "Excel modelling is the common denominator. Planning tools are almost always listed as a wish list."
+      },
+      "treasury_and_markets": {
+        "members": ["Quantum", "SmartTrade", "360T", "Bloomberg", "Kyriba", "SWIFT", "SEPA"],
+        "transfers_within": false,
+        "note": "Corporate cash management transfers to other corporate treasuries, not to bank treasury, repo or trading desks."
+      },
+      "accounting_standards": {
+        "members": ["IFRS", "Spanish GAAP (PGC)", "US GAAP", "UK GAAP"],
+        "transfers_within": "partial",
+        "note": "Close discipline transfers. Standard-specific topics (IFRS 9, IFRS 15, IFRS 16, revenue recognition for SaaS, derivatives) do not transfer without exposure."
+      },
+      "tax_regimes": {
+        "members": ["IVA/VAT", "IRPF", "Impuesto sobre Sociedades", "Models 303 and 390", "Transfer pricing"],
+        "transfers_within": false,
+        "note": "Country-specific. Spanish experience does not transfer to other countries and vice versa."
+      },
+      "bank_regulation": {
+        "members": ["CRR/CRD", "ICAAP", "ICFR/SCIIF", "PSD2", "MaRisk", "KWG"],
+        "transfers_within": false,
+        "note": "Regulated-entity knowledge. Treat as a hard requirement when named."
+      },
+      "certifications": {
+        "members": ["ACCA", "ACA", "CPA", "CIMA", "CIA", "CFA", "FRM", "CISA", "ROAC"],
+        "transfers_within": false,
+        "note": "Gates, not skills. ROAC is a Spanish statutory registration. 'Required' and 'one of the following' are hard, 'valued' is not."
+      }
+    }
+  }
+}
