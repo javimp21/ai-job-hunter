@@ -50,10 +50,11 @@ def make(handler, tmp_path, daily=70, **kwargs):
     return FantasticJobsConnector(api_key=SecretStr(KEY), budget=budget, client=client, **kwargs), requests, budget
 
 
-def test_the_query_uses_or_lists_for_titles_and_countries_and_excludes_senior_words():
+def test_the_query_uses_a_boolean_title_filter_and_or_lists_for_countries_and_excludes_senior_words():
     query = build_query(titles=("backend engineer", "java developer"), countries=("Spain", "Ireland"), limit=50)
 
-    assert query["title"].startswith('"backend engineer" OR "java developer" -senior')
+    assert query["title_advanced"].startswith("('backend engineer' | 'java developer') & !senior")
+    assert "title" not in query
     assert query["location"] == '"Spain" OR "Ireland"'
     assert query["time_frame"] == "24h" and query["limit"] == 50 and query["description_format"] == "text"
 

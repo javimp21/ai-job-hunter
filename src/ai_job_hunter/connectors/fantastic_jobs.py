@@ -57,11 +57,13 @@ def build_query(
     limit: int = MAX_PAGE_SIZE,
     offset: int = 0,
 ) -> dict[str, Any]:
-    include = " OR ".join(f'"{title}"' for title in titles)
-    exclude = " ".join(f"-{word}" for word in excluded)
+    # ``title_advanced`` (Boolean: | OR, & AND, ! NOT, single-quoted phrases). The Google-style ``title`` parameter does
+    # not bind "-senior" to a list of OR terms: half of the postings returned on 2026-10-07 were senior roles.
+    include = "(" + " | ".join(f"'{title}'" for title in titles) + ")"
+    exclude = "".join(f" & !{word}" for word in excluded)
     return {
         "time_frame": time_frame,
-        "title": f"{include} {exclude}".strip(),
+        "title_advanced": f"{include}{exclude}",
         "location": " OR ".join(f'"{country}"' for country in countries),
         "description_format": "text",
         "limit": limit,
