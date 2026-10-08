@@ -920,3 +920,17 @@ def test_the_age_of_the_employer_is_not_an_experience_requirement():
 
     assert extract_experience_requirements("We are a bank with more than 160 years of history.") == ()
     assert extract_experience_requirements("Requirements: minimum 3 years of experience in accounting.")
+
+
+def test_offers_without_any_published_salary_are_skipped_only_when_the_person_asked_for_that() -> None:
+    hidden = make_config(preferences={"accept_offers_without_salary": False})
+
+    without = evaluate_job(facts_for(salary_min=None, salary_max=None), hidden)
+    published = evaluate_job(facts_for(salary_min="70000", salary_max="80000"), hidden)
+    other_currency = evaluate_job(facts_for(currency="USD"), hidden)  # a published salary is not "without salary"
+    default = evaluate_job(facts_for(salary_min=None, salary_max=None), make_config())
+
+    assert without.decision is PreFilterDecision.REJECT and any("publishes no salary" in r for r in without.reasons)
+    assert not any("publishes no salary" in r for r in published.reasons)
+    assert not any("publishes no salary" in r for r in other_currency.reasons)
+    assert not any("publishes no salary" in r for r in default.reasons)

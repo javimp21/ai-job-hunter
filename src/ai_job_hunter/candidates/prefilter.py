@@ -450,7 +450,13 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
             ):
                 review_reasons.append(assessment.reason)
 
-    if salary.evaluation is SalaryEvaluation.BELOW_MINIMUM:
+    if (
+        not preferences.accept_offers_without_salary
+        and facts.salary_min is None
+        and facts.salary_max is None
+    ):
+        hard_mismatches.append("The offer publishes no salary and the candidate asked not to receive those.")
+    elif salary.evaluation is SalaryEvaluation.BELOW_MINIMUM:
         hard_mismatches.append(salary.reason)
     elif salary.evaluation is SalaryEvaluation.UNKNOWN and (
         preferences.minimum_salary is not None or preferences.target_salary is not None

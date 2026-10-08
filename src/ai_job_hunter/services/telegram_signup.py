@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.db.user_context import acting_as
 from ai_job_hunter.models.user import User, UserStatus
-from ai_job_hunter.services import onboarding
+from ai_job_hunter.services import onboarding, profile_edit
 from ai_job_hunter.services.onboarding import Event, ProfileExtractor, Reply
 from ai_job_hunter.services.telegram_bot import (
     TelegramBotClient,
@@ -134,13 +134,16 @@ class SignupHandlers:
             return "signup_step"
         if words and words[0].startswith("/"):
             replies = onboarding.handle_command(session, user, text) if user.consent_at else []
-            self._say(person, replies or [Reply("No conozco ese comando. Prueba /my_data, /pause, /resume o /erase.")])
+            self._say(person, replies or [Reply("No conozco ese comando. Prueba /profile, /my_data, /pause, /resume o /erase.")])
             return "signup_command"
         if user.status != UserStatus.ONBOARDING.value:
+            if profile_edit.is_editing(user) and isinstance(text, str) and text.strip():
+                self._say(person, profile_edit.text(session, user, text))
+                return "profile_edit"
             if isinstance(message, dict) and message.get("reply_to_message") and self._record_note is not None:
                 with acting_as(user.id):  # an opinion written as a reply to one of this person's alerts
                     return _handle_message(message, chat_id, person, None, self._record_note, self._prompts)
-            self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /my_data, /pause, /resume, /erase.")])
+            self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /profile, /my_data, /pause, /resume, /erase.")])
             return "signup_idle"
 
         document = (message or {}).get("document")
@@ -161,6 +164,13 @@ class SignupHandlers:
                     person, str(callback.get("id", "")), feedback, self._record_feedback,
                     alert_id if isinstance(alert_id, int) and not isinstance(alert_id, bool) else None, self._prompts,
                 )
+        if isinstance(data, str) and data.startswith("pf:") and user.status != UserStatus.ONBOARDING.value:
+            try:
+                person.answer_callback_query(str(callback.get("id", "")), "")
+            except TelegramBotError:
+                pass
+            self._say(person, profile_edit.press(session, user, data))
+            return "profile_edit"
         document = self._document_request(data)
         if document is not None and self._documents is not None and user.status != UserStatus.ONBOARDING.value:
             return self._write_document(person, user, callback, *document)

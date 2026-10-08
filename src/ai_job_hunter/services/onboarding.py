@@ -121,7 +121,7 @@ def welcome(user: User) -> list[Reply]:
             "de la oferta a otro proveedor de IA (TypeSafe), nunca tu nombre ni tu contacto.\n"
             "• Guardo tu perfil, las ofertas que te aviso y tus votos y notas, para mejorar tus avisos. "
             "Está en un servidor en la nube; al borrarlo, las copias de seguridad lo eliminan en un máximo de 14 días.\n"
-            "• Puedes ver todo con /my_data, pausar con /pause y borrarlo todo con /erase.\n"
+            "• Puedes ver todo con /my_data, cambiar tus respuestas con /profile, pausar con /pause y borrarlo todo con /erase.\n"
             "• No envío nada a nadie en tu nombre ni me presento a ninguna oferta.\n\n"
             "¿Aceptas?",
             ((Button("✅ Acepto", "ob:consent:yes"), Button("No acepto", "ob:consent:no")),),
@@ -207,24 +207,36 @@ def handle(
     if step == "salary":
         if event.kind == "text":
             if event.text.strip().casefold() in SKIP_WORDS:
-                move("mode", draft)
-                return [_mode_question()]
+                move("nosalary", draft)
+                return [_no_salary_question()]
             parsed = parse_salary(event.text)
             if parsed is not None:
                 draft["salary"] = parsed
-                move("mode", draft)
-                return [_mode_question()]
+                move("nosalary", draft)
+                return [_no_salary_question()]
         return [Reply("No he entendido la cifra. Escribe algo como «30000», «30k €» o «saltar».")]
 
+    if step == "nosalary":
+        if event.kind == "press" and event.data in NO_SALARY_ANSWERS:
+            draft["accept_no_salary"] = NO_SALARY_ANSWERS[event.data]
+            move("mode", draft)
+            return [_mode_question()]
+        return [_no_salary_question()]
+
     if step == "mode":
-        modes = {"ob:mode:remote": "REMOTE_ONLY", "ob:mode:hybrid": "HYBRID_OR_REMOTE",
-                 "ob:mode:onsite": "ONSITE_OR_HYBRID", "ob:mode:any": "ANY"}
-        if event.kind == "press" and event.data in modes:
-            draft["remote_preference"] = modes[event.data]
-            return _finish(session, user, draft, current)
+        if event.kind == "press" and event.data in MODES:
+            draft["remote_preference"] = MODES[event.data]
+            move("contract", draft)
+            return [_contract_question()]
         return [_mode_question()]
 
-    return [Reply("Ya tienes tu perfil. Usa /my_data, /pause, /resume o /erase.")]
+    if step == "contract":
+        if event.kind == "press" and event.data in CONTRACT_ANSWERS:
+            draft["internships"] = CONTRACT_ANSWERS[event.data]
+            return _finish(session, user, draft, current)
+        return [_contract_question()]
+
+    return [Reply("Ya tienes tu perfil. Usa /profile, /my_data, /pause, /resume o /erase.")]
 
 
 # --- steps' helpers ---------------------------------------------------------------------------------------------------
@@ -272,6 +284,31 @@ def available_sectors() -> dict[str, str]:
 def _sector_question() -> Reply:
     buttons = tuple((Button(label, f"ob:sector:{sector_id}"),) for sector_id, label in available_sectors().items())
     return Reply("¿En qué sector buscas trabajo?", buttons)
+
+
+MODES = {
+    "ob:mode:remote": "REMOTE_ONLY", "ob:mode:hybrid": "HYBRID_OR_REMOTE",
+    "ob:mode:onsite": "ONSITE_OR_HYBRID", "ob:mode:any": "ANY",
+}
+NO_SALARY_ANSWERS = {"ob:nosalary:yes": True, "ob:nosalary:no": False}
+CONTRACT_ANSWERS = {"ob:contract:yes": True, "ob:contract:no": False}
+# Employment types accepted when the person does not want internships or scholarships.
+WITHOUT_INTERNSHIPS = ["FULL_TIME", "PART_TIME", "CONTRACT", "TEMPORARY", "OTHER"]
+
+
+def _no_salary_question() -> Reply:
+    return Reply(
+        "¿Quieres recibir también ofertas que no publican el sueldo? Te llegarán más ofertas, pero no podemos "
+        "asegurar que paguen lo que buscas.",
+        ((Button("Sí, mostrarlas", "ob:nosalary:yes"), Button("No, solo con sueldo", "ob:nosalary:no")),),
+    )
+
+
+def _contract_question() -> Reply:
+    return Reply(
+        "¿Aceptarías prácticas o becas?",
+        ((Button("Sí, también", "ob:contract:yes"), Button("No, solo trabajo", "ob:contract:no")),),
+    )
 
 
 def _mode_question() -> Reply:
@@ -341,7 +378,10 @@ def build_config(draft: dict[str, Any]) -> CandidateConfig:
         "acceptable_locations": locations,
         "relocation_willingness": bool(draft.get("relocation")),
         "remote_preference": draft.get("remote_preference", "ANY"),
+        "accept_offers_without_salary": draft.get("accept_no_salary", True),
     }
+    if draft.get("internships") is False:
+        preferences["acceptable_employment_types"] = list(WITHOUT_INTERNSHIPS)
     if years_number is not None:
         preferences["maximum_seniority"] = "MID" if years_number < 2 else "SENIOR" if years_number < 6 else "HEAD"
     salary = draft.get("salary")
@@ -369,8 +409,11 @@ def _finish(session: Session, user: User, draft: dict[str, Any], now: datetime) 
             Reply(
                 "🎉 Listo. A partir de ahora te aviso de las ofertas nuevas que encajen contigo.\n"
                 f"La prueba gratuita dura {TRIAL_DAYS} días. Puedes votar cada aviso con 👍/👎 y escribir tu opinión "
-                "respondiendo al mensaje: así los avisos mejoran.\n\n"
-                "/my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
+                "respondiendo al mensaje: así los avisos mejoran. Algunos ejemplos de opiniones útiles:\n"
+                "• «Este tipo de puesto (Full Stack Developer) no me interesa.»\n"
+                "• «No quiero consultoras.»\n"
+                "• «Nada que pida alemán.»\n\n"
+                "/profile: cambiar tus respuestas · /my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
             )
         ]
     return [
@@ -378,7 +421,7 @@ def _finish(session: Session, user: User, draft: dict[str, Any], now: datetime) 
             "✅ Perfil guardado. Los avisos todavía no están activados para ti: estoy terminando esa parte de la beta "
             "y te escribiré aquí cuando empiecen. Tu prueba de "
             f"{TRIAL_DAYS} días empezará entonces.\n\n"
-            "/my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
+            "/profile: cambiar tus respuestas · /my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
         )
     ]
 
@@ -411,7 +454,7 @@ def my_data(session: Session, user: User) -> Reply:
     return Reply("\n".join(lines))
 
 
-COMMAND_ALIASES = {"/mis_datos": "/my_data", "/pausa": "/pause", "/reanudar": "/resume", "/borrar": "/erase", "/invitar": "/invite"}
+COMMAND_ALIASES = {"/mis_datos": "/my_data", "/pausa": "/pause", "/reanudar": "/resume", "/borrar": "/erase", "/invitar": "/invite", "/perfil": "/profile"}
 
 
 def handle_command(session: Session, user: User, text: str) -> list[Reply]:
@@ -419,6 +462,10 @@ def handle_command(session: Session, user: User, text: str) -> list[Reply]:
     command = COMMAND_ALIASES.get(command, command)
     if command == "/my_data":
         return [my_data(session, user)]
+    if command == "/profile":
+        from ai_job_hunter.services import profile_edit
+
+        return [profile_edit.menu(session, user)]
     if command == "/pause":
         user.status = UserStatus.PAUSED.value
         return [Reply("Pausado: no te mandaré más avisos. /resume los activa de nuevo.")]

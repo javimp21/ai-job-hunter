@@ -104,6 +104,8 @@ class CandidatePreferences(BaseModel):
     relocation_preferred_locations: list[str] = Field(default_factory=list)
     remote_preference: RemotePreference = RemotePreference.ANY
     relocation_willingness: bool = False
+    # False hides offers that publish no salary at all (a published salary in another currency is still judged as before).
+    accept_offers_without_salary: bool = True
     # Sector template that classifies job titles (``src/ai_job_hunter/sectors/templates/<sector>.json``).
     sector: str = Field(default="software", pattern=r"^[a-z][a-z0-9_-]{0,40}$")
     acceptable_employment_types: list[EmploymentType] = Field(default_factory=list)

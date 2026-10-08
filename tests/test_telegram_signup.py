@@ -245,3 +245,27 @@ def test_letter_and_interview_buttons_write_for_the_person_and_a_quota_message_i
     assert world.send("500", data=f"cl:{job_id}") == "document_refused" and "3 cartas de hoy" in last(world, 500)[1]
     assert world.send("500", data=f"ip:{job_id}") == "document_failed"
     assert "provider detail" not in last(world, 500)[1]
+
+
+def test_a_signed_up_person_edits_their_answers_with_profile_through_the_bot(world) -> None:
+    from ai_job_hunter.models import UserProfile
+    from ai_job_hunter.services.onboarding import build_config
+    from ai_job_hunter.services.users import save_profile
+
+    world.send(OWNER_CHAT, "/invite")
+    code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
+    world.send("500", f"/start {code}")
+    world.send("500", data="ob:consent:yes")
+    with world.factory() as session:
+        person = session.scalar(select(User).where(User.is_owner.is_(False)))
+        person.status = "ACTIVE"
+        save_profile(session, person, build_config({"current_role": "Contable", "role": "Contable", "locations": ["Madrid"]}))
+        session.commit()
+
+    assert world.send("500", "/profile") == "signup_command" and "Puesto: Contable" in last(world, 500)[1]
+    assert world.send("500", data="pf:edit:role") == "profile_edit" and "¿Qué puesto buscas?" in last(world, 500)[1]
+    assert world.send("500", "Analista") == "profile_edit" and "Puesto: Analista" in last(world, 500)[1]
+    assert world.send("500", data="pf:set:nosalary:no") == "profile_edit"
+    with world.factory() as session:
+        config = session.scalar(select(UserProfile)).config["preferences"]
+        assert config["preferred_roles"] == ["Analista"] and config["accept_offers_without_salary"] is False

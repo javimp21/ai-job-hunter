@@ -76,8 +76,10 @@ def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_ses
     say(db_session, user, kind="text", text="Contable")
     say(db_session, user, kind="text", text="Madrid, Barcelona")
     say(db_session, user, kind="press", data="ob:reloc:no")
-    say(db_session, user, kind="text", text="28k €")
-    done = say(db_session, user, kind="press", data="ob:mode:hybrid")[0]
+    assert "no podemos asegurar" in say(db_session, user, kind="text", text="28k €")[0].text
+    assert "¿Cómo quieres trabajar?" in say(db_session, user, kind="press", data="ob:nosalary:no")[0].text
+    assert "prácticas o becas" in say(db_session, user, kind="press", data="ob:mode:hybrid")[0].text
+    done = say(db_session, user, kind="press", data="ob:contract:no")[0]
 
     assert "Listo" in done.text and user.status == "ACTIVE"
     assert user.trial_ends_at - user.trial_started_at == timedelta(days=7) and user.onboarding["step"] == "done"
@@ -86,6 +88,9 @@ def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_ses
     assert config.preferences.acceptable_locations == ["Madrid", "Barcelona"]
     assert config.preferences.minimum_salary == 28000
     assert config.preferences.remote_preference.value == "HYBRID_OR_REMOTE"
+    assert config.preferences.accept_offers_without_salary is False
+    assert "INTERNSHIP" not in [item.value for item in config.preferences.acceptable_employment_types]
+    assert config.preferences.acceptable_employment_types  # a list: only those types
     assert config.profile.years_of_experience == 3 and config.profile.languages == ["Spanish", "English"]
 
 
@@ -177,7 +182,8 @@ def test_the_experience_summary_is_kept_for_letters_shown_in_my_data_and_erased_
     for step in (
         Event(kind="press", data="ob:confirm:yes"), Event(kind="press", data="ob:sector:finance"),
         Event(kind="text", text="Contable"), Event(kind="text", text="Madrid"), Event(kind="press", data="ob:reloc:no"),
-        Event(kind="text", text="28k"), Event(kind="press", data="ob:mode:hybrid"),
+        Event(kind="text", text="28k"), Event(kind="press", data="ob:nosalary:yes"), Event(kind="press", data="ob:mode:hybrid"),
+        Event(kind="press", data="ob:contract:yes"),
     ):
         handle(db_session, user, step, extract, now=NOW)
 
