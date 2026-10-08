@@ -116,7 +116,10 @@ def welcome(user: User) -> list[Reply]:
             "Esto es una beta cerrada, gratis durante unos días. Antes de empezar, lo que tienes que saber:\n"
             "• Te pediré tu CV. No lo guardo: lo leo una vez para sacar tu perfil, que tú confirmas.\n"
             "• Para leerlo uso un modelo de IA de Anthropic: el texto de tu CV se envía a ese proveedor.\n"
-            "• Guardo tu perfil, las ofertas que te aviso y tus votos y notas, para mejorar tus avisos.\n"
+            "• Para valorar cada oferta envío tu perfil resumido (puesto, años de experiencia, habilidades, país) y el texto "
+            "de la oferta a otro proveedor de IA (TypeSafe), nunca tu nombre ni tu contacto.\n"
+            "• Guardo tu perfil, las ofertas que te aviso y tus votos y notas, para mejorar tus avisos. "
+            "Está en un servidor en la nube; al borrarlo, las copias de seguridad lo eliminan en un máximo de 14 días.\n"
             "• Puedes ver todo con /my_data, pausar con /pause y borrarlo todo con /erase.\n"
             "• No envío nada a nadie en tu nombre ni me presento a ninguna oferta.\n\n"
             "¿Aceptas?",

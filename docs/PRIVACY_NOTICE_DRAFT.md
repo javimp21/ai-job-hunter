@@ -8,7 +8,7 @@ son datos que tienes que rellenar.
 
 - Este servicio te avisa por Telegram de ofertas de empleo que encajan con tu perfil y te ayuda a preparar borradores
   de cartas. Nunca envía nada por ti.
-- Para hacerlo guardo tu CV y las preferencias que me das. Los uso solo para eso.
+- Para hacerlo guardo el perfil que sale de tu CV (no el CV) y las preferencias que me das. Los uso solo para eso.
 - Tu CV y tus preguntas se envían a un proveedor de inteligencia artificial para extraer tu perfil y escribir borradores.
 - Puedes ver qué guardo con `/my_data` y borrarlo todo con `/erase`, cuando quieras.
 - No envíes por este chat datos sensibles (salud, creencias, DNI, contraseñas). Telegram no cifra de extremo a extremo
@@ -26,8 +26,8 @@ en esta etapa.
 
 | Dato | De dónde sale |
 | --- | --- |
-| Identificador de Telegram, nombre de usuario e idioma | Telegram, al hablar con el bot |
-| CV (texto y fichero) y datos que contiene: nombre, contacto, estudios, experiencia | Lo subes tú |
+| Identificador de tu chat de Telegram e idioma (no guardo tu nombre ni tu usuario) | Telegram, al hablar con el bot |
+| Perfil sacado de tu CV: puesto, años de experiencia, habilidades, estudios, idiomas, país y ciudad. El CV en sí no se guarda y no se extrae tu nombre ni tu contacto | Lo subes tú y lo confirmas |
 | Preferencias: puesto buscado, lugares, sueldo, modalidad, idiomas | Las indicas tú |
 | Tus valoraciones de ofertas (me interesa, no me interesa) y tus candidaturas | Tus acciones en el bot |
 | Borradores de cartas y respuestas generadas | Los genera el servicio a petición tuya |
@@ -53,6 +53,9 @@ No vendo ni cedo tus datos. Intervienen estos proveedores, que tratan datos por 
 - **Proveedor de inteligencia artificial** ([Anthropic, modelo Claude]): recibe tu CV y el texto de la oferta para extraer el
   perfil y escribir borradores. Según las condiciones comerciales de su API, no usa esos datos para entrenar sus modelos
   por defecto; compruébalo en sus condiciones vigentes antes de publicar este aviso.
+- **TypeSafe (motor de decisión Jev)**: recibe tu perfil resumido (puesto, años de experiencia, habilidades, país,
+  preferencias salariales) y el texto de cada oferta para valorar el encaje. No recibe tu nombre ni tu contacto.
+  Verifica sus condiciones vigentes antes de publicar este aviso.
 - **Proveedor del servidor** ([Oracle Cloud, región REGIÓN]): aloja la base de datos y el servicio.
 
 Esos proveedores pueden estar fuera de la Unión Europea (por ejemplo, en Estados Unidos). Cuando es así, la transferencia
@@ -60,15 +63,15 @@ se apoya en las garantías que ofrezca cada uno (cláusulas contractuales tipo o
 
 ### 5. Cuánto tiempo se conservan
 
-- Perfil, CV y borradores: mientras uses el servicio. Si no lo usas durante [6] meses, se borran.
+- Perfil y preferencias: mientras uses el servicio y durante tu prueba. Al terminar la prueba el perfil se conserva unos días; el borrado automático de cuentas con la prueba terminada aún no está programado (hoy se hace a mano).
 - Valoraciones y candidaturas: lo mismo.
-- Copias de seguridad: se eliminan en un máximo de [30] días tras el borrado.
+- Copias de seguridad: se guardan 14 días, así que tus datos desaparecen de ellas como máximo 14 días después del borrado.
 - Si pides el borrado con `/erase`, se eliminan tus datos de la base de datos de inmediato.
 
 ### 6. Tus derechos
 
 Acceso, rectificación, supresión, limitación, oposición y portabilidad. Los dos primeros y el borrado los tienes
-directamente en el bot (`/my_data`, `/perfil`, `/erase`). Para el resto escribe a [CORREO]. Si no estás conforme,
+directamente en el bot (`/my_data`, `/erase`). Para el resto escribe a [CORREO]. Si no estás conforme,
 puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).
 
 ### 7. Decisiones automatizadas
@@ -78,7 +81,7 @@ tú decides si aplicas. Las ofertas que el sistema descarta no llegan a las empr
 
 ### 8. Seguridad
 
-CV y perfil se guardan cifrados en el servidor, con acceso restringido y copias de seguridad protegidas. Aun así, ningún
+Tu perfil se guarda en una base de datos en un servidor en la nube con acceso restringido y copias de seguridad privadas. [Verificar: cifrado en reposo del disco del proveedor.] Aun así, ningún
 sistema es perfectamente seguro, y los mensajes con bots de Telegram no tienen cifrado de extremo a extremo.
 
 ### 9. Menores
@@ -93,5 +96,5 @@ Si este aviso cambia de forma importante, el bot te lo dirá y te pedirá acepta
 
 - Rellenar responsable, correo, región del servidor y plazos.
 - Verificar las condiciones vigentes de cada proveedor (tratamiento de datos y transferencias).
-- Hacer realidad lo que promete: `/my_data`, `/perfil` y `/erase` deben existir, borrar de verdad y probarse.
+- Hacer realidad lo que promete: `/my_data` y `/erase` existen y están probados; falta programar el borrado automático de cuentas con la prueba terminada.
 - Revisión legal si el servicio se abre más allá de la beta cerrada.
