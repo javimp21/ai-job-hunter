@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Uuid, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_job_hunter.db.base import Base
@@ -36,3 +36,18 @@ class GeneratedDocument(UserOwnedMixin, TimestampMixin, Base):
     language: Mapped[str] = mapped_column(String(5), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+class PreferenceChange(UserOwnedMixin, TimestampMixin, Base):
+    """One adjustment of a person's alerts learned from their opinions; it can be undone."""
+
+    __tablename__ = "preference_changes"
+    __table_args__ = (Index("ix_preference_changes_user_status", "user_id", "status"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="APPLIED")
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

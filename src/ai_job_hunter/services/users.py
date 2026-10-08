@@ -58,8 +58,12 @@ def save_profile(
 
 
 def load_profile(session: Session, user: User) -> CandidateConfig | None:
+    from ai_job_hunter.services.learned import merge_learned
+
     profile = session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
-    return CandidateConfig.model_validate(profile.config) if profile is not None else None
+    if profile is None:
+        return None
+    return merge_learned(CandidateConfig.model_validate(profile.config), profile.learned)
 
 
 def import_owner_profile(session: Session, path: str | Path) -> tuple[User, UserProfile, bool]:

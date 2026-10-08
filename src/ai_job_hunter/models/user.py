@@ -58,6 +58,9 @@ class UserProfile(TimestampMixin, Base):
     config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     # A summary of the person's experience (no name, e-mail, phone or address) used to write letters and interview briefs.
     cv_text: Mapped[str | None] = mapped_column(Text)
+    # What the person's opinions taught the alerts (excluded terms and companies, quiet hours, ...), kept apart from
+    # ``config`` so re-importing or editing the answers never drops it. See services/learned.py.
+    learned: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class Invitation(TimestampMixin, Base):

@@ -7,6 +7,7 @@ import faulthandler
 import html
 import os
 import sys
+from datetime import UTC, datetime
 from collections.abc import Sequence
 from pathlib import Path
 from uuid import UUID
@@ -103,9 +104,13 @@ from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.cv_extraction import make_extractor
 from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_message
 from ai_job_hunter.services.telegram_signup import SignupHandlers
+from ai_job_hunter.services.users import get_owner
 from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
+from ai_job_hunter.services import preference_learning
+from ai_job_hunter.services.learned import with_owner_learned
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
+    alerts_held,
     NotificationPreview,
     TelegramProvider,
     effective_review_threshold,
@@ -174,6 +179,9 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     feedback.add_argument("--dry-run", action="store_true", help="show the evaluation without sending or recording it")
     feedback.add_argument("--min-notes", type=int, default=5, help="evaluate only when this many new notes exist")
+    notification_commands.add_parser(
+        "adapt", help="turn the new free-text opinions into undoable changes of the alerts (needs 3 new notes)"
+    )
     system = notification_commands.add_parser(
         "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
     )
@@ -522,6 +530,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     activate_owner(engine)  # the personal CLI acts as the owner: new rows are theirs and reads see only theirs
     try:
         with create_session_factory(engine)() as session:
+            if candidate is not None:
+                candidate = with_owner_learned(session, candidate)  # what the owner's opinions taught the alerts
             if args.command == "refresh":
                 summary = refresh_opportunities(
                     session,
@@ -650,6 +660,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         file=sys.stderr,
                     )
                     return 1
+                held = alerts_held(candidate, now=datetime.now(UTC))
+                if held == "paused_until":
+                    print("Notifications: paused by the owner's own request")
+                    return RUN_PARTIAL_EXIT if summary.failures else 0
                 result = send_notifications(
                     session,
                     candidate,
@@ -661,6 +675,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     review_threshold=effective_review_threshold(candidate, settings.notify_review_min_priority),
                     max_age_days=settings.notify_max_age_days,
                     limit=args.max_notifications,
+                    dispatch=held is None,  # quiet hours: the alerts wait as pending and go out when they end
                 )
                 _print_notification_batch(result)
                 if result.failed:
@@ -1388,6 +1403,31 @@ def _run_weekly_command(args, session, candidate, settings) -> int:
     return 1 if result.status == "failed" else 0
 
 
+def _run_adapt_command(session, settings) -> int:
+    owner = get_owner(session)
+    if owner is None:
+        print("No owner user: nothing to adapt.", file=sys.stderr)
+        return 1
+    announcements = preference_learning.adapt(session, owner)
+    session.commit()
+    if not announcements:
+        print("Adapt: nothing to change (fewer than 3 new notes, adapted less than 2 days ago, or no clear preference)")
+        return 0
+    provider = _configured_telegram_provider(settings)
+    if provider is None:
+        print("Telegram is not configured; the changes were applied but not announced.", file=sys.stderr)
+        return 1
+    for announcement in announcements:
+        provider.send_message(
+            html.escape(announcement.text),
+            reply_markup={"inline_keyboard": [[{
+                "text": "↩️ Deshacer", "callback_data": f"{preference_learning.UNDO_PREFIX}{announcement.change_id}"
+            }]]},
+        )
+    print(f"Adapt: {len(announcements)} change(s) applied and announced")
+    return 0
+
+
 def _run_feedback_command(args, session, candidate, settings) -> int:
     tuning = (
         f"sector={candidate.preferences.sector}; alert bar for REVIEW offers="
@@ -1422,6 +1462,8 @@ def _run_notification_command(args, session, candidate, settings) -> int:
     command = args.notification_command
     if command == "feedback":
         return _run_feedback_command(args, session, candidate, settings)
+    if command == "adapt":
+        return _run_adapt_command(session, settings)
     if command == "pending":
         rows = list_pending_notifications(session, limit=args.limit)
         print(f"PENDING NOTIFICATIONS: {len(rows)}")

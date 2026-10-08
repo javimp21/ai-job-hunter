@@ -25,7 +25,7 @@ from ai_job_hunter.models.opportunity_notification import (
     OpportunityNotificationStatus,
 )
 from ai_job_hunter.models.report_delivery import ReportDelivery
-from ai_job_hunter.models.usage import GeneratedDocument, UsageEvent
+from ai_job_hunter.models.usage import GeneratedDocument, PreferenceChange, UsageEvent
 from ai_job_hunter.models.user import Invitation, User, UserProfile, UserStatus
 
 __all__ = [
@@ -60,6 +60,7 @@ __all__ = [
     "OpportunityNotificationStatus",
     "ReportDelivery",
     "GeneratedDocument",
+    "PreferenceChange",
     "UsageEvent",
     "User",
     "UserProfile",

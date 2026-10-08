@@ -89,6 +89,9 @@ if [ "${COMPANY_HUNTER_ENABLED:-0}" = 1 ] && [ "$dow" -le 5 ] && [ "$((10#$hour)
     fi
     "$exe" outreach connections --send || true
 fi
+# The owner's free-text opinions become undoable changes of the alerts (needs 3 new notes, at most every 2 days;
+# a tick without enough notes costs nothing).
+"$exe" notify adapt || true
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1

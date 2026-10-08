@@ -22,10 +22,10 @@ from ai_job_hunter.decision_engine import DecisionCache
 from ai_job_hunter.models import Job, JobEvaluation, JobSource
 from ai_job_hunter.models.job_evaluation import EvaluationStatus
 from ai_job_hunter.models.user import User, UserStatus
-from ai_job_hunter.services import usage
-from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
+from ai_job_hunter.services import preference_learning
 from ai_job_hunter.services.notifications import (
     NotificationProvider,
+    alerts_held,
     effective_review_threshold,
     pending_notification_job_ids,
     send_notifications,
@@ -109,6 +109,10 @@ def _run_one(
     candidate = load_profile(session, session.get(User, user_id))
     if candidate is None:
         return
+    user = session.get(User, user_id)
+    held = alerts_held(candidate, now=moment, timezone=user.timezone or "Europe/Madrid")
+    if held == "paused_until":
+        return  # a pause: nothing is evaluated or sent, and what appears meanwhile is not alerted afterwards
     job_ids = _jobs_to_evaluate(session, moment, max_age_days, max_candidates)
     result.candidates = len(job_ids)
     if job_ids:
@@ -127,31 +131,24 @@ def _run_one(
         direct_postings=direct_postings, liveness=liveness,
         only_job_ids=set(job_ids) | pending_notification_job_ids(session),
         review_threshold=effective_review_threshold(candidate, review_threshold),
-        max_age_days=max_age_days, limit=max_notifications, owner_features=False,
+        max_age_days=max_age_days, limit=max_notifications, owner_features=False, dispatch=held is None,
     )
     result.sent, result.failed = batch.sent, batch.failed
-    _weekly_review(session, provider, candidate, moment, review_threshold, review_client)
+    _adapt_and_announce(session, provider, user, moment, review_client)
 
 
-def _weekly_review(session: Session, provider: NotificationProvider, candidate, moment, review_threshold, client) -> None:  # noqa: ANN001
-    """Once a week, with at least 5 new opinions, Claude reads this person's notes and tells them what it noticed."""
+def _adapt_and_announce(session: Session, provider: NotificationProvider, user: User, moment, client) -> None:  # noqa: ANN001
+    """Turn this person's new opinions into undoable changes and tell them about each one."""
 
-    if not usage.check_quota(session, usage.REVIEW, now=moment).allowed:
-        return
-    tuning = (
-        f"sector={candidate.preferences.sector}; "
-        f"alert bar for REVIEW offers={effective_review_threshold(candidate, review_threshold)}"
-    )
-    review = review_notes(
-        session, tuning_summary=tuning, min_notes=5, client=client,
-        closing="Es solo información: si algo no te cuadra, escribe a quien te invitó.",
-    )
-    if review.status != "reviewed" or review.message is None:
-        return
-    provider.send_message(html.escape(review.message))
-    mark_reviewed(session, now=moment)
-    usage.record_usage(session, usage.REVIEW, now=moment)
+    announcements = preference_learning.adapt(session, user, client=client, now=moment)
     session.commit()
+    for announcement in announcements:
+        provider.send_message(
+            html.escape(announcement.text),
+            reply_markup={"inline_keyboard": [[{
+                "text": "↩️ Deshacer", "callback_data": f"{preference_learning.UNDO_PREFIX}{announcement.change_id}"
+            }]]},
+        )
 
 
 def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, limit: int) -> list:

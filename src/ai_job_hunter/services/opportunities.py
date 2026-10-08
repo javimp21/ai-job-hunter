@@ -35,6 +35,7 @@ from ai_job_hunter.candidates import (
     PreFilterDecision,
     evaluate_job,
 )
+from ai_job_hunter.candidates.exclusions import apply_exclusions
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome
 from ai_job_hunter.candidates.prefilter import SignalStatus, _location_matches
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
@@ -1381,7 +1382,9 @@ def _prepare_offer(
         }
     )
     facts = JobFacts.from_normalized_job(canonical_offer)
-    deterministic = evaluate_job(facts, candidate)
+    deterministic = apply_exclusions(
+        evaluate_job(facts, candidate), canonical_offer.title, canonical_offer.company_name, candidate.preferences
+    )
     context = JobDecisionContext(
         offer=canonical_offer,
         candidate=candidate,
@@ -1545,16 +1548,30 @@ def _canonical_decimal(value: Any) -> str | None:
     return format(decimal_value.normalize(), "f")
 
 
+# Preference fields added after the first evaluations were stored. They join the fingerprint only when they change
+# an evaluation, so a person who never touched them keeps every evaluation they already have.
+_ALWAYS_OUT_OF_FINGERPRINT = ("quiet_hours_start", "quiet_hours_end", "paused_until")  # they only gate the alerts
+_OUT_WHEN_DEFAULT = ("accept_offers_without_salary", "excluded_title_terms", "excluded_companies", "excluded_languages")
+
+
+def _preference_fields_out_of_fingerprint(candidate: CandidateConfig) -> dict[str, bool]:
+    preferences = candidate.preferences
+    skipped = {"sector": True} if preferences.sector == "software" else {}
+    skipped.update({name: True for name in _ALWAYS_OUT_OF_FINGERPRINT})
+    for name in _OUT_WHEN_DEFAULT:
+        default = type(preferences).model_fields[name].get_default(call_default_factory=True)
+        if getattr(preferences, name) == default:
+            skipped[name] = True
+    return skipped
+
+
 def _config_fingerprint(candidate: CandidateConfig, engine_identity: str) -> str:
     return _hash_payload(
         {
             "candidate": candidate.model_dump(
                 mode="json",
                 # Tuning only reorders results; the default sector adds nothing, so existing fingerprints stay valid.
-                exclude={
-                    "tuning": True,
-                    **({"preferences": {"sector": True}} if candidate.preferences.sector == "software" else {}),
-                },
+                exclude={"tuning": True, "preferences": _preference_fields_out_of_fingerprint(candidate)},
             ),
             "prefilter_version": _PREFILTER_VERSION,
             "rubric_version": rubric_version_for_sector(candidate.preferences.sector),
@@ -1806,6 +1823,9 @@ def _language_adjustment(context: JobDecisionContext) -> tuple[tuple[int, str], 
     spoken = spoken_languages(context.candidate.profile.languages)
     tuning = context.candidate.tuning
     required = required_foreign_language(text, spoken=spoken)
+    if required is not None and required in {item.casefold() for item in context.candidate.preferences.excluded_languages}:
+        label = _LANGUAGE_NAMES_ES.get(required, required)
+        return ((-100, f"pide {label}, que no quieres (−100)"),)
     if required is not None:
         label = _LANGUAGE_NAMES_ES.get(required, required)
         return ((-tuning.language_required_penalty, f"pide {label} (−{tuning.language_required_penalty})"),)

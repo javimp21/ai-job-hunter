@@ -8,6 +8,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from collections.abc import Callable, Collection, Mapping
 from typing import Any, Protocol
@@ -21,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from ai_job_hunter.candidates import CandidateConfig
+from ai_job_hunter.candidates.exclusions import exclusion_reason
 from ai_job_hunter.candidates.experience import ExperienceOutcome
 from ai_job_hunter.candidates.profile import SalaryGuideEntry
 from ai_job_hunter.decision_engine import FinalDecision
@@ -328,6 +330,7 @@ def send_notifications(
     liveness: LivenessCheck | None = None,
     only_job_ids: Collection[UUID] | None = None,
     owner_features: bool = True,
+    dispatch: bool = True,
 ) -> NotificationBatchResult:
     """Record selected evaluations and send pending notifications once.
 
@@ -360,7 +363,8 @@ def send_notifications(
         ).all()
         if (row.job_id, row.evaluation_fingerprint) in selected_keys
     }
-    _dispatch_pending(session, provider, result, limit=limit, only_ids=pending_ids, owner_features=owner_features)
+    if dispatch:  # False during the person's quiet hours: the alerts stay pending and go out when they end
+        _dispatch_pending(session, provider, result, limit=limit, only_ids=pending_ids, owner_features=owner_features)
     return result
 
 
@@ -597,7 +601,8 @@ def _current_opportunities(
         reason = None if eligible else "review_priority_below_threshold"
         if eligible:
             reason = (
-                _foreign_language_suppression(item)
+                _excluded_suppression(item, candidate)
+                or _foreign_language_suppression(item)
                 or _already_in_digest_suppression(item, fingerprint, in_digest)
                 or _paywalled_copy_suppression(item, free_identities)
                 or _snippet_only_suppression(item)
@@ -662,6 +667,28 @@ def _current_opportunities(
 
 
 ONSITE_MIN_PRIORITY = 85
+
+
+def _excluded_suppression(item: Opportunity, candidate: CandidateConfig) -> str | None:
+    """A title term or company the person asked never to receive (also for offers evaluated before they asked)."""
+
+    return "excluded_by_candidate" if exclusion_reason(item.title, item.company, candidate.preferences) else None
+
+
+def alerts_held(candidate: CandidateConfig, *, now: datetime, timezone: str = "Europe/Madrid") -> str | None:
+    """Why no alert may be sent now: a pause until a date, or the person's quiet hours (their local time)."""
+
+    preferences = candidate.preferences
+    local = now.astimezone(ZoneInfo(timezone))
+    if preferences.paused_until is not None and local.date() <= preferences.paused_until:
+        return "paused_until"
+    start, end = preferences.quiet_hours_start, preferences.quiet_hours_end
+    if start is not None and end is not None and start != end:
+        hour = local.hour
+        inside = start <= hour < end if start < end else (hour >= start or hour < end)
+        if inside:
+            return "quiet_hours"
+    return None
 
 
 def _paywalled_copy_suppression(

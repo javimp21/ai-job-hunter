@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.db.user_context import acting_as
 from ai_job_hunter.models.user import User, UserStatus
-from ai_job_hunter.services import onboarding, profile_edit
+from ai_job_hunter.services import onboarding, preference_learning, profile_edit
 from ai_job_hunter.services.onboarding import Event, ProfileExtractor, Reply
 from ai_job_hunter.services.telegram_bot import (
     TelegramBotClient,
@@ -72,6 +72,9 @@ class SignupHandlers:
         if not isinstance(chat, dict) or chat.get("type") != "private" or chat.get("id") is None:
             return None
         chat_id = str(chat["id"])
+        data = callback.get("data") if isinstance(callback, dict) else None
+        if isinstance(data, str) and data.startswith(preference_learning.UNDO_PREFIX):
+            return self._undo(bot, chat_id, callback)
         if chat_id == self._owner_chat:
             return self._owner_command(update, bot) if not isinstance(callback, dict) else None
 
@@ -80,6 +83,28 @@ class SignupHandlers:
             outcome = self._for_person(session, person, chat_id, update, callback if isinstance(callback, dict) else None)
             session.commit()
         return outcome
+
+    def _undo(self, bot: TelegramBotClient, chat_id: str, callback: dict[str, Any]) -> str:
+        """The "Undo" button of a learned change, for the owner and for everyone else."""
+
+        try:
+            change_id = UUID(str(callback["data"])[len(preference_learning.UNDO_PREFIX):])
+        except ValueError:
+            return "signup_ignored"
+        with self._sessions() as session:
+            user = session.scalar(select(User).where(User.telegram_chat_id == chat_id))
+            if user is None and chat_id == self._owner_chat:
+                user = get_owner(session)
+            if user is None:
+                return "signup_ignored"
+            with acting_as(user.id):
+                answer = preference_learning.undo(session, user, change_id)
+            session.commit()
+        try:
+            bot.answer_callback_query(str(callback.get("id", "")), answer)
+        except TelegramBotError:
+            pass
+        return "preference_undone"
 
     # -- the owner --------------------------------------------------------------------------------------------------
     def _owner_command(self, update: dict[str, Any], bot: TelegramBotClient) -> str | None:

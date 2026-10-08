@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -106,6 +107,14 @@ class CandidatePreferences(BaseModel):
     relocation_willingness: bool = False
     # False hides offers that publish no salary at all (a published salary in another currency is still judged as before).
     accept_offers_without_salary: bool = True
+    # What the person's opinions taught the system (services/preference_learning.py); each change can be undone.
+    excluded_title_terms: list[str] = Field(default_factory=list)
+    excluded_companies: list[str] = Field(default_factory=list)
+    excluded_languages: list[str] = Field(default_factory=list)
+    # Quiet hours (local hour, 0-23): no alerts from the start hour until the end hour; and a pause until a date.
+    quiet_hours_start: int | None = Field(default=None, ge=0, le=23)
+    quiet_hours_end: int | None = Field(default=None, ge=0, le=23)
+    paused_until: date | None = None
     # Sector template that classifies job titles (``src/ai_job_hunter/sectors/templates/<sector>.json``).
     sector: str = Field(default="software", pattern=r"^[a-z][a-z0-9_-]{0,40}$")
     acceptable_employment_types: list[EmploymentType] = Field(default_factory=list)
@@ -133,6 +142,9 @@ class CandidatePreferences(BaseModel):
         "relocation_preferred_locations",
         "preferred_technologies",
         "willing_to_learn_technologies",
+        "excluded_title_terms",
+        "excluded_companies",
+        "excluded_languages",
     )
     @classmethod
     def validate_non_empty_items(cls, values: list[str]) -> list[str]:

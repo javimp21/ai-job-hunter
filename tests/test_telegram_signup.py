@@ -269,3 +269,38 @@ def test_a_signed_up_person_edits_their_answers_with_profile_through_the_bot(wor
     with world.factory() as session:
         config = session.scalar(select(UserProfile)).config["preferences"]
         assert config["preferred_roles"] == ["Analista"] and config["accept_offers_without_salary"] is False
+
+
+def test_the_undo_button_of_a_learned_change_works_for_the_person_and_for_the_owner(world) -> None:
+    from ai_job_hunter.db.user_context import acting_as
+    from ai_job_hunter.models import PreferenceChange, UserProfile
+    from ai_job_hunter.services import learned
+    from ai_job_hunter.services.onboarding import build_config
+    from ai_job_hunter.services.users import get_owner, save_profile
+
+    world.send(OWNER_CHAT, "/invite")
+    code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
+    world.send("500", f"/start {code}")
+    world.send("500", data="ob:consent:yes")
+    ids = {}
+    with world.factory() as session:
+        person = session.scalar(select(User).where(User.is_owner.is_(False)))
+        person.status = "ACTIVE"
+        owner = get_owner(session)
+        for who, name in ((person, "person"), (owner, "owner")):
+            save_profile(session, who, build_config({"current_role": "Contable", "role": "Contable", "locations": ["Madrid"]}))
+            with acting_as(who.id):
+                learned.apply_change(session, who, "exclude_company", "Acme")
+                change = PreferenceChange(kind="exclude_company", value={"value": "Acme"}, reason="x")
+                session.add(change)
+                session.flush()
+                ids[name] = change.id
+        session.commit()
+
+    assert world.send("500", data=f"pc:undo:{ids['person']}") == "preference_undone"
+    assert world.send(OWNER_CHAT, data=f"pc:undo:{ids['owner']}") == "preference_undone"
+    assert world.send("500", data=f"pc:undo:{ids['owner']}") == "preference_undone"  # someone else's change: nothing happens
+    with world.factory() as session:
+        statuses = {row.id: row.status for row in session.scalars(select(PreferenceChange).execution_options(skip_user_scope=True))}
+        assert statuses[ids["person"]] == "UNDONE" and statuses[ids["owner"]] == "UNDONE"
+        assert all(not (row.learned or {}).get("excluded_companies") for row in session.scalars(select(UserProfile)))
