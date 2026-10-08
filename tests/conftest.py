@@ -92,3 +92,20 @@ def fake_offer_batch() -> tuple[NormalizedJob, NormalizedJob, NormalizedJob]:
     )
     refreshed = NormalizedJob.model_validate(refreshed_payload)
     return original, same_company, refreshed
+
+
+@pytest.fixture
+def keep_logging_state():
+    """alembic's env.py reconfigures logging and disables existing loggers; undo it for later tests."""
+
+    import logging
+
+    manager = logging.root.manager
+    disabled = {name: logger.disabled for name, logger in manager.loggerDict.items() if isinstance(logger, logging.Logger)}
+    handlers, level = list(logging.root.handlers), logging.root.level
+    yield
+    for name, logger in manager.loggerDict.items():
+        if isinstance(logger, logging.Logger):
+            logger.disabled = disabled.get(name, False)
+    logging.root.handlers[:] = handlers
+    logging.root.setLevel(level)

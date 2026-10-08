@@ -98,6 +98,7 @@ from ai_job_hunter.services.digest import preview_digest, send_digest
 from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
+from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_message
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
@@ -1215,6 +1216,17 @@ def _run_bot_command(candidate, settings) -> int:
         with session_factory() as feedback_session:
             set_review_state(feedback_session, job_id, HumanReviewStatus(state), reason=reason)
 
+    def record_note(prompt_job_id: UUID | None, replied_message_id: int, text: str) -> bool:
+        """An opinion written as a reply to an alert (found by its Telegram message id) or to the bot's question."""
+
+        with session_factory() as note_session:
+            job_id = prompt_job_id or job_for_alert_message(note_session, replied_message_id)
+            if job_id is None:
+                return False
+            stored = add_note(note_session, job_id, text) is not None
+            note_session.commit()
+            return stored
+
     bot = TelegramBotClient(token, chat_id)
     print("Bot listening for cover-letter requests (Ctrl+C to stop)")
     try:
@@ -1227,6 +1239,7 @@ def _run_bot_command(candidate, settings) -> int:
             prepare=prepare,
             prepare_interview=interview,
             hunter=build_hunter_handlers(session_factory),
+            record_note=record_note,
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

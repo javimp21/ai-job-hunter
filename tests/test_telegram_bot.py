@@ -416,37 +416,86 @@ def test_bot_command_requires_telegram_settings(monkeypatch, capsys):
     assert "TELEGRAM_BOT_TOKEN" in err and "TELEGRAM_CHAT_ID" in err
 
 
-def test_feedback_buttons_record_state_then_ask_and_store_reason():
+def test_a_vote_is_recorded_and_the_bot_asks_for_a_free_text_opinion():
     job_id = uuid4()
     recorded = []
     sent = []
 
     class FeedbackBot(FakeBot):
         def send_text(self, text, reply_markup=None, reply_to=None):
-            sent.append((text, reply_markup))
+            sent.append((text, reply_markup, reply_to))
+            return 900 + len(sent)
+
+    def alert_callback(data):
+        update = callback(data)
+        update["callback_query"]["message"]["message_id"] = 10  # the alert the buttons belong to
+        return update
 
     bot = FeedbackBot()
+    prompts = {}
     outcome = handle_update(
-        callback(f"dn:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
-        record_feedback=lambda *args: recorded.append(args),
+        alert_callback(f"dn:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: recorded.append(args), prompts=prompts,
     )
     assert outcome == "feedback"
     assert recorded == [(job_id, "DISMISSED", None)]
-    text, markup = sent[0]
-    assert text == "¿Por qué no te interesa?"
-    reasons = [button["callback_data"] for row in markup["inline_keyboard"] for button in row]
-    assert f"dr:sal:{job_id}" in reasons and all(len(data.encode()) <= 64 for data in reasons)
+    text, markup, reply_to = sent[0]
+    assert "responde a este mensaje" in text and markup is None and reply_to == 10  # a reply to the alert itself
+    assert prompts == {901: job_id}
 
+    sent.clear()
+    handle_update(
+        alert_callback(f"up:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
+        record_feedback=lambda *args: recorded.append(args), prompts=prompts,
+    )
+    _, saved_markup, _ = sent[0]
+    assert [b["text"] for row in saved_markup["inline_keyboard"] for b in row] == ["🎯 Preparar entrevista"]
+
+    # Old reason buttons still work for messages that were sent before this change.
     handle_update(
         callback(f"dr:sal:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
         record_feedback=lambda *args: recorded.append(args),
     )
     assert recorded[-1] == (job_id, "DISMISSED", "salary")
-    handle_update(
-        callback(f"ur:lrn:{job_id}"), chat_id=CHAT, bot=bot, generate=draft_for, generated={},
-        record_feedback=lambda *args: recorded.append(args),
-    )
-    assert recorded[-1] == (job_id, "SAVED", "learning")
+
+
+def _text_reply(text, to):
+    return {"update_id": 1, "message": {"message_id": 77, "chat": {"id": int(CHAT)}, "text": text, "reply_to_message": {"message_id": to}}}
+
+
+def test_a_text_reply_to_the_question_or_to_an_alert_is_stored_as_an_opinion():
+    job_id = uuid4()
+    stored = []
+    sent = []
+
+    class NoteBot(FakeBot):
+        def send_text(self, text, reply_markup=None, reply_to=None):
+            sent.append(text)
+
+    def record_note(prompt_job, replied_id, text):
+        stored.append((prompt_job, replied_id, text))
+        return True
+
+    kwargs = dict(chat_id=CHAT, bot=NoteBot(), generate=draft_for, generated={}, record_note=record_note)
+    assert handle_update(_text_reply("Buen stack pero piden 5 años", 901), prompts={901: job_id}, **kwargs) == "note"
+    assert handle_update(_text_reply("Sueldo bajo", 555), prompts={}, **kwargs) == "note"
+    assert stored == [(job_id, 901, "Buen stack pero piden 5 años"), (None, 555, "Sueldo bajo")]
+    assert sent == ["📝 Anotado, gracias."] * 2
+
+
+def test_a_reply_that_is_not_about_an_offer_is_ignored_and_other_chats_are_refused():
+    sent = []
+
+    class NoteBot(FakeBot):
+        def send_text(self, text, reply_markup=None, reply_to=None):
+            sent.append(text)
+
+    kwargs = dict(chat_id=CHAT, bot=NoteBot(), generate=draft_for, generated={}, record_note=lambda *a: False)
+    assert handle_update(_text_reply("hola", 12), **kwargs) == "ignored"
+    foreign = _text_reply("hola", 12)
+    foreign["message"]["chat"]["id"] = 999
+    assert handle_update(foreign, record_note=lambda *a: True, chat_id=CHAT, bot=NoteBot(), generate=draft_for, generated={}) == "ignored"
+    assert sent == []
 
 
 def test_bad_feedback_codes_and_failures_are_safe():

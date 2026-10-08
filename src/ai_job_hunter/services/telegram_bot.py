@@ -87,8 +87,11 @@ class TelegramBotClient:
 
     def send_text(
         self, text: str, reply_markup: dict[str, Any] | None = None, reply_to: int | None = None
-    ) -> None:
+    ) -> int | None:
+        """Send ``text`` (split if long); returns the id of the first message Telegram created."""
+
         chunks = split_text(text)
+        first_id: int | None = None
         for index, chunk in enumerate(chunks):
             data: dict[str, Any] = {"chat_id": self._chat_id, "text": chunk}
             if reply_to is not None and index == 0:
@@ -96,7 +99,10 @@ class TelegramBotClient:
                 data["allow_sending_without_reply"] = "true"
             if reply_markup is not None and index == len(chunks) - 1:
                 data["reply_markup"] = json.dumps(reply_markup, separators=(",", ":"))
-            self._call("sendMessage", data)
+            result = self._call("sendMessage", data)
+            if index == 0 and isinstance(result, dict) and isinstance(result.get("message_id"), int):
+                first_id = result["message_id"]
+        return first_id
 
     def send_document(self, path: Path, caption: str | None = None) -> bool:
         """Upload one local file; returns False (nothing sent) when it is missing or too large."""
@@ -271,18 +277,25 @@ def _handle_hunter(
 
 
 def _handle_message(
-    message: dict[str, Any], chat_id: str, bot: TelegramBotClient, hunter: HunterHandlers | None
+    message: dict[str, Any],
+    chat_id: str,
+    bot: TelegramBotClient,
+    hunter: HunterHandlers | None,
+    record_note: Callable[[UUID | None, int, str], bool] | None = None,
+    prompts: dict[int, UUID] | None = None,
 ) -> str:
-    """A text reply to one of our LinkedIn-queue messages regenerates that person's note."""
+    """A text reply to a LinkedIn-queue message regenerates that person's note; a reply to an alert (or to the
+    question after a vote) is stored as the user's opinion of that offer."""
 
     chat = message.get("chat")
     origin = chat.get("id") if isinstance(chat, dict) else None
-    if hunter is None or origin is None or str(origin) != str(chat_id).strip():
+    if origin is None or str(origin) != str(chat_id).strip():
         return "ignored"
     text = message.get("text")
     reply = message.get("reply_to_message")
     replied_id = reply.get("message_id") if isinstance(reply, dict) else None
     own_id = message.get("message_id")
+    own_reply = own_id if isinstance(own_id, int) and not isinstance(own_id, bool) else None
     if (
         not isinstance(text, str)
         or not text.strip()
@@ -290,18 +303,29 @@ def _handle_message(
         or isinstance(replied_id, bool)
     ):
         return "ignored"
-    try:
-        answer = hunter.post_reply(replied_id, text)
-    except CoverLetterError as error:
-        bot.send_text(f"No se pudo regenerar la nota: {error}", reply_to=own_id if isinstance(own_id, int) else None)
-        return "failed"
-    except Exception as error:  # noqa: BLE001 - the bot must keep running
-        bot.send_text(f"No se pudo regenerar la nota (error inesperado: {type(error).__name__}).")
-        return "failed"
-    if answer is None:
+    if hunter is not None:
+        try:
+            answer = hunter.post_reply(replied_id, text)
+        except CoverLetterError as error:
+            bot.send_text(f"No se pudo regenerar la nota: {error}", reply_to=own_reply)
+            return "failed"
+        except Exception as error:  # noqa: BLE001 - the bot must keep running
+            bot.send_text(f"No se pudo regenerar la nota (error inesperado: {type(error).__name__}).")
+            return "failed"
+        if answer is not None:
+            bot.send_text(answer, reply_to=own_reply)
+            return "regenerated"
+    if record_note is None:
         return "ignored"
-    bot.send_text(answer, reply_to=own_id if isinstance(own_id, int) else None)
-    return "regenerated"
+    try:
+        stored = record_note((prompts or {}).get(replied_id), replied_id, text)
+    except Exception as error:  # noqa: BLE001 - the bot must keep running
+        bot.send_text(f"No se pudo guardar tu opinión ({type(error).__name__}).", reply_to=own_reply)
+        return "failed"
+    if not stored:
+        return "ignored"
+    bot.send_text("📝 Anotado, gracias.", reply_to=own_reply)
+    return "note"
 
 
 def _parse_request(data: Any) -> tuple[UUID, str] | None:
@@ -334,9 +358,11 @@ def handle_update(
     prepare_interview: Callable[[UUID], Any] | None = None,
     interviews: dict[UUID, Any] | None = None,
     hunter: HunterHandlers | None = None,
+    record_note: Callable[[UUID | None, int, str], bool] | None = None,
+    prompts: dict[int, UUID] | None = None,
 ) -> str:
     """Handle one update and return "ignored", "generated", "failed", "duplicate", "feedback",
-    "connection" or "regenerated".
+    "connection", "regenerated" or "note".
 
     Updates are handled one at a time, so a second tap on the same button
     arrives after the first letter is done; ``generated`` makes it resend that
@@ -347,7 +373,7 @@ def handle_update(
     if not isinstance(callback, dict):
         message_update = update.get("message")
         if isinstance(message_update, dict):
-            return _handle_message(message_update, chat_id, bot, hunter)
+            return _handle_message(message_update, chat_id, bot, hunter, record_note, prompts)
         return "ignored"
     message = callback.get("message")
     chat = message.get("chat") if isinstance(message, dict) else None
@@ -359,7 +385,7 @@ def handle_update(
     alert_message_id = raw_message_id if isinstance(raw_message_id, int) and not isinstance(raw_message_id, bool) else None
     feedback = _parse_feedback(callback.get("data"))
     if feedback is not None:
-        return _handle_feedback(bot, callback_id, feedback, record_feedback)
+        return _handle_feedback(bot, callback_id, feedback, record_feedback, alert_message_id, prompts)
     hunter_action = _parse_hunter(callback.get("data"))
     if hunter_action is not None:
         return _handle_hunter(bot, callback_id, hunter_action, hunter, alert_message_id)
@@ -538,6 +564,8 @@ def _handle_feedback(
     callback_id: str,
     feedback: tuple[str, UUID, str | None],
     record_feedback: Callable[[UUID, str, str | None], None] | None,
+    alert_message_id: int | None = None,
+    prompts: dict[int, UUID] | None = None,
 ) -> str:
     state, job_id, reason = feedback
     if record_feedback is None:
@@ -551,10 +579,20 @@ def _handle_feedback(
     saved = state == "SAVED"
     if reason is None:
         _answer(bot, callback_id, "Guardada 👍" if saved else "Descartada 👎")
-        bot.send_text(
-            "¿Qué te gusta de esta oferta?" if saved else "¿Por qué no te interesa?",
-            reply_markup=feedback_reason_keyboard(job_id, saved=saved),
+        # No list of reasons: the opinion is free text, written as a reply to this message or to the alert itself.
+        prompt = (
+            "👍 Guardada. Si quieres, cuéntame qué te gusta y qué no: responde a este mensaje con tu opinión."
+            if saved
+            else "👎 Descartada. Si quieres, cuéntame por qué: responde a este mensaje con tu opinión."
         )
+        keyboard = (
+            {"inline_keyboard": [[{"text": "🎯 Preparar entrevista", "callback_data": f"{INTERVIEW_PREP_CALLBACK_PREFIX}{job_id}"}]]}
+            if saved
+            else None
+        )
+        prompt_id = bot.send_text(prompt, reply_markup=keyboard, reply_to=alert_message_id)
+        if prompts is not None and prompt_id is not None:
+            prompts[prompt_id] = job_id
     else:
         _answer(bot, callback_id, "Motivo guardado, gracias")
     return "feedback"
@@ -617,6 +655,7 @@ def run_bot(
     prepare: Callable[[UUID], Any] | None = None,
     prepare_interview: Callable[[UUID], Any] | None = None,
     hunter: HunterHandlers | None = None,
+    record_note: Callable[[UUID | None, int, str], bool] | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -627,6 +666,7 @@ def run_bot(
     generated: dict[tuple[UUID, str], CoverLetterDraft] = {}
     prepared: dict[UUID, Any] = {}
     interviews: dict[UUID, Any] = {}
+    prompts: dict[int, UUID] = {}
     backoff = _BACKOFF_START
     cycles = 0
     while max_cycles is None or cycles < max_cycles:
@@ -647,6 +687,8 @@ def run_bot(
                         prepare_interview=prepare_interview,
                         interviews=interviews,
                         hunter=hunter,
+                        record_note=record_note,
+                        prompts=prompts,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:

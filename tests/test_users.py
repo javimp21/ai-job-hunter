@@ -1,5 +1,4 @@
 import json
-import logging
 from pathlib import Path
 
 import pytest
@@ -13,24 +12,21 @@ from ai_job_hunter.services.users import ensure_owner, get_owner, import_owner_p
 from tests.test_candidate_prefilter import make_config
 
 
-def test_migration_0015_creates_users_and_profiles_and_can_be_undone(tmp_path: Path, monkeypatch) -> None:
+def test_migration_0015_creates_users_and_profiles_and_can_be_undone(tmp_path: Path, monkeypatch, keep_logging_state) -> None:
     repo_root = Path(__file__).parents[1]
     database_url = f"sqlite+pysqlite:///{(tmp_path / 'users.sqlite3').as_posix()}"
     monkeypatch.setenv("DATABASE_URL", database_url)
     config = Config(str(repo_root / "alembic.ini"))
     config.set_main_option("script_location", str(repo_root / "alembic"))
-    try:
-        command.upgrade(config, "head")
-        engine = create_engine(database_url)
-        inspector = inspect(engine)
-        assert {"users", "user_profiles"} <= set(inspector.get_table_names())
-        assert {"telegram_chat_id", "is_owner", "status", "consent_at", "trial_ends_at"} <= {
-            column["name"] for column in inspector.get_columns("users")
-        }
-        command.downgrade(config, "0014_company_hunter")
-        assert "users" not in inspect(create_engine(database_url)).get_table_names()
-    finally:
-        logging.disable(logging.NOTSET)  # alembic's env.py silences logging for later tests
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    assert {"users", "user_profiles"} <= set(inspector.get_table_names())
+    assert {"telegram_chat_id", "is_owner", "status", "consent_at", "trial_ends_at"} <= {
+        column["name"] for column in inspector.get_columns("users")
+    }
+    command.downgrade(config, "0014_company_hunter")
+    assert "users" not in inspect(create_engine(database_url)).get_table_names()
 
 
 def test_there_is_one_owner_and_the_profile_round_trips(db_session) -> None:
