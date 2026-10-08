@@ -77,3 +77,6 @@ Thumbs.db
 
 # Frozen runtime used by scheduled runs (scripts/deploy-stable.ps1)
 /.venv-stable/
+
+# Claude Code deploy gate marker
+.claude/deploy-gate.ok
