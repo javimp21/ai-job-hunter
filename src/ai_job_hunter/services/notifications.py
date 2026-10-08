@@ -77,10 +77,13 @@ APPLICATION_PACK_CALLBACK_PREFIX = "pc:"
 INTERVIEW_PREP_CALLBACK_PREFIX = "ip:"
 
 
-def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
-    """Inline buttons that ask the bot for a cover-letter draft (callbacks <= 64 bytes)."""
+def cover_letter_keyboard(job_id: UUID, *, application_pack: bool = True) -> dict[str, Any]:
+    """Inline buttons that ask the bot for a cover-letter draft (callbacks <= 64 bytes).
 
-    return {
+    The application pack needs the owner's private files, so other people's alerts leave that button out.
+    """
+
+    keyboard = {
         "inline_keyboard": [
             [
                 {
@@ -104,6 +107,9 @@ def cover_letter_keyboard(job_id: UUID) -> dict[str, Any]:
             ],
         ]
     }
+    if not application_pack:
+        keyboard["inline_keyboard"].pop()
+    return keyboard
 
 
 FEEDBACK_SAVE_PREFIX = "up:"
@@ -321,6 +327,7 @@ def send_notifications(
     direct_postings: DirectPostingLookup | None = None,
     liveness: LivenessCheck | None = None,
     only_job_ids: Collection[UUID] | None = None,
+    owner_features: bool = True,
 ) -> NotificationBatchResult:
     """Record selected evaluations and send pending notifications once.
 
@@ -353,7 +360,7 @@ def send_notifications(
         ).all()
         if (row.job_id, row.evaluation_fingerprint) in selected_keys
     }
-    _dispatch_pending(session, provider, result, limit=limit, only_ids=pending_ids)
+    _dispatch_pending(session, provider, result, limit=limit, only_ids=pending_ids, owner_features=owner_features)
     return result
 
 
@@ -982,6 +989,7 @@ def _dispatch_pending(
     *,
     limit: int | None,
     only_ids: set[UUID] | None = None,
+    owner_features: bool = True,
 ) -> None:
     statement = select(OpportunityNotification).where(
         OpportunityNotification.status == OpportunityNotificationStatus.PENDING.value,
@@ -1028,7 +1036,7 @@ def _dispatch_pending(
             continue
         try:
             delivery = provider.send_message(
-                row.message, reply_markup=cover_letter_keyboard(row.job_id)
+                row.message, reply_markup=cover_letter_keyboard(row.job_id, application_pack=owner_features)
             )
             row.provider_message_id = (
                 delivery.message_id

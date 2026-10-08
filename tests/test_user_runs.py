@@ -144,3 +144,32 @@ def test_offers_seen_only_through_an_owner_only_feed_are_not_evaluated_for_other
     results = {str(r.user_id): r for r in run(db_session, world, Outbox(), engine)}
 
     assert results[str(people["ana"])].candidates == 1 and engine.calls == ["role-a"]  # the second person reuses the cached answer
+
+
+def test_the_weekly_opinion_review_reads_only_that_persons_notes_and_runs_once_a_week(world, db_session) -> None:
+    from types import SimpleNamespace
+
+    from ai_job_hunter.models import Job, JobFeedbackNote
+
+    _, people, _, _ = world
+    job = db_session.scalar(select(Job))
+    with acting_as(people["ana"]):
+        for index in range(5):
+            db_session.add(JobFeedbackNote(job_id=job.id, text=f"opinion {index} <b>"))
+        db_session.commit()
+    seen: list[str] = []
+
+    def create(**request):
+        seen.append(request["messages"][0]["content"])
+        return SimpleNamespace(content=[SimpleNamespace(type="text", text="1. Prefieres remoto & sueldo.")])
+
+    claude = SimpleNamespace(messages=SimpleNamespace(create=create))
+    outbox = Outbox()
+
+    run(db_session, world, outbox, FakeEngine(), review_client=claude)
+    run(db_session, world, outbox, FakeEngine(), review_client=claude)
+
+    reviews = [text for chat, text in outbox.sent if "Lo que me has contado" in text]
+    assert len(reviews) == 1 and "&amp; sueldo" in reviews[0] and "quien te invitó" in reviews[0]
+    assert len(seen) == 1 and "opinion 0" in seen[0]
+    assert [chat for chat, text in outbox.sent if "Lo que me has contado" in text] == ["200"]

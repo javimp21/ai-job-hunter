@@ -42,6 +42,8 @@ def test_models_import_and_relationships_are_configured() -> None:
         "user_profiles",
         "job_feedback_notes",
         "invitations",
+        "usage_events",
+        "generated_documents",
     }
     assert Company.jobs.property.mapper.class_ is Job
     assert Company.evidence_items.property.mapper.class_ is CompanyEvidence

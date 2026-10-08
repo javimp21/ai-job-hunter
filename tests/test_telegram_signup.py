@@ -75,7 +75,7 @@ def world():
             update = {"update_id": 1, "message": {**message, **({"text": text} if text else {}), **({"document": document} if document else {})}}
         return handle_update(update, chat_id=OWNER_CHAT, bot=bot, generate=lambda *a: None, generated={}, signup=handlers)
 
-    return SimpleNamespace(factory=factory, sent=sent, send=send, votes=votes, notes=notes)
+    return SimpleNamespace(factory=factory, sent=sent, send=send, votes=votes, notes=notes, handlers=handlers)
 
 
 def last(world, chat):
@@ -204,3 +204,44 @@ def test_a_signed_up_person_votes_and_writes_opinions_as_themselves_and_cannot_u
     assert world.notes == [(person_id, 900, "no me gusta el sueldo")]
     before = len(world.votes)
     assert world.send("500", data=f"gl:{job_id}") == "signup_ignored" and len(world.votes) == before
+
+
+def test_letter_and_interview_buttons_write_for_the_person_and_a_quota_message_is_shown(world) -> None:
+    from uuid import uuid4
+
+    from ai_job_hunter.services.person_documents import PersonDocument, QuotaExceeded
+
+    class Docs:
+        def __init__(self):
+            self.calls, self.refuse = [], False
+
+        def letter(self, user_id, job_id, language="auto"):
+            self.calls.append(("letter", user_id, job_id, language))
+            if self.refuse:
+                raise QuotaExceeded("Ya has usado tus 3 cartas de hoy. Vuelve a probar más adelante.")
+            return PersonDocument("LETTER", "Acme", "Contable", "es", "Hola equipo. Un saludo,", reused=False)
+
+        def interview(self, user_id, job_id):
+            self.calls.append(("interview", user_id, job_id))
+            raise RuntimeError("provider detail that must not leak")
+
+    docs = Docs()
+    world.handlers._documents = docs
+    world.send(OWNER_CHAT, "/invite")
+    code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
+    world.send("500", f"/start {code}")
+    world.send("500", data="ob:consent:yes")
+    with world.factory() as session:
+        person = session.scalar(select(User).where(User.is_owner.is_(False)))
+        person.status = "ACTIVE"
+        person_id = person.id
+        session.commit()
+    job_id = uuid4()
+
+    assert world.send("500", data=f"cl:{job_id}") == "document_written"
+    assert docs.calls == [("letter", person_id, job_id, "auto")] and "Hola equipo" in last(world, 500)[1]
+    assert "añade tu nombre" in last(world, 500)[1]
+    docs.refuse = True
+    assert world.send("500", data=f"cl:{job_id}") == "document_refused" and "3 cartas de hoy" in last(world, 500)[1]
+    assert world.send("500", data=f"ip:{job_id}") == "document_failed"
+    assert "provider detail" not in last(world, 500)[1]

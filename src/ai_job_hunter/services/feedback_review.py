@@ -127,6 +127,7 @@ def review_notes(
     min_notes: int = 5,
     client: Any | None = None,
     now: datetime | None = None,
+    closing: str = "No he cambiado nada: dime qué propuestas quieres aplicar.",
 ) -> FeedbackReview:
     """Read the notes written since the last review; with fewer than ``min_notes`` nothing is sent or spent."""
 
@@ -143,7 +144,7 @@ def review_notes(
         return FeedbackReview("failed", notes=len(items))
     if not text:
         return FeedbackReview("failed", notes=len(items))
-    message = f"📝 Lo que me has contado ({len(items)} notas)\n\n{text}\n\nNo he cambiado nada: dime qué propuestas quieres aplicar."
+    message = f"📝 Lo que me has contado ({len(items)} notas)\n\n{text}\n\n{closing}"
     return FeedbackReview("reviewed", notes=len(items), message=message)
 
 

@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_job_hunter.db.base import Base
@@ -56,6 +56,8 @@ class UserProfile(TimestampMixin, Base):
     user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     sector: Mapped[str] = mapped_column(String(41), nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    # A summary of the person's experience (no name, e-mail, phone or address) used to write letters and interview briefs.
+    cv_text: Mapped[str | None] = mapped_column(Text)
 
 
 class Invitation(TimestampMixin, Base):

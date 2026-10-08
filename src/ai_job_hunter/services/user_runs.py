@@ -8,6 +8,7 @@ their filter. One person's failure never stops the others.
 
 from __future__ import annotations
 
+import html
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ from ai_job_hunter.decision_engine import DecisionCache
 from ai_job_hunter.models import Job, JobEvaluation, JobSource
 from ai_job_hunter.models.job_evaluation import EvaluationStatus
 from ai_job_hunter.models.user import User, UserStatus
+from ai_job_hunter.services import usage
+from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
 from ai_job_hunter.services.notifications import (
     NotificationProvider,
     effective_review_threshold,
@@ -66,6 +69,7 @@ def run_for_users(
     daily_jev_cap: int = 150,
     max_notifications: int = 5,
     max_candidates: int = 300,
+    review_client=None,  # noqa: ANN001 - a Claude client; None builds the real one
     now: datetime | None = None,
 ) -> list[UserRunResult]:
     moment = now or datetime.now(UTC)
@@ -89,7 +93,7 @@ def run_for_users(
                     user_id=user_id, moment=moment, review_threshold=review_threshold, max_age_days=max_age_days,
                     engine=engine, cache=cache, direct_postings=direct_postings, liveness=liveness,
                     max_jev_jobs=max_jev_jobs, daily_jev_cap=daily_jev_cap, max_notifications=max_notifications,
-                    max_candidates=max_candidates,
+                    max_candidates=max_candidates, review_client=review_client,
                 )
         except Exception as error:  # noqa: BLE001 - one person's failure must not stop the others
             result.error = type(error).__name__
@@ -100,6 +104,7 @@ def run_for_users(
 def _run_one(
     session: Session, provider: NotificationProvider, result: UserRunResult, *, user_id, moment, review_threshold,
     max_age_days, engine, cache, direct_postings, liveness, max_jev_jobs, daily_jev_cap, max_notifications, max_candidates,
+    review_client,
 ) -> None:
     candidate = load_profile(session, session.get(User, user_id))
     if candidate is None:
@@ -122,9 +127,31 @@ def _run_one(
         direct_postings=direct_postings, liveness=liveness,
         only_job_ids=set(job_ids) | pending_notification_job_ids(session),
         review_threshold=effective_review_threshold(candidate, review_threshold),
-        max_age_days=max_age_days, limit=max_notifications,
+        max_age_days=max_age_days, limit=max_notifications, owner_features=False,
     )
     result.sent, result.failed = batch.sent, batch.failed
+    _weekly_review(session, provider, candidate, moment, review_threshold, review_client)
+
+
+def _weekly_review(session: Session, provider: NotificationProvider, candidate, moment, review_threshold, client) -> None:  # noqa: ANN001
+    """Once a week, with at least 5 new opinions, Claude reads this person's notes and tells them what it noticed."""
+
+    if not usage.check_quota(session, usage.REVIEW, now=moment).allowed:
+        return
+    tuning = (
+        f"sector={candidate.preferences.sector}; "
+        f"alert bar for REVIEW offers={effective_review_threshold(candidate, review_threshold)}"
+    )
+    review = review_notes(
+        session, tuning_summary=tuning, min_notes=5, client=client,
+        closing="Es solo información: si algo no te cuadra, escribe a quien te invitó.",
+    )
+    if review.status != "reviewed" or review.message is None:
+        return
+    provider.send_message(html.escape(review.message))
+    mark_reviewed(session, now=moment)
+    usage.record_usage(session, usage.REVIEW, now=moment)
+    session.commit()
 
 
 def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, limit: int) -> list:

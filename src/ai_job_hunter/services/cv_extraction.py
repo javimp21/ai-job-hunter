@@ -18,6 +18,7 @@ TOOL_NAME = "cv_profile"
 MAX_TEXT_CHARS = 60_000
 MAX_ITEMS = 25
 MAX_ITEM_CHARS = 60
+MAX_SUMMARY_CHARS = 6000
 
 _SYSTEM = """You read a CV and fill in a short professional profile by calling the tool once.
 - Use only what the CV says; leave a field empty when it does not say. Never guess.
@@ -26,6 +27,7 @@ _SYSTEM = """You read a CV and fill in a short professional profile by calling t
 - primary_skills: the 3 to 8 core professional skills; technologies: tools, languages, software and standards named.
 - languages: spoken languages, as English names ("Spanish", "English", "French").
 - current_city and current_country: where the person lives now, if stated (city name only, no street).
+- professional_summary: a faithful, condensed rewrite of the CV's content in the CV's own language, as plain text lines: work experience (role, employer, dates, what they did and achieved, with the numbers the CV gives), education, projects, certifications and skills. Keep every concrete fact and number; add nothing. Leave out the name, e-mail, phone, address, photo, links and any personal data such as age, marital status or national id. At most about 700 words.
 If a previous draft and a correction from the person are given, apply the correction to the draft and keep the rest."""
 
 _STRING_LISTS = ("primary_skills", "secondary_skills", "technologies", "languages")
@@ -40,7 +42,7 @@ def _schema() -> dict[str, Any]:
         "properties": {
             "current_role": text, "years_of_experience": {"type": "number"}, "primary_skills": listing,
             "secondary_skills": listing, "technologies": listing, "languages": listing, "education": text,
-            "current_country": text, "current_city": text,
+            "current_country": text, "current_city": text, "professional_summary": text,
         },
         "required": [],
     }
@@ -74,7 +76,7 @@ def build_request(
     content.append({"type": "text", "text": "Fill in the profile."})
     return {
         "model": MODEL,
-        "max_tokens": 1200,
+        "max_tokens": 4000,
         "system": _SYSTEM,
         "messages": [{"role": "user", "content": content}],
         "tools": [{"name": TOOL_NAME, "description": "The profile read from the CV.", "input_schema": _schema()}],
@@ -96,6 +98,9 @@ def normalize(raw: dict[str, Any]) -> dict[str, Any]:
             items = [item.strip()[:MAX_ITEM_CHARS] for item in value if isinstance(item, str) and item.strip()]
             if items:
                 draft[key] = list(dict.fromkeys(items))[:MAX_ITEMS]
+    summary = raw.get("professional_summary")
+    if isinstance(summary, str) and summary.strip():
+        draft["professional_summary"] = summary.strip()[:MAX_SUMMARY_CHARS]
     years = raw.get("years_of_experience")
     if isinstance(years, (int, float)) and not isinstance(years, bool) and 0 <= years <= 60:
         draft["years_of_experience"] = round(float(years), 1)

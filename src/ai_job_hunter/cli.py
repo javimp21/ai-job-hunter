@@ -81,6 +81,7 @@ from ai_job_hunter.services.monitored_sources import (
 )
 from ai_job_hunter.models import MonitoredSource, MonitoredSourceState
 from ai_job_hunter.services.telegram_bot import TelegramBotClient, run_bot
+from ai_job_hunter.services.person_documents import PersonDocuments
 from ai_job_hunter.services.opportunities import (
     Opportunity,
     OpportunityServiceError,
@@ -1251,7 +1252,9 @@ def _run_bot_command(candidate, settings) -> int:
             prepare_interview=interview,
             hunter=build_hunter_handlers(session_factory),
             record_note=record_note,
-            signup=SignupHandlers(session_factory, make_extractor(), chat_id, record_feedback, record_note),
+            signup=SignupHandlers(
+                session_factory, make_extractor(), chat_id, record_feedback, record_note, PersonDocuments(session_factory)
+            ),
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

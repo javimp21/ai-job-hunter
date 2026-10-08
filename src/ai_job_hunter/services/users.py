@@ -32,20 +32,27 @@ def ensure_owner(
     return owner
 
 
-def save_profile(session: Session, user: User, config: CandidateConfig) -> tuple[UserProfile, bool]:
-    """Create or replace the user's profile; returns it and whether anything changed."""
+def save_profile(
+    session: Session, user: User, config: CandidateConfig, *, cv_text: str | None = None
+) -> tuple[UserProfile, bool]:
+    """Create or replace the user's profile; returns it and whether anything changed.
+
+    ``cv_text`` (the experience summary) is replaced only when given, so editing preferences never drops it.
+    """
 
     payload = config.model_dump(mode="json")
     profile = session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
     if profile is None:
-        profile = UserProfile(user_id=user.id, sector=config.preferences.sector, config=payload)
+        profile = UserProfile(user_id=user.id, sector=config.preferences.sector, config=payload, cv_text=cv_text)
         session.add(profile)
         session.flush()
         return profile, True
-    if profile.config == payload and profile.sector == config.preferences.sector:
+    if profile.config == payload and profile.sector == config.preferences.sector and cv_text in (None, profile.cv_text):
         return profile, False
     profile.sector = config.preferences.sector
     profile.config = payload
+    if cv_text is not None:
+        profile.cv_text = cv_text
     session.flush()
     return profile, True
 

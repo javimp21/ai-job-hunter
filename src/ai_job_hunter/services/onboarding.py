@@ -114,7 +114,8 @@ def welcome(user: User) -> list[Reply]:
         Reply(
             "👋 Soy Job Hunter: leo ofertas de empleo de miles de empresas y te aviso solo de las que encajan contigo.\n\n"
             "Esto es una beta cerrada, gratis durante unos días. Antes de empezar, lo que tienes que saber:\n"
-            "• Te pediré tu CV. No lo guardo: lo leo una vez para sacar tu perfil, que tú confirmas.\n"
+            "• Te pediré tu CV. No guardo el archivo: lo leo una vez y guardo tu perfil y un resumen de tu experiencia, "
+            "sin nombre ni contacto, para escribir tus cartas. Tú lo confirmas.\n"
             "• Para leerlo uso un modelo de IA de Anthropic: el texto de tu CV se envía a ese proveedor.\n"
             "• Para valorar cada oferta envío tu perfil resumido (puesto, años de experiencia, habilidades, país) y el texto "
             "de la oferta a otro proveedor de IA (TypeSafe), nunca tu nombre ni tu contacto.\n"
@@ -252,8 +253,14 @@ def _summary(draft: dict[str, Any]) -> Reply:
         line("Formación", "education"), line("Ubicación", "current_city"),
     ]
     body = "\n".join(item for item in lines if item) or "• (no he encontrado datos claros)"
+    kept = (
+        "\n\nTambién guardaré un resumen de tu experiencia (sin nombre ni contacto) para escribir tus cartas; "
+        "lo verás completo con /my_data y se borra con /erase."
+        if draft.get("professional_summary")
+        else ""
+    )
     return Reply(
-        f"Esto es lo que he leído de tu CV:\n{body}\n\n¿Es correcto?",
+        f"Esto es lo que he leído de tu CV:\n{body}{kept}\n\n¿Es correcto?",
         ((Button("✅ Es correcto", "ob:confirm:yes"), Button("✏️ Corregir", "ob:confirm:fix")),),
     )
 
@@ -352,7 +359,7 @@ def _finish(session: Session, user: User, draft: dict[str, Any], now: datetime) 
     except ValueError:
         user.onboarding = {"step": "cv", "draft": {}}
         return [Reply("Algo no cuadra en tu perfil y tengo que empezar de nuevo con el CV. Envíamelo otra vez.")]
-    save_profile(session, user, config)
+    save_profile(session, user, config, cv_text=draft.get("professional_summary"))
     user.status = UserStatus.ACTIVE.value
     user.trial_started_at, user.trial_ends_at = now, now + timedelta(days=TRIAL_DAYS)
     user.onboarding = {"step": "done", "draft": {}}
@@ -395,10 +402,12 @@ def my_data(session: Session, user: User) -> Reply:
             f"Lugares: {', '.join(prefs.get('acceptable_locations') or []) or '-'}",
             f"Modalidad: {prefs.get('remote_preference', '-')}", f"Idiomas: {', '.join(prof.get('languages') or []) or '-'}",
         ]
+        if profile.cv_text:
+            lines.append(f"\nResumen de tu experiencia (lo uso para escribir tus cartas):\n{profile.cv_text}\n")
     counts = count_user_rows(session, user)
     stored = ", ".join(f"{label} {n}" for label, n in counts.items() if n)
     lines.append(f"Guardado: {stored or 'nada más'}")
-    lines.append("\nNo guardo tu CV. /erase elimina todo esto.")
+    lines.append("\nNo guardo el archivo de tu CV. /erase elimina todo esto.")
     return Reply("\n".join(lines))
 
 

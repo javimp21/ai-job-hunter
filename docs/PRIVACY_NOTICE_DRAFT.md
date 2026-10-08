@@ -8,7 +8,7 @@ son datos que tienes que rellenar.
 
 - Este servicio te avisa por Telegram de ofertas de empleo que encajan con tu perfil y te ayuda a preparar borradores
   de cartas. Nunca envía nada por ti.
-- Para hacerlo guardo el perfil que sale de tu CV (no el CV) y las preferencias que me das. Los uso solo para eso.
+- Para hacerlo guardo el perfil que sale de tu CV y un resumen de tu experiencia sin nombre ni contacto (no el archivo del CV), y las preferencias que me das. Los uso solo para eso, incluido escribir tus cartas y tus guiones de entrevista.
 - Tu CV y tus preguntas se envían a un proveedor de inteligencia artificial para extraer tu perfil y escribir borradores.
 - Puedes ver qué guardo con `/my_data` y borrarlo todo con `/erase`, cuando quieras.
 - No envíes por este chat datos sensibles (salud, creencias, DNI, contraseñas). Telegram no cifra de extremo a extremo
@@ -27,7 +27,7 @@ en esta etapa.
 | Dato | De dónde sale |
 | --- | --- |
 | Identificador de tu chat de Telegram e idioma (no guardo tu nombre ni tu usuario) | Telegram, al hablar con el bot |
-| Perfil sacado de tu CV: puesto, años de experiencia, habilidades, estudios, idiomas, país y ciudad. El CV en sí no se guarda y no se extrae tu nombre ni tu contacto | Lo subes tú y lo confirmas |
+| Perfil sacado de tu CV: puesto, años de experiencia, habilidades, estudios, idiomas, país y ciudad. Un resumen de tu experiencia (puestos, empresas, fechas, logros, formación) para escribir tus cartas y guiones de entrevista; lo ves completo con `/my_data`. El archivo del CV no se guarda y no se extrae tu nombre ni tu contacto | Lo subes tú y lo confirmas |
 | Preferencias: puesto buscado, lugares, sueldo, modalidad, idiomas | Las indicas tú |
 | Tus valoraciones de ofertas (me interesa, no me interesa) y tus candidaturas | Tus acciones en el bot |
 | Borradores de cartas y respuestas generadas | Los genera el servicio a petición tuya |

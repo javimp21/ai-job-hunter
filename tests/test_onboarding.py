@@ -143,7 +143,7 @@ def test_commands_pause_resume_show_data_and_erase_everything(db_session) -> Non
     assert "pausado" in handle_command(db_session, user, "/pause")[0].text.lower() and user.status == "PAUSED"
     assert "reanudado" in handle_command(db_session, user, "/resume")[0].text.lower() and user.status == "ACTIVE"
     data = handle_command(db_session, user, "/my_data")[0].text
-    assert "finance" in data and "votos 1" in data and "notas 1" in data and "No guardo tu CV" in data
+    assert "finance" in data and "votos 1" in data and "notas 1" in data and "No guardo el archivo de tu CV" in data
     ask = handle_command(db_session, user, "/erase")[0]
     assert [b.data for row in ask.buttons for b in row] == ["ob:erase:yes", "ob:erase:no"]
     assert "cancelado" in handle_erase_press(db_session, user, "ob:erase:no")[0].text.lower() and user.status == "ACTIVE"
@@ -162,3 +162,27 @@ def test_spanish_command_names_still_work_as_aliases(db_session) -> None:
     user.status = "ACTIVE"
     assert "pausado" in handle_command(db_session, user, "/pausa")[0].text.lower()
     assert "pausado" in handle_command(db_session, user, "/pause")[0].text.lower()
+
+
+def test_the_experience_summary_is_kept_for_letters_shown_in_my_data_and_erased_with_the_person(db_session) -> None:
+    _, user = new_user(db_session)
+    draft = {**CV_DRAFT, "professional_summary": "Contable en Acme (2023-2025): cierre mensual."}
+
+    def extract(text, file, previous, correction):
+        return dict(previous or draft)
+
+    handle(db_session, user, Event(kind="press", data="ob:consent:yes"), extract, now=NOW)
+    summary = handle(db_session, user, Event(kind="document", filename="cv.pdf", content=b"%PDF"), extract, now=NOW)[0]
+    assert "resumen de tu experiencia" in summary.text and "sin nombre ni contacto" in summary.text
+    for step in (
+        Event(kind="press", data="ob:confirm:yes"), Event(kind="press", data="ob:sector:finance"),
+        Event(kind="text", text="Contable"), Event(kind="text", text="Madrid"), Event(kind="press", data="ob:reloc:no"),
+        Event(kind="text", text="28k"), Event(kind="press", data="ob:mode:hybrid"),
+    ):
+        handle(db_session, user, step, extract, now=NOW)
+
+    stored = db_session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
+    assert stored.cv_text == "Contable en Acme (2023-2025): cierre mensual."
+    assert "cierre mensual" in handle_command(db_session, user, "/my_data")[0].text
+    handle_erase_press(db_session, user, "ob:erase:yes")
+    assert db_session.scalar(select(UserProfile).where(UserProfile.user_id == user.id)) is None

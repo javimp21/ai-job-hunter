@@ -18,6 +18,7 @@ from ai_job_hunter.models import (
     OutreachEvent,
     ReportDelivery,
 )
+from ai_job_hunter.models.usage import GeneratedDocument, UsageEvent
 from ai_job_hunter.models.user import User, UserProfile, UserStatus
 
 # (label shown to the person, model) in the order they can be deleted (children before parents).
@@ -28,6 +29,8 @@ LABELED_TABLES = (
     ("votos", JobReview),
     ("informes", ReportDelivery),
     ("mensajes de contacto", ConnectionRequest),
+    ("documentos", GeneratedDocument),
+    ("usos", UsageEvent),
 )
 _SCOPE = {"execution_options": {SKIP_USER_SCOPE: True}}
 

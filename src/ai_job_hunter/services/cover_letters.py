@@ -208,6 +208,7 @@ def build_cover_letter_request(
     style_guide: str,
     cv_pdf: bytes | None,
     language: str = "auto",
+    cv_text: str | None = None,
 ) -> dict[str, Any]:
     """Build the Messages API request; pure so prompts can be tested offline."""
 
@@ -224,6 +225,8 @@ def build_cover_letter_request(
             },
             "title": "Candidate CV",
         })
+    if cv_text:
+        content.append({"type": "text", "text": f"<candidate_cv>\n{cv_text}\n</candidate_cv>"})
     content.append({
         "type": "text",
         "text": (
@@ -340,3 +343,52 @@ def _anthropic_client() -> MessagesClient:
     if key is None or not key.get_secret_value().strip():
         raise CoverLetterError("ANTHROPIC_API_KEY is not configured in .env.")
     return anthropic.Anthropic(api_key=key.get_secret_value().strip())
+
+
+PERSON_STYLE_GUIDE = """\
+Voice: a real person writing to a real team, plain and warm, never salesy. Short sentences. Concrete over abstract: name the
+employer, the project or the tool from the CV instead of saying "extensive experience".
+Avoid these AI-sounding phrases and anything like them: "I am writing to express my interest", "passionate about",
+"I am excited to", "dynamic", "fast-paced environment", "proven track record", "synergy", "leverage",
+"estimado equipo de selección", "me dirijo a ustedes", "apasionado/a por", "no dudes en contactarme".
+No flattery of the company and no clichés about "innovation". One specific, true reason for wanting this role.
+Sign-off: end with a short closing line ("Un saludo," in Spanish, "Best regards," in English) and nothing after it: the person
+adds their own name.
+Confirmed motivations: none are given beyond what the CV and the posting show; do not invent any.
+"""
+
+
+def write_letter_for_person(
+    session: Session,
+    candidate: CandidateConfig,
+    posting: dict[str, Any],
+    cv_text: str | None,
+    *,
+    language: str = "auto",
+    client: MessagesClient | None = None,
+) -> tuple[str, str, str]:
+    """Letter text for someone with no private files: (text, language, model). Nothing is written to disk."""
+
+    _validate_language(language)
+    request = build_cover_letter_request(
+        posting=posting,
+        candidate_facts=candidate_facts_for_letter(candidate, CandidateApplicationFacts()),
+        style_guide=PERSON_STYLE_GUIDE,
+        cv_pdf=None,
+        language=language,
+        cv_text=cv_text,
+    )
+    active_client = client or _anthropic_client()
+    try:
+        response = active_client.beta.messages.create(**request)
+    except Exception as error:  # noqa: BLE001 - provider errors may echo request details; report the type only
+        raise CoverLetterError(f"Claude request failed ({type(error).__name__}).") from None
+    if getattr(response, "stop_reason", None) == "refusal":
+        raise CoverLetterError("Claude declined to write this letter.")
+    text = clean_letter_text(
+        "".join(block.text for block in getattr(response, "content", []) if getattr(block, "type", None) == "text").strip()
+    )
+    if not text:
+        raise CoverLetterError("Claude returned an empty letter.")
+    resolved = language if language != "auto" else _detect_language(text)
+    return text, resolved, getattr(response, "model", COVER_LETTER_MODEL)

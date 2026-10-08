@@ -24,7 +24,10 @@ from ai_job_hunter.services.telegram_bot import (
     _handle_feedback,
     _handle_message,
     _parse_feedback,
+    _parse_interview,
+    _parse_request,
 )
+from ai_job_hunter.services.person_documents import QuotaExceeded
 from ai_job_hunter.services.users import get_owner
 
 MAX_CV_BYTES = 5 * 1024 * 1024
@@ -48,7 +51,9 @@ class SignupHandlers:
         owner_chat_id: str,
         record_feedback: Callable[[UUID, str, str | None], None] | None = None,
         record_note: Callable[[UUID | None, int, str], bool] | None = None,
+        documents: Any | None = None,
     ) -> None:
+        self._documents = documents  # a PersonDocuments: letters and interview briefs for people
         self._sessions = session_factory
         self._extract = extract
         self._record_feedback = record_feedback
@@ -156,6 +161,9 @@ class SignupHandlers:
                     person, str(callback.get("id", "")), feedback, self._record_feedback,
                     alert_id if isinstance(alert_id, int) and not isinstance(alert_id, bool) else None, self._prompts,
                 )
+        document = self._document_request(data)
+        if document is not None and self._documents is not None and user.status != UserStatus.ONBOARDING.value:
+            return self._write_document(person, user, callback, *document)
         try:
             unavailable = "" if isinstance(data, str) and data.startswith("ob:") else "Esto aún no está disponible en la beta"
             person.answer_callback_query(str(callback.get("id", "")), unavailable)
@@ -168,6 +176,42 @@ class SignupHandlers:
             return "signup_erased" if data.endswith("yes") else "signup_command"
         self._say(person, onboarding.handle(session, user, Event(kind="press", data=data), self._extract))
         return "signup_step"
+
+    @staticmethod
+    def _document_request(data: Any) -> tuple[str, UUID, str] | None:
+        """(kind, job id, language) for the letter and interview buttons of an alert."""
+
+        letter = _parse_request(data)
+        if letter is not None:
+            return "LETTER", letter[0], letter[1]
+        interview = _parse_interview(data)
+        return ("INTERVIEW", interview, "auto") if interview is not None else None
+
+    def _write_document(
+        self, person: TelegramBotClient, user: User, callback: dict[str, Any], kind: str, job_id: UUID, language: str
+    ) -> str:
+        callback_id = str(callback.get("id", ""))
+        alert_id = (callback.get("message") or {}).get("message_id")
+        reply_to = alert_id if isinstance(alert_id, int) and not isinstance(alert_id, bool) else None
+        try:
+            person.answer_callback_query(callback_id, "Escribiendo…" if kind == "LETTER" else "Preparando…")
+        except TelegramBotError:
+            pass
+        try:
+            result = self._documents.letter(user.id, job_id, language) if kind == "LETTER" else self._documents.interview(user.id, job_id)
+        except QuotaExceeded as error:
+            person.send_text(str(error), reply_to=reply_to)
+            return "document_refused"
+        except Exception:  # noqa: BLE001 - the bot must keep running; provider details never reach the person
+            person.send_text("No he podido escribirlo ahora. Inténtalo más tarde.", reply_to=reply_to)
+            return "document_failed"
+        title = "✍️ Carta" if kind == "LETTER" else "🎯 Entrevista"
+        person.send_text(
+            f"{title} — {result.company} — {result.title}\n"
+            f"(Borrador: revísalo y añade tu nombre. No se ha enviado a nadie.)\n\n{result.text}",
+            reply_to=reply_to,
+        )
+        return "document_resent" if result.reused else "document_written"
 
     def _document(self, session: Session, person: TelegramBotClient, user: User, document: dict[str, Any]) -> str:
         if document.get("mime_type") not in CV_MIME_TYPES or int(document.get("file_size") or 0) > MAX_CV_BYTES:
