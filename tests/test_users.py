@@ -64,3 +64,52 @@ def test_importing_the_owner_file_is_idempotent(db_session, tmp_path: Path) -> N
     assert changed
     owner_again, profile_again, changed_again = import_owner_profile(db_session, path)
     assert (owner_again.id, profile_again.id, changed_again) == (owner.id, profile.id, False)
+
+
+def _alembic(tmp_path: Path, monkeypatch, name: str):
+    repo_root = Path(__file__).parents[1]
+    url = f"sqlite+pysqlite:///{(tmp_path / name).as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    config = Config(str(repo_root / "alembic.ini"))
+    config.set_main_option("script_location", str(repo_root / "alembic"))
+    return url, config
+
+
+def _insert(engine, table_name: str, **values) -> None:
+    import sqlalchemy as sa
+
+    table = sa.Table(table_name, sa.MetaData(), autoload_with=engine)
+    with engine.begin() as connection:
+        connection.execute(table.insert().values(**values))
+
+
+def test_migration_0017_fills_user_id_with_the_owner_and_leaves_a_fresh_database_alone(
+    tmp_path: Path, monkeypatch, keep_logging_state
+) -> None:
+    from uuid import uuid4
+
+    import sqlalchemy as sa
+
+    url, config = _alembic(tmp_path, monkeypatch, "owned.sqlite3")
+    command.upgrade(config, "0016_job_feedback_notes")
+    engine = create_engine(url)
+    owner_id, company_id, job_id = uuid4().hex, uuid4().hex, uuid4().hex  # SQLite keeps uuids as 32 hex characters
+    _insert(engine, "users", id=owner_id, language="es", timezone="Europe/Madrid", status="ACTIVE", is_owner=True)
+    _insert(engine, "companies", id=company_id, name="Acme")
+    _insert(engine, "jobs", id=job_id, company_id=company_id, title="Backend Engineer")
+    _insert(engine, "job_reviews", id=uuid4().hex, job_id=job_id, state="SAVED")
+    _insert(engine, "job_feedback_notes", id=uuid4().hex, job_id=job_id, text="ok")
+
+    command.upgrade(config, "0017_user_id_columns")
+
+    with engine.connect() as connection:
+        for table in ("job_reviews", "job_feedback_notes"):
+            assert connection.execute(sa.text(f"SELECT user_id FROM {table}")).scalar_one() is not None
+    assert "user_id" in {c["name"] for c in inspect(engine).get_columns("job_evaluations")}
+
+    command.downgrade(config, "0016_job_feedback_notes")
+    assert "user_id" not in {c["name"] for c in inspect(create_engine(url)).get_columns("job_reviews")}
+
+    fresh_url, fresh_config = _alembic(tmp_path, monkeypatch, "fresh.sqlite3")
+    command.upgrade(fresh_config, "head")
+    assert "user_id" in {c["name"] for c in inspect(create_engine(fresh_url)).get_columns("report_deliveries")}

@@ -11,7 +11,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Tex
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.company import Company
@@ -28,7 +28,7 @@ class ConnectionRequestStatus(StrEnum):
 _STATUS_VALUES = ", ".join(f"'{value.value}'" for value in ConnectionRequestStatus)
 
 
-class ConnectionRequest(TimestampMixin, Base):
+class ConnectionRequest(UserOwnedMixin, TimestampMixin, Base):
     """One suggested connection: person, note, status and dates.
 
     ``SENT`` and ``ACCEPTED`` only record what the candidate reported after

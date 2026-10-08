@@ -23,7 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
 from ai_job_hunter.models.contact import ContactType
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.application import Application
@@ -76,7 +76,7 @@ _ACTIVE_STATUSES_SQL = "'DRAFT', 'APPROVED', 'SENT', 'REPLIED'"
 _CONTACT_TYPE_VALUES = ", ".join(f"'{value.value}'" for value in ContactType)
 
 
-class Outreach(TimestampMixin, Base):
+class Outreach(UserOwnedMixin, TimestampMixin, Base):
     """A human-reviewable outreach record; this model cannot send messages."""
 
     __tablename__ = "outreaches"

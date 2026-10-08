@@ -11,7 +11,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueCons
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -26,7 +26,7 @@ class HumanReviewStatus(StrEnum):
     DISMISSED = "DISMISSED"
 
 
-class JobReview(TimestampMixin, Base):
+class JobReview(UserOwnedMixin, TimestampMixin, Base):
     """The single mutable human review state associated with one job."""
 
     __tablename__ = "job_reviews"

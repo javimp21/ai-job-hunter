@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -34,7 +34,7 @@ class EvaluationStatus(StrEnum):
     EVALUATED = "EVALUATED"
 
 
-class JobEvaluation(TimestampMixin, Base):
+class JobEvaluation(UserOwnedMixin, TimestampMixin, Base):
     """One versioned deterministic and optional Jev evaluation for a job."""
 
     __tablename__ = "job_evaluations"

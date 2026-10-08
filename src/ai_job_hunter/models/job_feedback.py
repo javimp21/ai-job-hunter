@@ -9,10 +9,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
 from ai_job_hunter.models.job import Job
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 
-class JobFeedbackNote(TimestampMixin, Base):
+class JobFeedbackNote(UserOwnedMixin, TimestampMixin, Base):
     __tablename__ = "job_feedback_notes"
     __table_args__ = (Index("ix_job_feedback_notes_job_id", "job_id"),)
 

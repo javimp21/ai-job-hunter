@@ -9,10 +9,10 @@ from sqlalchemy import DateTime, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 
-class ReportDelivery(TimestampMixin, Base):
+class ReportDelivery(UserOwnedMixin, TimestampMixin, Base):
     """One successfully delivered report, e.g. kind ``WEEKLY``.
 
     The notification ledger requires a job per row, so a report that covers

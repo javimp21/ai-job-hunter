@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, In
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -26,7 +26,7 @@ class OpportunityNotificationStatus(StrEnum):
     SUPPRESSED = "SUPPRESSED"
 
 
-class OpportunityNotification(TimestampMixin, Base):
+class OpportunityNotification(UserOwnedMixin, TimestampMixin, Base):
     """One safe-to-send message keyed to a specific evaluated opportunity."""
 
     __tablename__ = "opportunity_notifications"

@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -41,7 +41,7 @@ class ApplicationStatus(StrEnum):
 _APPLICATION_STATUS_VALUES = ", ".join(f"'{status.value}'" for status in ApplicationStatus)
 
 
-class Application(TimestampMixin, Base):
+class Application(UserOwnedMixin, TimestampMixin, Base):
     """An application the user is tracking for a single canonical job."""
 
     __tablename__ = "applications"
