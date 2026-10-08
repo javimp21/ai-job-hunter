@@ -30,7 +30,7 @@ INVITATION_DAYS = 7
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L
 MIN_CV_TEXT_CHARS = 300
 # Flip to True when the per-user evaluation and alert loop exists (plan phase 3); until then the bot must not promise alerts.
-ALERTS_LIVE = False
+ALERTS_LIVE = True
 SKIP_WORDS = {"saltar", "paso", "no", "ninguno", "omitir", "skip"}
 
 

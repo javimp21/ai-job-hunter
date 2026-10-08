@@ -9,14 +9,22 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ai_job_hunter.db.user_context import acting_as
 from ai_job_hunter.models.user import User, UserStatus
 from ai_job_hunter.services import onboarding
 from ai_job_hunter.services.onboarding import Event, ProfileExtractor, Reply
-from ai_job_hunter.services.telegram_bot import TelegramBotClient, TelegramBotError
+from ai_job_hunter.services.telegram_bot import (
+    TelegramBotClient,
+    TelegramBotError,
+    _handle_feedback,
+    _handle_message,
+    _parse_feedback,
+)
 from ai_job_hunter.services.users import get_owner
 
 MAX_CV_BYTES = 5 * 1024 * 1024
@@ -34,10 +42,18 @@ BAD_CODE = {
 
 class SignupHandlers:
     def __init__(
-        self, session_factory: Callable[[], Session], extract: ProfileExtractor, owner_chat_id: str
+        self,
+        session_factory: Callable[[], Session],
+        extract: ProfileExtractor,
+        owner_chat_id: str,
+        record_feedback: Callable[[UUID, str, str | None], None] | None = None,
+        record_note: Callable[[UUID | None, int, str], bool] | None = None,
     ) -> None:
         self._sessions = session_factory
         self._extract = extract
+        self._record_feedback = record_feedback
+        self._record_note = record_note
+        self._prompts: dict[int, UUID] = {}
         self._owner_chat = str(owner_chat_id).strip()
         self._username: str | None = None
 
@@ -116,6 +132,9 @@ class SignupHandlers:
             self._say(person, replies or [Reply("No conozco ese comando. Prueba /my_data, /pause, /resume o /erase.")])
             return "signup_command"
         if user.status != UserStatus.ONBOARDING.value:
+            if isinstance(message, dict) and message.get("reply_to_message") and self._record_note is not None:
+                with acting_as(user.id):  # an opinion written as a reply to one of this person's alerts
+                    return _handle_message(message, chat_id, person, None, self._record_note, self._prompts)
             self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /my_data, /pause, /resume, /erase.")])
             return "signup_idle"
 
@@ -129,8 +148,17 @@ class SignupHandlers:
 
     def _press(self, session: Session, person: TelegramBotClient, user: User, callback: dict[str, Any]) -> str:
         data = callback.get("data")
+        feedback = _parse_feedback(data)
+        if feedback is not None and user.status != UserStatus.ONBOARDING.value:
+            alert_id = (callback.get("message") or {}).get("message_id")
+            with acting_as(user.id):  # their vote on their alert; the handler answers the tap itself
+                return _handle_feedback(
+                    person, str(callback.get("id", "")), feedback, self._record_feedback,
+                    alert_id if isinstance(alert_id, int) and not isinstance(alert_id, bool) else None, self._prompts,
+                )
         try:
-            person.answer_callback_query(str(callback.get("id", "")), "")
+            unavailable = "" if isinstance(data, str) and data.startswith("ob:") else "Esto aún no está disponible en la beta"
+            person.answer_callback_query(str(callback.get("id", "")), unavailable)
         except TelegramBotError:
             pass
         if not isinstance(data, str) or not data.startswith("ob:"):

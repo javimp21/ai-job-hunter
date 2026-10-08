@@ -1251,7 +1251,7 @@ def _run_bot_command(candidate, settings) -> int:
             prepare_interview=interview,
             hunter=build_hunter_handlers(session_factory),
             record_note=record_note,
-            signup=SignupHandlers(session_factory, make_extractor(), chat_id),
+            signup=SignupHandlers(session_factory, make_extractor(), chat_id, record_feedback, record_note),
         )
     except KeyboardInterrupt:
         print("Bot stopped.")

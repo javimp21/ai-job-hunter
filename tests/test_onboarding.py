@@ -79,7 +79,7 @@ def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_ses
     say(db_session, user, kind="text", text="28k €")
     done = say(db_session, user, kind="press", data="ob:mode:hybrid")[0]
 
-    assert "Perfil guardado" in done.text and user.status == "ACTIVE"
+    assert "Listo" in done.text and user.status == "ACTIVE"
     assert user.trial_ends_at - user.trial_started_at == timedelta(days=7) and user.onboarding["step"] == "done"
     config = load_profile(db_session, user)
     assert config.preferences.sector == "finance" and config.preferences.preferred_roles == ["Contable"]

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from ai_job_hunter.db.base import Base
+from ai_job_hunter.db.user_context import current_user_id
 from ai_job_hunter.models import User
 from ai_job_hunter.services.cv_extraction import build_request, make_extractor, normalize
 from ai_job_hunter.services.telegram_bot import TelegramBotError, handle_update
@@ -54,19 +55,27 @@ def world():
     def extract(text, file, previous, correction):
         return {"current_role": "Contable", "years_of_experience": 2, "languages": ["Spanish"]}
 
-    sent, files = [], {"cv1": b"%PDF-1.4 fake"}
-    handlers = SignupHandlers(factory, extract, OWNER_CHAT)
+    sent, files, votes, notes = [], {"cv1": b"%PDF-1.4 fake"}, [], []
+
+    def record_feedback(job_id, state, reason):
+        votes.append((current_user_id(), job_id, state))
+
+    def record_note(prompt_job_id, replied_message_id, text):
+        notes.append((current_user_id(), replied_message_id, text))
+        return True
+
+    handlers = SignupHandlers(factory, extract, OWNER_CHAT, record_feedback, record_note)
     bot = PersonBot(sent, files, chat=OWNER_CHAT)
 
-    def send(chat, text=None, *, data=None, document=None, kind="private"):
-        message = {"message_id": 1, "chat": {"id": int(chat), "type": kind}}
+    def send(chat, text=None, *, data=None, document=None, kind="private", reply_to=None):
+        message = {"message_id": 1, "chat": {"id": int(chat), "type": kind}, **({"reply_to_message": {"message_id": reply_to}} if reply_to else {})}
         if data is not None:
             update = {"update_id": 1, "callback_query": {"id": "c", "data": data, "message": message}}
         else:
             update = {"update_id": 1, "message": {**message, **({"text": text} if text else {}), **({"document": document} if document else {})}}
         return handle_update(update, chat_id=OWNER_CHAT, bot=bot, generate=lambda *a: None, generated={}, signup=handlers)
 
-    return SimpleNamespace(factory=factory, sent=sent, send=send)
+    return SimpleNamespace(factory=factory, sent=sent, send=send, votes=votes, notes=notes)
 
 
 def last(world, chat):
@@ -173,3 +182,25 @@ def test_the_cv_reader_cleans_what_the_model_returns_and_refuses_empty_results()
     assert extract("texto " * 80, None, None, None)["current_role"] == "Contable"
     with pytest.raises(Exception):
         make_extractor(FakeClaude({"foo": "bar"}))("texto", None, None, None)
+
+
+def test_a_signed_up_person_votes_and_writes_opinions_as_themselves_and_cannot_use_owner_only_buttons(world) -> None:
+    from uuid import uuid4
+
+    world.send(OWNER_CHAT, "/invite")
+    code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
+    world.send("500", f"/start {code}")
+    world.send("500", data="ob:consent:yes")
+    with world.factory() as session:
+        person = session.scalar(select(User).where(User.is_owner.is_(False)))
+        person.status = "ACTIVE"
+        person_id = person.id
+        session.commit()
+    job_id = uuid4()
+
+    assert world.send("500", data=f"up:{job_id}") == "feedback"
+    assert world.votes == [(person_id, job_id, "SAVED")]  # recorded while acting as that person, never as the owner
+    assert world.send("500", "no me gusta el sueldo", reply_to=900) == "note"
+    assert world.notes == [(person_id, 900, "no me gusta el sueldo")]
+    before = len(world.votes)
+    assert world.send("500", data=f"gl:{job_id}") == "signup_ignored" and len(world.votes) == before
