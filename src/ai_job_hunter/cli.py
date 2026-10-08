@@ -23,6 +23,7 @@ from ai_job_hunter.company_hunter import cli as company_hunter
 from ai_job_hunter.company_hunter.bot import build_handlers as build_hunter_handlers
 from ai_job_hunter.config import get_settings
 from ai_job_hunter.db.session import create_database_engine, create_session_factory
+from ai_job_hunter.db.user_context import activate_owner
 from ai_job_hunter.decision_engine import FinalDecision
 from ai_job_hunter.application_prep.configuration import (
     ApplicationPreparationConfigError,
@@ -515,6 +516,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "bot":
         return _run_bot_command(candidate, settings)
     engine = create_database_engine(settings)
+    activate_owner(engine)  # the personal CLI acts as the owner: new rows are theirs and reads see only theirs
     try:
         with create_session_factory(engine)() as session:
             if args.command == "refresh":
@@ -1190,6 +1192,7 @@ def _run_bot_command(candidate, settings) -> int:
     application_facts = load_candidate_application_facts(DEFAULT_APPLICATION_FACTS_PATH)
     documents = tuple(load_candidate_documents(Path("candidate_documents.local.json")).documents)
     engine = create_database_engine(settings)
+    activate_owner(engine)  # the bot serves the owner's chat
     session_factory = create_session_factory(engine)
 
     def generate(job_id: UUID, language: str = "auto"):

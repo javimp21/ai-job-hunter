@@ -61,3 +61,6 @@ __all__ = [
     "UserProfile",
     "UserStatus",
 ]
+
+# Importing the hooks last: they need the models and apply to every ORM session.
+import ai_job_hunter.db.user_context  # noqa: E402,F401

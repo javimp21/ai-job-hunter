@@ -109,3 +109,14 @@ def keep_logging_state():
             logger.disabled = disabled.get(name, False)
     logging.root.handlers[:] = handlers
     logging.root.setLevel(level)
+
+
+@pytest.fixture(autouse=True)
+def _nobody_is_acting():
+    """A test that activates a user (the CLI does) must not leave reads filtered for the next one."""
+
+    from ai_job_hunter.db.user_context import _current
+
+    token = _current.set(None)
+    yield
+    _current.reset(token)
