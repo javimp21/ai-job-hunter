@@ -80,6 +80,40 @@ def probe(client: httpx.Client, company: dict) -> dict:
                                   "url": f"https://jobs.ashbyhq.com/{slug}"})
         except (httpx.HTTPError, ValueError):
             pass
+        try:  # Workable: the widget API reports the account's own name
+            r = client.get(f"https://apply.workable.com/api/v1/widget/accounts/{slug}")
+            if r.status_code == 200 and isinstance(r.json(), dict) and r.json().get("jobs"):
+                board_name = str(r.json().get("name") or "")
+                found.append({"ats": "workable", "slug": slug, "board_name": board_name, "jobs": len(r.json()["jobs"]),
+                              "name_matches": fold(board_name) in wanted or fold(name) in fold(board_name),
+                              "url": f"https://apply.workable.com/{slug}/"})
+        except (httpx.HTTPError, ValueError):
+            pass
+        try:  # Recruitee: one sub-domain per company; unknown ones answer 404
+            r = client.get(f"https://{slug}.recruitee.com/api/offers/")
+            if r.status_code == 200 and isinstance(r.json(), dict) and r.json().get("offers"):
+                found.append({"ats": "recruitee", "slug": slug, "jobs": len(r.json()["offers"]), "name_matches": None,
+                              "url": f"https://{slug}.recruitee.com"})
+        except (httpx.HTTPError, ValueError):
+            pass
+        try:  # SmartRecruiters answers 200 with no postings for unknown slugs: require postings and a matching name
+            r = client.get(f"https://api.smartrecruiters.com/v1/companies/{slug}/postings", params={"limit": 1})
+            if r.status_code == 200 and r.json().get("totalFound", 0) > 0:
+                content = r.json().get("content") or [{}]
+                board_name = str((content[0].get("company") or {}).get("name") or "")
+                found.append({"ats": "smartrecruiters", "slug": slug, "board_name": board_name,
+                              "jobs": r.json()["totalFound"],
+                              "name_matches": fold(board_name) in wanted or fold(name) in fold(board_name),
+                              "url": f"https://jobs.smartrecruiters.com/{slug}"})
+        except (httpx.HTTPError, ValueError):
+            pass
+        try:  # Personio: public XML feed per company
+            r = client.get(f"https://{slug}.jobs.personio.de/xml")
+            if r.status_code == 200 and "<position" in r.text:
+                found.append({"ats": "personio", "slug": slug, "jobs": r.text.count("<position>"), "name_matches": None,
+                              "url": f"https://{slug}.jobs.personio.de"})
+        except (httpx.HTTPError, ValueError):
+            pass
         try:
             r = client.get(f"https://api.lever.co/v0/postings/{slug}", params={"mode": "json"})
             if r.status_code == 200 and isinstance(r.json(), list) and r.json():

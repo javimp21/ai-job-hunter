@@ -12,42 +12,58 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 UNSURE = {"Parallel Web Systems", "Arena", "Ditto", "Brain Co.", "Runway", "Metronome", "Merge", "Eventual"}
+# Big or generic names whose small board on another system is a different organisation, and a junk lead name.
+BLOCKED = {
+    "Amazon", "Google", "HPE", "Personio", "Perry Street Software", "Remote", "Medium", "Align Technology",
+    "Revel", "Speak", "Owner", "Phantom", "Coder", "Perk", "Searchable", "Sieve Data", "Numa",
+}
+NAME_CHECKED = {"greenhouse", "workable", "smartrecruiters"}  # the API gives the board's own name
+MIN_JOBS = 5
+
+
+def choose(item: dict) -> dict | None:
+    """The one board that is safely the company's, or None."""
+
+    name = item["company_name"]
+    if name in UNSURE or name in BLOCKED or name.startswith("At Tether"):
+        return None
+    boards = [
+        b for b in item["boards"]
+        if b["jobs"] >= MIN_JOBS and b.get("name_matches") is not False
+        and (b["ats"] not in NAME_CHECKED or b.get("name_matches") is True)
+    ]
+    if not boards:
+        return None
+    boards.sort(key=lambda b: -b["jobs"])
+    if len(boards) > 1 and boards[0]["jobs"] < 2 * boards[1]["jobs"]:
+        return None  # two boards of similar size: one of them is probably another organisation
+    return boards[0]
 
 
 def build(probe_path: Path) -> dict:
     probe = json.loads(probe_path.read_text(encoding="utf-8"))
     leads = []
     for item in probe:
-        boards = [b for b in item["boards"] if b["jobs"] > 0 and b.get("name_matches") is not False]
-        if item["company_name"] in UNSURE or len(boards) != 1:
+        board = choose(item)
+        if board is None:
             continue
-        board = boards[0]
         lead = {
             "company_name": item["company_name"],
             "careers_url": board["url"],
             "source_type": "web_research",
             "source_label": "board_probe_2026_10_08",
             "hiring_hint": f"Public {board['ats']} board '{board['slug']}' answered with {board['jobs']} postings on 2026-10-08.",
-            "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs "
-                     "(scripts/probe_ats_boards.py); the slug equals the company name.",
+            "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/"
+                     "Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
         }
         if item.get("website_url"):
             lead["website_url"] = item["website_url"]
         leads.append(lead)
-    leads.append({
-        "company_name": "Inditex",
-        "website_url": "https://www.inditex.com",
-        "source_type": "web_research",
-        "source_label": "user_request_2026_10_08",
-        "location_hint": "Arteixo, A Coruña, Spain",
-        "hiring_hint": "Requested by the user: technology roles in Spain (Inditex Tech).",
-        "notes": "Careers page to be found by the resolver from the website.",
-    })
     return {"leads": leads}
 
 
 if __name__ == "__main__":
     data = build(Path(sys.argv[1]))
-    target = ROOT / "config" / "leads" / "boards-found-2026-10.json"
+    target = ROOT / "config" / "leads" / (sys.argv[2] if len(sys.argv) > 2 else "boards-found-2026-10.json")
     target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {target} ({len(data['leads'])} leads)")
