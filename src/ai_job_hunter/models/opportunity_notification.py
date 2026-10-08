@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, In
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin, _per_user_unique
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -31,12 +31,7 @@ class OpportunityNotification(UserOwnedMixin, TimestampMixin, Base):
 
     __tablename__ = "opportunity_notifications"
     __table_args__ = (
-        UniqueConstraint(
-            "job_id",
-            "evaluation_fingerprint",
-            "channel",
-            name="uq_opportunity_notifications_eval_channel",
-        ),
+        *_per_user_unique("uq_opportunity_notifications_eval_channel", "job_id", "evaluation_fingerprint", "channel"),
         CheckConstraint(
             "status IN ('PENDING', 'SENT', 'FAILED', 'SUPPRESSED')",
             name="ck_opportunity_notifications_status",

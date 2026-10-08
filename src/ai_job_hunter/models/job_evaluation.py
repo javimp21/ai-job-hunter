@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin, _per_user_unique
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -39,9 +39,7 @@ class JobEvaluation(UserOwnedMixin, TimestampMixin, Base):
 
     __tablename__ = "job_evaluations"
     __table_args__ = (
-        UniqueConstraint(
-            "job_id", "evaluation_fingerprint", name="uq_job_evaluations_job_fingerprint"
-        ),
+        *_per_user_unique("uq_job_evaluations_job_fingerprint", "job_id", "evaluation_fingerprint"),
         Index("ix_job_evaluations_rubric_version", "rubric_version"),
         CheckConstraint(
             "status IN ('PENDING', 'EVALUATED')", name="ck_job_evaluations_status"

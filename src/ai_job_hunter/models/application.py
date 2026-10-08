@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin, _per_user_unique
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -50,7 +50,7 @@ class Application(UserOwnedMixin, TimestampMixin, Base):
             f"status IN ({_APPLICATION_STATUS_VALUES})", name="ck_applications_status"
         ),
         Index("ix_applications_status", "status"),
-        UniqueConstraint("job_id", name="uq_applications_job_id"),
+        *_per_user_unique("uq_applications_job", "job_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)

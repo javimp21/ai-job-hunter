@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, Index, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -30,4 +30,15 @@ class UserOwnedMixin:
 
     user_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+
+
+def _per_user_unique(base: str, *columns: str) -> tuple[Index, Index]:
+    """Unique per (user, columns); rows with no user keep the old rule (see migration 0019)."""
+
+    return (
+        Index(f"{base}_user", "user_id", *columns, unique=True,
+              sqlite_where=text("user_id IS NOT NULL"), postgresql_where=text("user_id IS NOT NULL")),
+        Index(f"{base}_unowned", *columns, unique=True,
+              sqlite_where=text("user_id IS NULL"), postgresql_where=text("user_id IS NULL")),
     )

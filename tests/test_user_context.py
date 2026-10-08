@@ -89,3 +89,32 @@ def test_activating_the_owner_tolerates_a_database_without_users(tmp_path) -> No
     assert activate_owner(create_engine(f"sqlite+pysqlite:///{(tmp_path / 'empty.sqlite3').as_posix()}")) is None
     assert activate_owner(object()) is None  # not even an engine
     assert current_user_id() is None
+
+
+def test_two_users_can_each_vote_on_the_same_job_but_not_twice_and_unowned_rows_keep_the_old_rule(db_session) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    job = _job(db_session)
+    one, two = _user(db_session, owner=True), _user(db_session, chat="77")
+    for user in (one, two):
+        with acting_as(user.id):
+            db_session.add(JobReview(job_id=job.id, state="SAVED"))
+            db_session.flush()
+
+    with acting_as(one.id):
+        db_session.add(JobReview(job_id=job.id, state="DISMISSED"))
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+    db_session.rollback()
+
+
+def test_a_database_with_no_users_keeps_one_review_per_job(db_session) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    job = _job(db_session)
+    db_session.add(JobReview(job_id=job.id, state="SAVED"))
+    db_session.flush()
+    db_session.add(JobReview(job_id=job.id, state="DISMISSED"))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    db_session.rollback()

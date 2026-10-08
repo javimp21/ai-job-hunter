@@ -113,3 +113,15 @@ def test_migration_0017_fills_user_id_with_the_owner_and_leaves_a_fresh_database
     fresh_url, fresh_config = _alembic(tmp_path, monkeypatch, "fresh.sqlite3")
     command.upgrade(fresh_config, "head")
     assert "user_id" in {c["name"] for c in inspect(create_engine(fresh_url)).get_columns("report_deliveries")}
+
+
+def test_migration_0019_makes_uniqueness_per_user_and_can_be_undone(tmp_path: Path, monkeypatch, keep_logging_state) -> None:
+    url, config = _alembic(tmp_path, monkeypatch, "unique.sqlite3")
+    command.upgrade(config, "head")
+    names = {index["name"] for index in inspect(create_engine(url)).get_indexes("job_reviews")}
+    assert {"uq_job_reviews_job_user", "uq_job_reviews_job_unowned"} <= names
+
+    command.downgrade(config, "0018_user_id_backfill")
+    inspector = inspect(create_engine(url))
+    assert "uq_job_reviews_job_user" not in {index["name"] for index in inspector.get_indexes("job_reviews")}
+    assert any(c["name"] == "uq_job_reviews_job_id" for c in inspector.get_unique_constraints("job_reviews"))

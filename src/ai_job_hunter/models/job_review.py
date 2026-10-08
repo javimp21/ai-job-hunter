@@ -11,7 +11,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueCons
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_job_hunter.db.base import Base
-from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin
+from ai_job_hunter.models.mixins import TimestampMixin, UserOwnedMixin, _per_user_unique
 
 if TYPE_CHECKING:
     from ai_job_hunter.models.job import Job
@@ -34,7 +34,7 @@ class JobReview(UserOwnedMixin, TimestampMixin, Base):
         CheckConstraint(
             "state IN ('NEW', 'SEEN', 'SAVED', 'DISMISSED')", name="ck_job_reviews_state"
         ),
-        UniqueConstraint("job_id", name="uq_job_reviews_job_id"),
+        *_per_user_unique("uq_job_reviews_job", "job_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
