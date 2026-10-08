@@ -70,6 +70,40 @@ class TelegramBotClient:
         self._client = client
         self._timeout = timeout
 
+    def with_chat(self, chat_id: str) -> TelegramBotClient:
+        """The same bot talking to another chat (a person who signed up)."""
+
+        return TelegramBotClient(self._bot_token, str(chat_id), client=self._client, timeout=self._timeout)
+
+    def username(self) -> str | None:
+        """The bot's own @name, to build t.me links; None if Telegram does not say."""
+
+        result = self._call("getMe", {})
+        name = result.get("username") if isinstance(result, dict) else None
+        return name if isinstance(name, str) and name else None
+
+    def download_file(self, file_id: str, *, max_bytes: int) -> bytes:
+        """Download a file the user sent. Refuses anything larger than ``max_bytes`` before downloading it."""
+
+        info = self._call("getFile", {"file_id": file_id})
+        path = info.get("file_path") if isinstance(info, dict) else None
+        size = info.get("file_size") if isinstance(info, dict) else None
+        if not isinstance(path, str) or (isinstance(size, int) and size > max_bytes):
+            raise TelegramBotError(kind="FileUnavailableOrTooLarge")
+        client = self._client or httpx.Client()
+        try:
+            # The token travels in the URL Telegram requires; never log or format it.
+            response = client.get(f"https://api.telegram.org/file/bot{self._bot_token}/{path}", timeout=self._timeout)
+        except httpx.HTTPError as error:
+            raise TelegramBotError(kind=type(error).__name__) from None
+        finally:
+            if self._client is None:
+                client.close()
+        if response.status_code != 200 or len(response.content) > max_bytes:
+            raise TelegramBotError(status_code=response.status_code if response.status_code != 200 else None,
+                                   kind="FileTooLarge" if response.status_code == 200 else None)
+        return response.content
+
     def get_updates(self, offset: int | None, timeout_seconds: int = 50) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "timeout": timeout_seconds,
@@ -360,6 +394,7 @@ def handle_update(
     hunter: HunterHandlers | None = None,
     record_note: Callable[[UUID | None, int, str], bool] | None = None,
     prompts: dict[int, UUID] | None = None,
+    signup: Any | None = None,
 ) -> str:
     """Handle one update and return "ignored", "generated", "failed", "duplicate", "feedback",
     "connection", "regenerated" or "note".
@@ -369,6 +404,11 @@ def handle_update(
     letter instead of paying for a new one.
     """
 
+    if signup is not None:
+        # Other people's chats (sign-up, their commands) and the owner's /invitar; None leaves it to the code below.
+        handled = signup.handle(update, bot)
+        if handled is not None:
+            return handled
     callback = update.get("callback_query")
     if not isinstance(callback, dict):
         message_update = update.get("message")
@@ -656,6 +696,7 @@ def run_bot(
     prepare_interview: Callable[[UUID], Any] | None = None,
     hunter: HunterHandlers | None = None,
     record_note: Callable[[UUID | None, int, str], bool] | None = None,
+    signup: Any | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -689,6 +730,7 @@ def run_bot(
                         hunter=hunter,
                         record_note=record_note,
                         prompts=prompts,
+                        signup=signup,
                     )
                     log(f"update {update.get('update_id')}: {outcome}")
                 finally:

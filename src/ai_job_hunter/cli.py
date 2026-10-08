@@ -99,7 +99,9 @@ from ai_job_hunter.services.digest import preview_digest, send_digest
 from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
+from ai_job_hunter.services.cv_extraction import make_extractor
 from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_message
+from ai_job_hunter.services.telegram_signup import SignupHandlers
 from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -1249,6 +1251,7 @@ def _run_bot_command(candidate, settings) -> int:
             prepare_interview=interview,
             hunter=build_hunter_handlers(session_factory),
             record_note=record_note,
+            signup=SignupHandlers(session_factory, make_extractor(), chat_id),
         )
     except KeyboardInterrupt:
         print("Bot stopped.")
