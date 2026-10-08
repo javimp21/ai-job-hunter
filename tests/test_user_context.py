@@ -20,14 +20,14 @@ def _job(session) -> Job:
     return job
 
 
-def test_a_new_row_goes_to_the_only_user_and_stays_unowned_when_there_is_none(db_session) -> None:
+def test_a_new_row_goes_to_the_only_user_and_a_database_with_none_gets_an_owner(db_session) -> None:
     job = _job(db_session)
     first = JobFeedbackNote(job_id=job.id, text="sin usuarios")
     db_session.add(first)
     db_session.flush()
-    assert first.user_id is None
+    owner = db_session.scalar(select(User).where(User.is_owner.is_(True)))
+    assert owner is not None and first.user_id == owner.id  # user_id is required: the first person becomes the owner
 
-    owner = _user(db_session, owner=True)
     second = JobFeedbackNote(job_id=job.id, text="con propietario")
     db_session.add(second)
     db_session.flush()

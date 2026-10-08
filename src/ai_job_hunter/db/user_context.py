@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
@@ -64,7 +64,11 @@ def _default_user_id(session: Session) -> UUID | None:
         return cached
     ids = list(session.scalars(select(User.id).where(User.status != UserStatus.DELETED.value)))
     if not ids:
-        return None  # no users yet: the row stays unowned, as before the multiuser work
+        # A database with no users yet (a fresh install, a test): the first person is the owner.
+        owner = User(id=uuid4(), is_owner=True, status=UserStatus.ACTIVE.value)
+        session.add(owner)
+        session.info["default_user_id"] = owner.id
+        return owner.id
     if len(ids) > 1:
         raise UserContextError("Several users exist: wrap the work in acting_as(user_id).")
     session.info["default_user_id"] = ids[0]

@@ -96,6 +96,7 @@ class Outreach(UserOwnedMixin, TimestampMixin, Base):
         # without relying on SQL NULL's database-specific uniqueness behavior.
         Index(
             "uq_outreach_active_job_contact_purpose",
+            "user_id",
             "job_id",
             "contact_id",
             "purpose",
@@ -109,6 +110,7 @@ class Outreach(UserOwnedMixin, TimestampMixin, Base):
         ),
         Index(
             "uq_outreach_active_job_without_contact_purpose",
+            "user_id",
             "job_id",
             "purpose",
             unique=True,
@@ -121,6 +123,7 @@ class Outreach(UserOwnedMixin, TimestampMixin, Base):
         ),
         Index(
             "uq_outreach_active_company_contact_purpose",
+            "user_id",
             "company_id",
             "contact_id",
             "channel",
@@ -135,6 +138,7 @@ class Outreach(UserOwnedMixin, TimestampMixin, Base):
         ),
         Index(
             "uq_outreach_active_company_without_contact_purpose",
+            "user_id",
             "company_id",
             "channel",
             "purpose",

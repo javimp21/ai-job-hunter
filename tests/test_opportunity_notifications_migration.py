@@ -16,7 +16,7 @@ def test_revision_0008_adds_unique_notification_ledger(tmp_path: Path, monkeypat
     alembic_config = Config(str(repo_root / "alembic.ini"))
     alembic_config.set_main_option("script_location", str(repo_root / "alembic"))
 
-    command.upgrade(alembic_config, "head")
+    command.upgrade(alembic_config, "0008_opportunity_notifications")  # before user_id became required
 
     engine = create_engine(database_url)
     try:

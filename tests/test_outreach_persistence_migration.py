@@ -37,7 +37,7 @@ def test_revision_0006_adds_outreach_schema_and_active_duplicate_constraints(
         )
     seed_engine.dispose()
 
-    command.upgrade(alembic_config, "head")
+    command.upgrade(alembic_config, "0006_outreach_persistence")  # before user_id became required
 
     engine = create_engine(database_url)
     try:

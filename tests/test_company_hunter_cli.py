@@ -39,7 +39,7 @@ def migrated_database(tmp_path: Path, monkeypatch, target="head") -> tuple[str, 
 
 
 def test_migration_0013_adds_connection_requests_and_per_channel_company_outreach(tmp_path, monkeypatch):
-    url, config = migrated_database(tmp_path, monkeypatch)
+    url, config = migrated_database(tmp_path, monkeypatch, "0014_company_hunter")  # before user_id became required
     engine = create_engine(url)
     try:
         inspector = inspect(engine)

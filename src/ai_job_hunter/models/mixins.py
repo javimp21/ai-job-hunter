@@ -24,12 +24,12 @@ class TimestampMixin:
 class UserOwnedMixin:
     """The person a row belongs to (docs/MULTIUSER_DESIGN.md).
 
-    Nullable while the code still writes without it: migration 0017 added the column and filled it with the owner; the
-    "contract" step makes it required once every writer passes the user.
+    Required since migration 0021. The session hook in ``db/user_context.py`` fills it from the acting user, or from the
+    only user (it creates the owner in a database that has none yet).
     """
 
-    user_id: Mapped[UUID | None] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
 
 
