@@ -143,4 +143,4 @@ def test_offers_seen_only_through_an_owner_only_feed_are_not_evaluated_for_other
 
     results = {str(r.user_id): r for r in run(db_session, world, Outbox(), engine)}
 
-    assert results[str(people["ana"])].candidates == 1 and engine.calls == ["role-a", "role-a"]
+    assert results[str(people["ana"])].candidates == 1 and engine.calls == ["role-a"]  # the second person reuses the cached answer
