@@ -24,6 +24,7 @@ from ai_job_hunter.models.opportunity_notification import (
     OpportunityNotificationStatus,
 )
 from ai_job_hunter.models.report_delivery import ReportDelivery
+from ai_job_hunter.models.user import User, UserProfile, UserStatus
 
 __all__ = [
     "Application",
@@ -54,4 +55,7 @@ __all__ = [
     "OpportunityNotification",
     "OpportunityNotificationStatus",
     "ReportDelivery",
+    "User",
+    "UserProfile",
+    "UserStatus",
 ]
