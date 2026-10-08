@@ -1,0 +1,28 @@
+{
+  "leads": [
+    {
+      "company_name": "Holded",
+      "careers_url": "https://holded.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_09",
+      "hiring_hint": "Public recruitee board 'holded' answered with 12 postings on 2026-10-09.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name."
+    },
+    {
+      "company_name": "Mirai",
+      "careers_url": "https://mirai.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_09",
+      "hiring_hint": "Public personio board 'mirai' answered with 11 postings on 2026-10-09.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name."
+    },
+    {
+      "company_name": "Udemy",
+      "careers_url": "https://boards.greenhouse.io/udemy",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_09",
+      "hiring_hint": "Public greenhouse board 'udemy' answered with 8 postings on 2026-10-09.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name."
+    }
+  ]
+}
