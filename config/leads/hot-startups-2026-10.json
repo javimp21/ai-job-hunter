@@ -1,0 +1,698 @@
+{
+  "leads": [
+    {
+      "company_name": "Safe Superintelligence",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Palo Alto, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 1 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://ssi.inc",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Anthropic",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 2 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.anthropic.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "OpenAI",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 3 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://openai.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Thinking Machines Lab",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 4 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://thinkingmachines.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Applied Intuition",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Mountain View, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 5 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.appliedintuition.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Modal Labs",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 6 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://modal.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Decagon",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 7 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://decagon.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Pika",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Palo Alto, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 8 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://pika.art",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Fireworks AI",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Redwood City, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 9 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://fireworks.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Cohere",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Toronto, Canada",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 10 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://cohere.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Glean",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Palo Alto, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 11 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.glean.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "LangChain",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 12 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.langchain.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Ramp",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 13 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://ramp.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Together AI",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 14 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.together.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Cognition",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 15 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://cognition.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Harvey",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 16 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.harvey.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Scale AI",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 17 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://scale.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Perplexity",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 18 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.perplexity.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Hebbia",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 19 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.hebbia.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Rogo",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 20 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://rogo.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Clay",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 21 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.clay.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Parallel Web Systems",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 22 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://parallel.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Baseten",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 23 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.baseten.co",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Anysphere (Cursor)",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 24 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://cursor.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Factory",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 25 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://factory.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Linear",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 26 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://linear.app",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Brain Co.",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 27 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). No website given: the name is shared with other companies, so the lead needs one before it can be resolved.",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Mercor",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 28 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://mercor.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Mistral",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Paris, France",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 29 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://mistral.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Sierra",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 30 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://sierra.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Traversal",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 31 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://traversal.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Metronome",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 32 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://metronome.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Nuro",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Mountain View, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 33 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.nuro.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Adept",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 34 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.adept.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "ElevenLabs",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 35 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://elevenlabs.io",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Runway",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "New York, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 36 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://runwayml.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Vannevar Labs",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Palo Alto, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 37 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.vannevarlabs.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Abridge",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 38 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.abridge.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "HeyGen",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Los Angeles, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 39 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.heygen.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Reevo",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Menlo Park, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 40 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.reevo.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Chalk",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 41 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://chalk.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Nominal",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Los Angeles, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 42 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://nominal.io",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Cartesia",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 43 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://cartesia.ai",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Hex Technologies",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 44 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://hex.tech",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Merge",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 45 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.merge.dev",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Whatnot",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "Los Angeles, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 46 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.whatnot.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Eventual",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 47 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). No website given: the name is shared with other companies, so the lead needs one before it can be resolved.",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Faire",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 48 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.faire.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Arena",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 49 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). No website given: the name is shared with other companies, so the lead needs one before it can be resolved.",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Bedrock Robotics",
+      "source_type": "web_research",
+      "source_label": "paraform_talent_density_index_2026_q4",
+      "location_hint": "San Francisco, US",
+      "hiring_hint": "Paraform Talent Density Index 2026 Q4, rank 50 of 50",
+      "notes": "Listed by Paraform as a company with a very dense pool of talent (read 2026-10-08). Website written from memory, the resolver reads it.",
+      "website_url": "https://www.bedrockrobotics.com",
+      "source_url": "https://www.paraform.com/talent-density-index"
+    },
+    {
+      "company_name": "Mews",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; hospitality software, 32 live roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.mews.com"
+    },
+    {
+      "company_name": "Framer",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; website builder, 8 live roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.framer.com"
+    },
+    {
+      "company_name": "Picnic Technologies",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; online grocery, 230 jobs",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://picnic.app"
+    },
+    {
+      "company_name": "Catawiki",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; curated marketplace, 46 open roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.catawiki.com"
+    },
+    {
+      "company_name": "bunq",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; digital bank",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.bunq.com"
+    },
+    {
+      "company_name": "Mollie",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; fintech infrastructure, 42 open roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.mollie.com"
+    },
+    {
+      "company_name": "DataSnipper",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; AI audit software, 41 open roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.datasnipper.com"
+    },
+    {
+      "company_name": "QuantWare",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Delft; quantum hardware, 27 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.quantware.com"
+    },
+    {
+      "company_name": "Quatt",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; climate tech, 46+ roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://quatt.io"
+    },
+    {
+      "company_name": "Carbon Equity",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; climate investment platform",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Aquablu",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; water tech, 14 openings",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Solvimon",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Utrecht; fintech software, 3 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.solvimon.com"
+    },
+    {
+      "company_name": "Billy Grace",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; marketing analytics, 3 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Ore Energy",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; long-duration batteries, 4 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://ore.energy"
+    },
+    {
+      "company_name": "AddOptics",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Rotterdam; optical manufacturing, 7 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "THORIZON",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam and Eindhoven; nuclear deep tech",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Qualinx B.V.",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Delft; semiconductor startup, 8 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Ditto",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Rotterdam; AI doctor consultation summaries, 3 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Keiron Printing Technologies",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Eindhoven; electronics manufacturing, Software Engineer",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "SOUS",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; food tech",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Cradle",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; generative AI for protein design",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.cradle.bio"
+    },
+    {
+      "company_name": "Input",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; agentic email system, 5 roles",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. No website given: it needs one before it can be resolved."
+    },
+    {
+      "company_name": "Workwize",
+      "source_type": "web_research",
+      "source_label": "linkedin_20_hottest_netherlands_startups_2026_09",
+      "location_hint": "Netherlands",
+      "hiring_hint": "Amsterdam; device management",
+      "notes": "From a LinkedIn post of 2026-09-28, '20 hottest Netherlands startups hiring right now'. Website written from memory, the resolver reads it.",
+      "website_url": "https://www.workwize.com"
+    }
+  ]
+}

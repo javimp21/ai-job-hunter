@@ -1,0 +1,364 @@
+{
+  "leads": [
+    {
+      "company_name": "Anthropic",
+      "careers_url": "https://boards.greenhouse.io/anthropic",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'anthropic' answered with 646 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.anthropic.com"
+    },
+    {
+      "company_name": "OpenAI",
+      "careers_url": "https://jobs.ashbyhq.com/openai",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'openai' answered with 816 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://openai.com"
+    },
+    {
+      "company_name": "Thinking Machines Lab",
+      "careers_url": "https://jobs.ashbyhq.com/thinkingmachines",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'thinkingmachines' answered with 54 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://thinkingmachines.ai"
+    },
+    {
+      "company_name": "Modal Labs",
+      "careers_url": "https://jobs.ashbyhq.com/modal",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'modal' answered with 41 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://modal.com"
+    },
+    {
+      "company_name": "Decagon",
+      "careers_url": "https://jobs.ashbyhq.com/decagon",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'decagon' answered with 145 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://decagon.ai"
+    },
+    {
+      "company_name": "Pika",
+      "careers_url": "https://jobs.ashbyhq.com/pika",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'pika' answered with 15 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://pika.art"
+    },
+    {
+      "company_name": "Fireworks AI",
+      "careers_url": "https://jobs.ashbyhq.com/fireworks",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'fireworks' answered with 83 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://fireworks.ai"
+    },
+    {
+      "company_name": "Cohere",
+      "careers_url": "https://jobs.ashbyhq.com/cohere",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'cohere' answered with 123 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://cohere.com"
+    },
+    {
+      "company_name": "LangChain",
+      "careers_url": "https://jobs.ashbyhq.com/langchain",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'langchain' answered with 100 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.langchain.com"
+    },
+    {
+      "company_name": "Ramp",
+      "careers_url": "https://jobs.ashbyhq.com/ramp",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'ramp' answered with 161 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://ramp.com"
+    },
+    {
+      "company_name": "Together AI",
+      "careers_url": "https://boards.greenhouse.io/togetherai",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'togetherai' answered with 79 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.together.ai"
+    },
+    {
+      "company_name": "Cognition",
+      "careers_url": "https://jobs.ashbyhq.com/cognition",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'cognition' answered with 100 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://cognition.ai"
+    },
+    {
+      "company_name": "Harvey",
+      "careers_url": "https://jobs.ashbyhq.com/harvey",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'harvey' answered with 339 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.harvey.ai"
+    },
+    {
+      "company_name": "Scale AI",
+      "careers_url": "https://boards.greenhouse.io/scaleai",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'scaleai' answered with 186 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://scale.com"
+    },
+    {
+      "company_name": "Perplexity",
+      "careers_url": "https://jobs.ashbyhq.com/perplexity",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'perplexity' answered with 129 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.perplexity.ai"
+    },
+    {
+      "company_name": "Rogo",
+      "careers_url": "https://jobs.ashbyhq.com/rogo",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'rogo' answered with 86 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://rogo.ai"
+    },
+    {
+      "company_name": "Baseten",
+      "careers_url": "https://jobs.ashbyhq.com/baseten",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'baseten' answered with 111 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.baseten.co"
+    },
+    {
+      "company_name": "Anysphere (Cursor)",
+      "careers_url": "https://jobs.ashbyhq.com/cursor",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'cursor' answered with 132 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://cursor.com"
+    },
+    {
+      "company_name": "Factory",
+      "careers_url": "https://jobs.ashbyhq.com/factory",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'factory' answered with 56 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://factory.ai"
+    },
+    {
+      "company_name": "Linear",
+      "careers_url": "https://jobs.ashbyhq.com/linear",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'linear' answered with 31 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://linear.app"
+    },
+    {
+      "company_name": "Mercor",
+      "careers_url": "https://jobs.ashbyhq.com/mercor",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'mercor' answered with 117 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://mercor.com"
+    },
+    {
+      "company_name": "Sierra",
+      "careers_url": "https://jobs.ashbyhq.com/sierra",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'sierra' answered with 197 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://sierra.ai"
+    },
+    {
+      "company_name": "Traversal",
+      "careers_url": "https://jobs.ashbyhq.com/traversal",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'traversal' answered with 29 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://traversal.com"
+    },
+    {
+      "company_name": "Nuro",
+      "careers_url": "https://boards.greenhouse.io/nuro",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'nuro' answered with 104 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.nuro.ai"
+    },
+    {
+      "company_name": "ElevenLabs",
+      "careers_url": "https://jobs.ashbyhq.com/elevenlabs",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'elevenlabs' answered with 142 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://elevenlabs.io"
+    },
+    {
+      "company_name": "Vannevar Labs",
+      "careers_url": "https://boards.greenhouse.io/vannevarlabs",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'vannevarlabs' answered with 30 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.vannevarlabs.com"
+    },
+    {
+      "company_name": "Abridge",
+      "careers_url": "https://jobs.ashbyhq.com/abridge",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'abridge' answered with 48 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.abridge.com"
+    },
+    {
+      "company_name": "HeyGen",
+      "careers_url": "https://boards.greenhouse.io/heygen",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'heygen' answered with 21 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.heygen.com"
+    },
+    {
+      "company_name": "Reevo",
+      "careers_url": "https://jobs.ashbyhq.com/reevo",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'reevo' answered with 23 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.reevo.ai"
+    },
+    {
+      "company_name": "Chalk",
+      "careers_url": "https://jobs.ashbyhq.com/chalk",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'chalk' answered with 18 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://chalk.ai"
+    },
+    {
+      "company_name": "Cartesia",
+      "careers_url": "https://jobs.ashbyhq.com/cartesia",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'cartesia' answered with 30 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://cartesia.ai"
+    },
+    {
+      "company_name": "Hex Technologies",
+      "careers_url": "https://jobs.ashbyhq.com/hex",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'hex' answered with 39 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://hex.tech"
+    },
+    {
+      "company_name": "Faire",
+      "careers_url": "https://boards.greenhouse.io/faire",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'faire' answered with 79 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.faire.com"
+    },
+    {
+      "company_name": "Bedrock Robotics",
+      "careers_url": "https://jobs.ashbyhq.com/bedrock-robotics",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'bedrock-robotics' answered with 44 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.bedrockrobotics.com"
+    },
+    {
+      "company_name": "Catawiki",
+      "careers_url": "https://boards.greenhouse.io/catawiki",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'catawiki' answered with 44 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.catawiki.com"
+    },
+    {
+      "company_name": "Mollie",
+      "careers_url": "https://jobs.ashbyhq.com/mollie",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'mollie' answered with 47 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.mollie.com"
+    },
+    {
+      "company_name": "DataSnipper",
+      "careers_url": "https://jobs.ashbyhq.com/datasnipper",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'datasnipper' answered with 43 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.datasnipper.com"
+    },
+    {
+      "company_name": "QuantWare",
+      "careers_url": "https://jobs.ashbyhq.com/quantware",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public ashby board 'quantware' answered with 32 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.quantware.com"
+    },
+    {
+      "company_name": "Workwize",
+      "careers_url": "https://boards.greenhouse.io/workwize",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_08",
+      "hiring_hint": "Public greenhouse board 'workwize' answered with 17 postings on 2026-10-08.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever APIs (scripts/probe_ats_boards.py); the slug equals the company name.",
+      "website_url": "https://www.workwize.com"
+    },
+    {
+      "company_name": "Inditex",
+      "website_url": "https://www.inditex.com",
+      "source_type": "web_research",
+      "source_label": "user_request_2026_10_08",
+      "location_hint": "Arteixo, A Coruña, Spain",
+      "hiring_hint": "Requested by the user: technology roles in Spain (Inditex Tech).",
+      "notes": "Careers page to be found by the resolver from the website."
+    }
+  ]
+}

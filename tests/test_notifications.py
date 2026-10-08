@@ -753,3 +753,16 @@ def test_the_alert_bar_is_the_persons_then_the_sectors_then_the_global_setting()
     assert effective_review_threshold(software, 70) == 70
     assert effective_review_threshold(finance, 70) == 55
     assert effective_review_threshold(own, 70) == 40
+
+
+def test_a_review_with_no_reason_but_no_stated_years_says_so():
+    from dataclasses import replace
+
+    from ai_job_hunter.services.notifications import _safe_reasons
+
+    assert _safe_reasons({"reasons": ["fine"], "review_reasons": []}, "REVIEW", experience_unstated=True) == [
+        "no indica los años de experiencia que pide"
+    ]
+    assert _safe_reasons({"reasons": ["fine"], "review_reasons": []}, "REVIEW") == ["revisar la información disponible"]
+    stated = [{"code": "STACK_UNCERTAIN", "message": "x"}]
+    assert _safe_reasons({"review_reasons": stated}, "REVIEW", experience_unstated=True) == ["encaje de stack por confirmar"]

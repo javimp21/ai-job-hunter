@@ -1100,7 +1100,7 @@ def format_notification_message(
     if warning:
         lines.extend(["", warning])
     strengths = _strengths(item.jev_signals)
-    concerns = _safe_reasons(item.jev_reasons, decision)
+    concerns = _safe_reasons(item.jev_reasons, decision, experience_unstated=_experience_unstated(item))
     bonuses = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" in label]
     concerns = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" not in label] + concerns
     strengths = strengths + bonuses
@@ -1288,7 +1288,16 @@ def _strengths(signals: Any) -> list[str]:
     return [label for _, label in sorted(strong, key=lambda pair: -pair[0])[:4]]
 
 
-def _safe_reasons(raw: Any, decision: str) -> list[str]:
+def _experience_unstated(item: Opportunity) -> bool:
+    """The posting names no years of experience at all (nothing mandatory, preferred or ambiguous)."""
+
+    experience = item.experience
+    return experience is None or not (
+        experience.mandatory or experience.preferred or getattr(experience, "ambiguous", ())
+    )
+
+
+def _safe_reasons(raw: Any, decision: str, *, experience_unstated: bool = False) -> list[str]:
     if decision == FinalDecision.APPLY.value:
         return ["encaje fuerte de rol, backend y experiencia"]
     records = raw.get("review_reasons", []) if isinstance(raw, dict) else []
@@ -1305,6 +1314,9 @@ def _safe_reasons(raw: Any, decision: str) -> list[str]:
                 labels.append(label)
             if len(labels) == 3:
                 break
+    if not labels and experience_unstated:
+        # An offer that is strong everywhere but states no years is never APPLY: say so instead of a vague fallback.
+        return ["no indica los años de experiencia que pide"]
     return labels or ["revisar la información disponible"]
 
 
