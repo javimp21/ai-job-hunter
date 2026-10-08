@@ -132,3 +132,15 @@ def test_the_jev_budget_per_person_limits_new_evaluations(world, db_session) -> 
 
     assert results[str(people["ana"])].jev_evaluated == 1 and results[str(people["bea"])].jev_evaluated == 1
     assert len(engine.calls) == 2
+
+
+def test_offers_seen_only_through_an_owner_only_feed_are_not_evaluated_for_other_people(world, db_session) -> None:
+    _, people, _, _ = world
+    source = db_session.scalar(select(JobSource).where(JobSource.external_id == "role-b"))
+    source.provider = "fantastic_jobs"
+    db_session.commit()
+    engine = FakeEngine()
+
+    results = {str(r.user_id): r for r in run(db_session, world, Outbox(), engine)}
+
+    assert results[str(people["ana"])].candidates == 1 and engine.calls == ["role-a", "role-a"]

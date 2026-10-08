@@ -32,6 +32,9 @@ from ai_job_hunter.services.users import load_profile
 
 logger = logging.getLogger(__name__)
 
+# Paid, limited feeds kept for the owner: an offer seen only through one of these is never evaluated for other people.
+OWNER_ONLY_PROVIDERS = ("fantastic_jobs",)
+
 TRIAL_ENDED_TEXT = (
     "⏳ Tu prueba gratuita ha terminado, así que dejo de mandarte avisos. Tus datos siguen guardados unos días: "
     "/erase los borra ahora y, si quieres seguir, escríbele a quien te invitó."
@@ -128,7 +131,9 @@ def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, lim
     """Recent open offers this person has no final evaluation for (newest first); budget-deferred ones are retried."""
 
     since = moment - timedelta(days=max_age_days)
-    recent = select(JobSource.job_id).where(JobSource.closed_at.is_(None), JobSource.discovered_at >= since)
+    recent = select(JobSource.job_id).where(
+        JobSource.closed_at.is_(None), JobSource.discovered_at >= since, JobSource.provider.not_in(OWNER_ONLY_PROVIDERS)
+    )
     done = select(JobEvaluation.job_id).where(JobEvaluation.status == EvaluationStatus.EVALUATED.value)
     return list(
         session.scalars(
