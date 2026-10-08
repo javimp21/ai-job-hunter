@@ -99,6 +99,7 @@ from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_message
+from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
     NotificationPreview,
@@ -164,6 +165,11 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     weekly.add_argument("--dry-run", action="store_true", help="show the report without sending or recording it")
     weekly.add_argument("--force", action="store_true", help="send even if a weekly report went out in the last 6 days")
+    feedback = notification_commands.add_parser(
+        "feedback", help="have Claude read the free-text opinions about alerts and send proposals (nothing is applied)"
+    )
+    feedback.add_argument("--dry-run", action="store_true", help="show the evaluation without sending or recording it")
+    feedback.add_argument("--min-notes", type=int, default=5, help="evaluate only when this many new notes exist")
     system = notification_commands.add_parser(
         "system", help="send a short operational message (e.g. a failed scheduled run) to Telegram"
     )
@@ -488,7 +494,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed", "digest", "weekly"}
+        and args.notification_command in {"send", "retry-failed", "digest", "weekly", "feedback"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -1373,8 +1379,40 @@ def _run_weekly_command(args, session, candidate, settings) -> int:
     return 1 if result.status == "failed" else 0
 
 
+def _run_feedback_command(args, session, candidate, settings) -> int:
+    tuning = (
+        f"sector={candidate.preferences.sector}; alert bar for REVIEW offers="
+        f"{effective_review_threshold(candidate, settings.notify_review_min_priority)}; "
+        f"relocation penalty={candidate.tuning.relocation_penalty}"
+    )
+    result = review_notes(session, tuning_summary=tuning, min_notes=args.min_notes)
+    if result.status == "not_enough_notes":
+        print(f"Feedback review: {result.notes} new note(s), fewer than {args.min_notes}; nothing evaluated")
+        return 0
+    if result.status != "reviewed" or result.message is None:
+        print("Feedback review: the evaluation failed; nothing recorded", file=sys.stderr)
+        return 1
+    if args.dry_run:
+        print(result.message)
+        return 0
+    provider = _configured_telegram_provider(settings)
+    if provider is None:
+        print("Telegram is not configured; feedback review not sent.", file=sys.stderr)
+        return 1
+    try:
+        provider.send_message(result.message)
+    except Exception:  # noqa: BLE001 - provider errors never carry details worth echoing
+        print("Feedback review: delivery failed; nothing recorded", file=sys.stderr)
+        return 1
+    mark_reviewed(session)
+    print(f"Feedback review sent ({result.notes} notes)")
+    return 0
+
+
 def _run_notification_command(args, session, candidate, settings) -> int:
     command = args.notification_command
+    if command == "feedback":
+        return _run_feedback_command(args, session, candidate, settings)
     if command == "pending":
         rows = list_pending_notifications(session, limit=args.limit)
         print(f"PENDING NOTIFICATIONS: {len(rows)}")

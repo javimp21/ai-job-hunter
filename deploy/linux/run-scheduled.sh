@@ -91,6 +91,9 @@ if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FRO
     # Sunday evening. The command itself sends at most one report per 6 days,
     # so every later tick that evening is a no-op.
     "$exe" notify weekly || code=1
+    # Claude reads the free-text opinions written since the last review (only with 5 or more new notes) and proposes
+    # changes; nothing is applied. It runs after the weekly report, so at most once a week.
+    "$exe" notify feedback --min-notes 5 || true
 fi
 
 if [ "$code" -ne 0 ]; then
