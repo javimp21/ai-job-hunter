@@ -1,8 +1,8 @@
-"""Telegram side of the sign-up: other people's chats, the owner's /invitar, and CV downloads.
+"""Telegram side of the sign-up: other people's chats, the owner's /invite, and CV downloads.
 
 The bot used to answer only the owner's chat. This router sits in front of the old handlers: a message or button press from
 any other private chat goes through ``services.onboarding`` (or the person's own commands once signed up), and the
-owner's ``/invitar`` creates a single-use code. Everything else is left to the old handlers (it returns ``None``).
+owner's ``/invite`` creates a single-use code. Everything else is left to the old handlers (it returns ``None``).
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ class SignupHandlers:
     # -- the owner --------------------------------------------------------------------------------------------------
     def _owner_command(self, update: dict[str, Any], bot: TelegramBotClient) -> str | None:
         text = (update.get("message") or {}).get("text")
-        if not isinstance(text, str) or text.strip().split()[:1] != ["/invitar"]:
+        if not isinstance(text, str) or onboarding.COMMAND_ALIASES.get(text.strip().split()[0].casefold() if text.strip() else "", "") != "/invite" and text.strip().split()[:1] != ["/invite"]:
             return None
         with self._sessions() as session:
             owner = get_owner(session)
@@ -113,10 +113,10 @@ class SignupHandlers:
             return "signup_step"
         if words and words[0].startswith("/"):
             replies = onboarding.handle_command(session, user, text) if user.consent_at else []
-            self._say(person, replies or [Reply("No conozco ese comando. Prueba /mis_datos, /pausa, /reanudar o /borrar.")])
+            self._say(person, replies or [Reply("No conozco ese comando. Prueba /my_data, /pause, /resume o /erase.")])
             return "signup_command"
         if user.status != UserStatus.ONBOARDING.value:
-            self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /mis_datos, /pausa, /reanudar, /borrar.")])
+            self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /my_data, /pause, /resume, /erase.")])
             return "signup_idle"
 
         document = (message or {}).get("document")

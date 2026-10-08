@@ -10,7 +10,7 @@ son datos que tienes que rellenar.
   de cartas. Nunca envía nada por ti.
 - Para hacerlo guardo tu CV y las preferencias que me das. Los uso solo para eso.
 - Tu CV y tus preguntas se envían a un proveedor de inteligencia artificial para extraer tu perfil y escribir borradores.
-- Puedes ver qué guardo con `/mis_datos` y borrarlo todo con `/borrar`, cuando quieras.
+- Puedes ver qué guardo con `/my_data` y borrarlo todo con `/erase`, cuando quieras.
 - No envíes por este chat datos sensibles (salud, creencias, DNI, contraseñas). Telegram no cifra de extremo a extremo
   los mensajes con bots.
 - Al responder "Acepto" confirmas que has leído este aviso.
@@ -43,7 +43,7 @@ puedes eliminarlos antes de subirlo.
 | Preparar borradores de cartas y candidaturas | Tu consentimiento, cuando los pides |
 | Mantener el servicio seguro y evitar abusos | Interés legítimo (art. 6.1.f RGPD) |
 
-Puedes retirar el consentimiento en cualquier momento con `/borrar`. No afecta a lo hecho antes de retirarlo.
+Puedes retirar el consentimiento en cualquier momento con `/erase`. No afecta a lo hecho antes de retirarlo.
 
 ### 4. Con quién se comparten los datos
 
@@ -63,12 +63,12 @@ se apoya en las garantías que ofrezca cada uno (cláusulas contractuales tipo o
 - Perfil, CV y borradores: mientras uses el servicio. Si no lo usas durante [6] meses, se borran.
 - Valoraciones y candidaturas: lo mismo.
 - Copias de seguridad: se eliminan en un máximo de [30] días tras el borrado.
-- Si pides el borrado con `/borrar`, se eliminan tus datos de la base de datos de inmediato.
+- Si pides el borrado con `/erase`, se eliminan tus datos de la base de datos de inmediato.
 
 ### 6. Tus derechos
 
 Acceso, rectificación, supresión, limitación, oposición y portabilidad. Los dos primeros y el borrado los tienes
-directamente en el bot (`/mis_datos`, `/perfil`, `/borrar`). Para el resto escribe a [CORREO]. Si no estás conforme,
+directamente en el bot (`/my_data`, `/perfil`, `/erase`). Para el resto escribe a [CORREO]. Si no estás conforme,
 puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).
 
 ### 7. Decisiones automatizadas
@@ -93,5 +93,5 @@ Si este aviso cambia de forma importante, el bot te lo dirá y te pedirá acepta
 
 - Rellenar responsable, correo, región del servidor y plazos.
 - Verificar las condiciones vigentes de cada proveedor (tratamiento de datos y transferencias).
-- Hacer realidad lo que promete: `/mis_datos`, `/perfil` y `/borrar` deben existir, borrar de verdad y probarse.
+- Hacer realidad lo que promete: `/my_data`, `/perfil` y `/erase` deben existir, borrar de verdad y probarse.
 - Revisión legal si el servicio se abre más allá de la beta cerrada.

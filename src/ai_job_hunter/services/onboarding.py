@@ -117,7 +117,7 @@ def welcome(user: User) -> list[Reply]:
             "• Te pediré tu CV. No lo guardo: lo leo una vez para sacar tu perfil, que tú confirmas.\n"
             "• Para leerlo uso un modelo de IA de Anthropic: el texto de tu CV se envía a ese proveedor.\n"
             "• Guardo tu perfil, las ofertas que te aviso y tus votos y notas, para mejorar tus avisos.\n"
-            "• Puedes ver todo con /mis_datos, pausar con /pausa y borrarlo todo con /borrar.\n"
+            "• Puedes ver todo con /my_data, pausar con /pause y borrarlo todo con /erase.\n"
             "• No envío nada a nadie en tu nombre ni me presento a ninguna oferta.\n\n"
             "¿Aceptas?",
             ((Button("✅ Acepto", "ob:consent:yes"), Button("No acepto", "ob:consent:no")),),
@@ -220,7 +220,7 @@ def handle(
             return _finish(session, user, draft, current)
         return [_mode_question()]
 
-    return [Reply("Ya tienes tu perfil. Usa /mis_datos, /pausa, /reanudar o /borrar.")]
+    return [Reply("Ya tienes tu perfil. Usa /my_data, /pause, /resume o /erase.")]
 
 
 # --- steps' helpers ---------------------------------------------------------------------------------------------------
@@ -360,7 +360,7 @@ def _finish(session: Session, user: User, draft: dict[str, Any], now: datetime) 
                 "🎉 Listo. A partir de ahora te aviso de las ofertas nuevas que encajen contigo.\n"
                 f"La prueba gratuita dura {TRIAL_DAYS} días. Puedes votar cada aviso con 👍/👎 y escribir tu opinión "
                 "respondiendo al mensaje: así los avisos mejoran.\n\n"
-                "/mis_datos: ver lo que guardo · /pausa: pausar · /borrar: borrar todo."
+                "/my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
             )
         ]
     return [
@@ -368,7 +368,7 @@ def _finish(session: Session, user: User, draft: dict[str, Any], now: datetime) 
             "✅ Perfil guardado. Los avisos todavía no están activados para ti: estoy terminando esa parte de la beta "
             "y te escribiré aquí cuando empiecen. Tu prueba de "
             f"{TRIAL_DAYS} días empezará entonces.\n\n"
-            "/mis_datos: ver lo que guardo · /pausa: pausar · /borrar: borrar todo."
+            "/my_data: ver lo que guardo · /pause: pausar · /erase: borrar todo."
         )
     ]
 
@@ -395,23 +395,27 @@ def my_data(session: Session, user: User) -> Reply:
     counts = count_user_rows(session, user)
     stored = ", ".join(f"{label} {n}" for label, n in counts.items() if n)
     lines.append(f"Guardado: {stored or 'nada más'}")
-    lines.append("\nNo guardo tu CV. /borrar elimina todo esto.")
+    lines.append("\nNo guardo tu CV. /erase elimina todo esto.")
     return Reply("\n".join(lines))
+
+
+COMMAND_ALIASES = {"/mis_datos": "/my_data", "/pausa": "/pause", "/reanudar": "/resume", "/borrar": "/erase", "/invitar": "/invite"}
 
 
 def handle_command(session: Session, user: User, text: str) -> list[Reply]:
     command = text.strip().split()[0].casefold() if text.strip() else ""
-    if command == "/mis_datos":
+    command = COMMAND_ALIASES.get(command, command)
+    if command == "/my_data":
         return [my_data(session, user)]
-    if command == "/pausa":
+    if command == "/pause":
         user.status = UserStatus.PAUSED.value
-        return [Reply("Pausado: no te mandaré más avisos. /reanudar los activa de nuevo.")]
-    if command == "/reanudar":
+        return [Reply("Pausado: no te mandaré más avisos. /resume los activa de nuevo.")]
+    if command == "/resume":
         if user.status == UserStatus.PAUSED.value:
             user.status = UserStatus.ACTIVE.value
             return [Reply("Reanudado. Vuelvo a avisarte de las ofertas nuevas.")]
         return [Reply("No estabas en pausa.")]
-    if command == "/borrar":
+    if command == "/erase":
         return [Reply(
             "Esto borra tu perfil, tus votos, notas y todos tus avisos, y no se puede deshacer. ¿Seguro?",
             ((Button("Sí, borrar todo", "ob:erase:yes"), Button("Cancelar", "ob:erase:no")),),

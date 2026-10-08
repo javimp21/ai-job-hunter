@@ -94,7 +94,7 @@ responde unas preguntas y empieza a recibir alertas. Sin instalar nada y sin mon
 - El usuario sube su CV (PDF o Word). Un modelo extrae el perfil y el bot lo enseña para confirmarlo o corregirlo.
 - Preguntas que el CV no responde: ciudades, mudanza, sueldo, modalidad, idiomas, sector y rol buscado.
 - Alerta de prueba para validar que el filtro funciona antes de activar el envío continuo.
-- Comandos para cambiar el perfil, pausar, ver qué se guarda (`/mis_datos`) y borrarlo todo (`/borrar`).
+- Comandos para cambiar el perfil, pausar, ver qué se guarda (`/my_data`) y borrarlo todo (`/erase`).
 
 ### Fase 5: cartas y proveedor de IA
 

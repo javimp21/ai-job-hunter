@@ -1,4 +1,4 @@
-"""Everything stored about one person: counted for /mis_datos and erased for /borrar."""
+"""Everything stored about one person: counted for /my_data and erased for /erase."""
 
 from __future__ import annotations
 

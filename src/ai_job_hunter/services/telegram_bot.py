@@ -405,7 +405,7 @@ def handle_update(
     """
 
     if signup is not None:
-        # Other people's chats (sign-up, their commands) and the owner's /invitar; None leaves it to the code below.
+        # Other people's chats (sign-up, their commands) and the owner's /invite; None leaves it to the code below.
         handled = signup.handle(update, bot)
         if handled is not None:
             return handled

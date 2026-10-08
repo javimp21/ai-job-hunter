@@ -74,7 +74,7 @@ def last(world, chat):
 
 
 def test_the_owner_invites_and_a_new_person_signs_up_with_the_code(world) -> None:
-    assert world.send(OWNER_CHAT, "/invitar") == "invited"
+    assert world.send(OWNER_CHAT, "/invite") == "invited"
     code_message = last(world, OWNER_CHAT)[1]
     code = code_message.split("Invitación (un solo uso, caduca en 7 días): ")[1][:8]
     assert f"/start {code}" in code_message and f"https://t.me/job_hunter_test_bot?start={code}" in code_message
@@ -92,7 +92,7 @@ def test_the_owner_invites_and_a_new_person_signs_up_with_the_code(world) -> Non
 
 
 def test_files_that_are_not_a_cv_or_are_too_big_are_refused_before_downloading(world) -> None:
-    world.send(OWNER_CHAT, "/invitar")
+    world.send(OWNER_CHAT, "/invite")
     code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
     world.send("500", f"/start {code}")
     world.send("500", data="ob:consent:yes")
@@ -107,23 +107,23 @@ def test_files_that_are_not_a_cv_or_are_too_big_are_refused_before_downloading(w
 
 def test_only_private_chats_are_served_and_a_person_cannot_invite(world) -> None:
     assert world.send("-100", "/start ABCDEFGH", kind="group") == "ignored"
-    world.send(OWNER_CHAT, "/invitar")
+    world.send(OWNER_CHAT, "/invite")
     code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
     world.send("500", f"/start {code}")
     world.send("500", data="ob:consent:yes")
     before = len(world.sent)
-    assert world.send("500", "/invitar") == "signup_command"
-    assert "No conozco ese comando" in last(world, 500)[1] or "/mis_datos" in last(world, 500)[1]
+    assert world.send("500", "/invite") == "signup_command"
+    assert "No conozco ese comando" in last(world, 500)[1] or "/my_data" in last(world, 500)[1]
     assert not any("🎟" in item[1] for item in world.sent[before:])
 
 
 def test_a_person_can_see_pause_and_erase_their_data_by_button(world) -> None:
-    world.send(OWNER_CHAT, "/invitar")
+    world.send(OWNER_CHAT, "/invite")
     code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
     world.send("500", f"/start {code}")
     world.send("500", data="ob:consent:yes")
-    assert world.send("500", "/mis_datos") == "signup_command" and "Estado: ONBOARDING" in last(world, 500)[1]
-    assert world.send("500", "/borrar") == "signup_command" and last(world, 500)[2]
+    assert world.send("500", "/my_data") == "signup_command" and "Estado: ONBOARDING" in last(world, 500)[1]
+    assert world.send("500", "/erase") == "signup_command" and last(world, 500)[2]
     assert world.send("500", data="ob:erase:yes") == "signup_erased"
     with world.factory() as session:
         person = session.scalar(select(User).where(User.is_owner.is_(False)))

@@ -140,11 +140,11 @@ def test_commands_pause_resume_show_data_and_erase_everything(db_session) -> Non
         db_session.add(JobReview(job_id=job.id, state="DISMISSED"))
         db_session.flush()
 
-    assert "pausado" in handle_command(db_session, user, "/pausa")[0].text.lower() and user.status == "PAUSED"
-    assert "reanudado" in handle_command(db_session, user, "/reanudar")[0].text.lower() and user.status == "ACTIVE"
-    data = handle_command(db_session, user, "/mis_datos")[0].text
+    assert "pausado" in handle_command(db_session, user, "/pause")[0].text.lower() and user.status == "PAUSED"
+    assert "reanudado" in handle_command(db_session, user, "/resume")[0].text.lower() and user.status == "ACTIVE"
+    data = handle_command(db_session, user, "/my_data")[0].text
     assert "finance" in data and "votos 1" in data and "notas 1" in data and "No guardo tu CV" in data
-    ask = handle_command(db_session, user, "/borrar")[0]
+    ask = handle_command(db_session, user, "/erase")[0]
     assert [b.data for row in ask.buttons for b in row] == ["ob:erase:yes", "ob:erase:no"]
     assert "cancelado" in handle_erase_press(db_session, user, "ob:erase:no")[0].text.lower() and user.status == "ACTIVE"
 
@@ -155,3 +155,10 @@ def test_commands_pause_resume_show_data_and_erase_everything(db_session) -> Non
     remaining = db_session.scalars(select(JobReview).execution_options(skip_user_scope=True)).all()
     assert [row.user_id for row in remaining] == [owner.id]  # only the owner's vote is left
     assert db_session.scalar(select(JobFeedbackNote.id).execution_options(skip_user_scope=True)) is None
+
+
+def test_spanish_command_names_still_work_as_aliases(db_session) -> None:
+    _, user = new_user(db_session)
+    user.status = "ACTIVE"
+    assert "pausado" in handle_command(db_session, user, "/pausa")[0].text.lower()
+    assert "pausado" in handle_command(db_session, user, "/pause")[0].text.lower()
