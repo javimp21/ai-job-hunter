@@ -1,8 +1,9 @@
 """New junior-level technical postings in the countries the owner wants to move to, announced on their own.
 
 The normal alerts keep only what clears the priority bar. A junior posting abroad is rare, so each new one in the watched
-countries (``tuning.junior_watch_countries``) is listed in one message whatever its priority, once per posting. Student
-jobs and postings that demand fluent German or Dutch are left out (the candidate speaks neither). The postings already
+countries (``tuning.junior_watch_countries``) is listed in one message whatever its priority, once per posting. Only Java,
+software, backend and full stack developer or engineer titles count; student jobs and postings that demand fluent German
+or Dutch are left out (the candidate speaks neither). The postings already
 announced are remembered in a small state file.
 """
 
@@ -29,6 +30,8 @@ WINDOW_DAYS = 7
 MAX_PER_MESSAGE = 15
 _JUNIOR = ("junior", "graduate", "entry level", "entry-level", "associate", "trainee", "jr.")
 _STUDENT = re.compile(r"working student|werkstudent|student|intern(ship)?\b|praktik|stage\b", re.IGNORECASE)
+# Only the roles the owner wants: Java, software, backend or full stack developer/engineer (any words in between).
+_ROLE = re.compile(r"(java|software|back-?end|back end|full[ -]?stack).{0,30}(developer|engineer|engineering)", re.IGNORECASE)
 _LOCAL_LANGUAGE = re.compile(
     r"((fluent|proficient|native|excellent|good|strong|business).{0,25}(german|dutch|deutsch|nederlands)"
     r"|(german|dutch|deutsch|nederlands).{0,25}(fluent|required|mandatory|native|skills))",
@@ -112,7 +115,7 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
         place = source.source_location or job.location or ""
         if key in seen or key in found or job.id in dismissed or not places.search(place):
             continue
-        if _STUDENT.search(title) or not title_may_be_relevant(title, sector):
+        if _STUDENT.search(title) or not _ROLE.search(title) or not title_may_be_relevant(title, sector):
             continue
         company = job.company.name if job.company else ""
         if exclusion_reason(title, company, candidate.preferences):

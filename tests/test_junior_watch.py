@@ -33,13 +33,18 @@ def test_new_junior_postings_in_the_watched_countries_are_listed_without_student
     offer(db_session, "Junior Software Engineer", "Madrid, Spain", company="Spain")  # not a watched country
     offer(db_session, "Senior Software Engineer", "Dublin", company="Senior")  # not junior
     offer(db_session, "Junior Account Executive", "Dublin", company="Sales")  # not technical
+    offer(db_session, "Associate Solutions Engineer", "Dublin", company="Presales")  # technical but not one of the roles
+    offer(db_session, "Junior Data Analyst", "Amsterdam", company="Analyst")
+    offer(db_session, "Junior Java Backend Developer (m/w/d)", "Zurich", company="Swiss")
+    offer(db_session, "Graduate Full-Stack Engineer", "Stockholm", company="Nordic")
     offer(db_session, "Junior Software Engineer", "Dublin", company="Old", found=NOW - timedelta(days=30))
 
     lines = junior_watch.collect(
-        db_session, candidate("Ireland", "Netherlands", "Germany"), now=NOW, state_path=tmp_path / "seen.json"
+        db_session, candidate("Ireland", "Netherlands", "Germany", "Switzerland", "Sweden"), now=NOW,
+        state_path=tmp_path / "seen.json",
     )
 
-    assert sorted(line.company for line in lines) == ["Alpha", "Beta"]
+    assert sorted(line.company for line in lines) == ["Alpha", "Beta", "Nordic", "Swiss"]
 
 
 def test_each_posting_is_announced_once_and_a_failed_send_remembers_nothing(db_session, tmp_path) -> None:
