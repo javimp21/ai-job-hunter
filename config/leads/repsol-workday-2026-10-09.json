@@ -1,0 +1,14 @@
+{
+  "leads": [
+    {
+      "company_name": "Repsol",
+      "website_url": "https://www.repsol.com",
+      "careers_url": "https://repsol.wd3.myworkdayjobs.com/Repsol",
+      "source_url": "https://repsol.wd3.myworkdayjobs.com/Repsol",
+      "source_type": "web_research",
+      "source_label": "workday_found_2026_10_09",
+      "hiring_hint": "Public Workday site 'Repsol' (wd3) answered the keyless jobs API on 2026-10-09.",
+      "notes": "Found by reading the links of repsol.com's careers page; the Workday connector can read it."
+    }
+  ]
+}
