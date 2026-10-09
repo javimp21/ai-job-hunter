@@ -618,7 +618,13 @@ def _handle_feedback(
         return "failed"
     saved = state == "SAVED"
     if reason is None:
-        _answer(bot, callback_id, "Guardada 👍" if saved else "Descartada 👎")
+        _answer(
+            bot,
+            callback_id,
+            "Guardada 👍 Si quieres, responde a este aviso con tu opinión."
+            if saved
+            else "Descartada 👎 Si quieres, responde a este aviso con tu opinión.",
+        )
         # No list of reasons: the opinion is free text, written as a reply to this message or to the alert itself.
         prompt = (
             "👍 Guardada. Si quieres, cuéntame qué te gusta y qué no: responde a este mensaje con tu opinión."
