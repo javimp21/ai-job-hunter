@@ -165,10 +165,19 @@ class SignupHandlers:
             if profile_edit.is_editing(user) and isinstance(text, str) and text.strip():
                 self._say(person, profile_edit.text(session, user, text))
                 return "profile_edit"
+            if isinstance(message, dict) and (message.get("voice") or message.get("audio") or message.get("video_note")):
+                self._say(person, [Reply(
+                    "Todavía no entiendo los audios. Escríbeme tu opinión como texto, respondiendo al mensaje del aviso "
+                    "(mantén pulsado el aviso y elige «Responder»)."
+                )])
+                return "signup_audio"
             if isinstance(message, dict) and message.get("reply_to_message") and self._record_note is not None:
                 with acting_as(user.id):  # an opinion written as a reply to one of this person's alerts
                     return _handle_message(message, chat_id, person, None, self._record_note, self._prompts)
-            self._say(person, [Reply("Te aviso cuando haya ofertas. Comandos: /profile, /my_data, /pause, /resume, /erase.")])
+            self._say(person, [Reply(
+                "Te aviso cuando haya ofertas. Para darme tu opinión sobre un aviso, responde a ese mensaje "
+                "(mantén pulsado el aviso y elige «Responder»). Comandos: /profile, /my_data, /pause, /resume, /erase."
+            )])
             return "signup_idle"
 
         document = (message or {}).get("document")

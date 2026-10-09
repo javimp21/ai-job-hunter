@@ -75,7 +75,7 @@ def world():
             update = {"update_id": 1, "message": {**message, **({"text": text} if text else {}), **({"document": document} if document else {})}}
         return handle_update(update, chat_id=OWNER_CHAT, bot=bot, generate=lambda *a: None, generated={}, signup=handlers)
 
-    return SimpleNamespace(factory=factory, sent=sent, send=send, votes=votes, notes=notes, handlers=handlers)
+    return SimpleNamespace(factory=factory, sent=sent, send=send, votes=votes, notes=notes, handlers=handlers, bot=bot)
 
 
 def last(world, chat):
@@ -304,3 +304,27 @@ def test_the_undo_button_of_a_learned_change_works_for_the_person_and_for_the_ow
         statuses = {row.id: row.status for row in session.scalars(select(PreferenceChange).execution_options(skip_user_scope=True))}
         assert statuses[ids["person"]] == "UNDONE" and statuses[ids["owner"]] == "UNDONE"
         assert all(not (row.learned or {}).get("excluded_companies") for row in session.scalars(select(UserProfile)))
+
+
+def test_audio_messages_and_plain_text_get_a_clear_answer_about_how_to_give_an_opinion(world) -> None:
+    from ai_job_hunter.models import UserProfile  # noqa: F401
+    from ai_job_hunter.services.onboarding import build_config
+    from ai_job_hunter.services.users import save_profile
+
+    world.send(OWNER_CHAT, "/invite")
+    code = last(world, OWNER_CHAT)[1].split(": ")[1][:8]
+    world.send("500", f"/start {code}")
+    world.send("500", data="ob:consent:yes")
+    with world.factory() as session:
+        person = session.scalar(select(User).where(User.is_owner.is_(False)))
+        person.status = "ACTIVE"
+        save_profile(session, person, build_config({"current_role": "Contable", "role": "Contable", "locations": ["Madrid"]}))
+        session.commit()
+
+    audio = {"message_id": 5, "chat": {"id": 500, "type": "private"}, "voice": {"file_id": "x", "duration": 7}}
+    outcome = handle_update(
+        {"update_id": 1, "message": audio}, chat_id=OWNER_CHAT, bot=world.bot, generate=lambda *a: None, generated={},
+        signup=world.handlers,
+    )
+    assert outcome == "signup_audio" and "audios" in last(world, 500)[1] and "Responder" in last(world, 500)[1]
+    assert world.send("500", "me gusta mucho") == "signup_idle" and "Responder" in last(world, 500)[1]
