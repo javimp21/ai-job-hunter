@@ -1,0 +1,348 @@
+{
+  "leads": [
+    {
+      "company_name": "Jobster",
+      "careers_url": "https://jobster.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public recruitee board 'jobster' answered with 10 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Discord",
+      "careers_url": "https://boards.greenhouse.io/discord",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'discord' answered with 49 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "LaunchDarkly",
+      "careers_url": "https://boards.greenhouse.io/launchdarkly",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'launchdarkly' answered with 56 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Dremio",
+      "careers_url": "https://boards.greenhouse.io/dremio",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'dremio' answered with 7 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Jumio",
+      "careers_url": "https://boards.greenhouse.io/jumio",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'jumio' answered with 18 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Spotify",
+      "careers_url": "https://jobs.lever.co/spotify",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public lever board 'spotify' answered with 85 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "bol.com",
+      "careers_url": "https://boards.greenhouse.io/bolcom",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'bolcom' answered with 29 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Mollie",
+      "careers_url": "https://jobs.ashbyhq.com/mollie",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'mollie' answered with 46 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Bird",
+      "careers_url": "https://boards.greenhouse.io/bird",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'bird' answered with 32 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Miro",
+      "careers_url": "https://jobs.ashbyhq.com/miro",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'miro' answered with 24 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Catawiki",
+      "careers_url": "https://boards.greenhouse.io/catawiki",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'catawiki' answered with 43 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "bunq",
+      "careers_url": "https://bunq.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public recruitee board 'bunq' answered with 19 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "N26",
+      "careers_url": "https://boards.greenhouse.io/n26",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'n26' answered with 44 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Delivery Hero",
+      "careers_url": "https://jobs.smartrecruiters.com/deliveryhero",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public smartrecruiters board 'deliveryhero' answered with 946 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "HelloFresh",
+      "careers_url": "https://boards.greenhouse.io/hellofresh",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'hellofresh' answered with 416 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "SumUp",
+      "careers_url": "https://boards.greenhouse.io/sumup",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'sumup' answered with 346 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "DeepL",
+      "careers_url": "https://jobs.ashbyhq.com/deepl",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'deepl' answered with 7 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Contentful",
+      "careers_url": "https://boards.greenhouse.io/contentful",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'contentful' answered with 19 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Workhuman",
+      "careers_url": "https://jobs.ashbyhq.com/workhuman",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'workhuman' answered with 9 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Tines",
+      "careers_url": "https://boards.greenhouse.io/tines",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'tines' answered with 27 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Scandit",
+      "careers_url": "https://boards.greenhouse.io/scandit",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'scandit' answered with 12 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Swissquote",
+      "careers_url": "https://jobs.smartrecruiters.com/swissquote",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public smartrecruiters board 'swissquote' answered with 49 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Collibra",
+      "careers_url": "https://boards.greenhouse.io/collibra",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'collibra' answered with 29 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Trustpilot",
+      "careers_url": "https://boards.greenhouse.io/trustpilot",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'trustpilot' answered with 46 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Supercell",
+      "careers_url": "https://jobs.ashbyhq.com/supercell",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'supercell' answered with 32 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Oura",
+      "careers_url": "https://boards.greenhouse.io/oura",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'oura' answered with 77 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Cognite",
+      "careers_url": "https://boards.greenhouse.io/cognite",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'cognite' answered with 54 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Kahoot",
+      "careers_url": "https://apply.workable.com/kahoot/",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public workable board 'kahoot' answered with 7 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Typeform",
+      "careers_url": "https://boards.greenhouse.io/typeform",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'typeform' answered with 13 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Lightspeed",
+      "careers_url": "https://jobs.ashbyhq.com/lightspeed",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'lightspeed' answered with 7 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Raisin",
+      "careers_url": "https://boards.greenhouse.io/raisin",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'raisin' answered with 41 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "GetYourGuide",
+      "careers_url": "https://boards.greenhouse.io/getyourguide",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'getyourguide' answered with 63 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Babbel",
+      "careers_url": "https://jobs.ashbyhq.com/babbel",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'babbel' answered with 11 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Flix",
+      "careers_url": "https://boards.greenhouse.io/flix",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'flix' answered with 141 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Scout24",
+      "careers_url": "https://boards.greenhouse.io/scout24",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'scout24' answered with 15 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Auto1",
+      "careers_url": "https://jobs.smartrecruiters.com/auto1",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public smartrecruiters board 'auto1' answered with 706 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Forto",
+      "careers_url": "https://jobs.ashbyhq.com/forto",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'forto' answered with 10 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Enpal",
+      "careers_url": "https://jobs.ashbyhq.com/enpal",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'enpal' answered with 148 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Celonis",
+      "careers_url": "https://boards.greenhouse.io/celonis",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'celonis' answered with 226 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Parloa",
+      "careers_url": "https://boards.greenhouse.io/parloa",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'parloa' answered with 52 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Black Forest Labs",
+      "careers_url": "https://jobs.ashbyhq.com/black-forest-labs",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public ashby board 'black-forest-labs' answered with 14 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Pigment",
+      "careers_url": "https://jobs.lever.co/pigment",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public lever board 'pigment' answered with 141 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    },
+    {
+      "company_name": "Dataiku",
+      "careers_url": "https://boards.greenhouse.io/dataiku",
+      "source_type": "web_research",
+      "source_label": "board_probe_2026_10_10",
+      "hiring_hint": "Public greenhouse board 'dataiku' answered with 17 postings on 2026-10-10.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Added because the owner wants companies in Europe that hire Spaniards (hybrid and remote)."
+    }
+  ]
+}
