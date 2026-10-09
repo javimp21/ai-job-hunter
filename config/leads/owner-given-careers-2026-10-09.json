@@ -1,0 +1,44 @@
+{
+  "leads": [
+    {
+      "company_name": "Amadeus",
+      "careers_url": "https://amadeus.com/en/careers/overview/locations/madrid",
+      "website_url": "https://amadeus.com",
+      "source_type": "web_research",
+      "source_label": "owner_given_careers_urls_2026_10_09",
+      "source_url": "https://amadeus.com/en/careers/overview/locations/madrid",
+      "hiring_hint": "Careers address given by the owner on 2026-10-09 for the resolver to classify.",
+      "notes": "The owner asked for these employers; the resolver decides whether the page is readable."
+    },
+    {
+      "company_name": "Glovo",
+      "careers_url": "https://careers.glovoapp.com/careers/",
+      "website_url": "https://glovoapp.com",
+      "source_type": "web_research",
+      "source_label": "owner_given_careers_urls_2026_10_09",
+      "source_url": "https://careers.glovoapp.com/careers/",
+      "hiring_hint": "Careers address given by the owner on 2026-10-09 for the resolver to classify.",
+      "notes": "The owner asked for these employers; the resolver decides whether the page is readable."
+    },
+    {
+      "company_name": "Revolut",
+      "careers_url": "https://www.revolut.com/es-ES/working-at-revolut/",
+      "website_url": "https://www.revolut.com",
+      "source_type": "web_research",
+      "source_label": "owner_given_careers_urls_2026_10_09",
+      "source_url": "https://www.revolut.com/es-ES/working-at-revolut/",
+      "hiring_hint": "Careers address given by the owner on 2026-10-09 for the resolver to classify.",
+      "notes": "The owner asked for these employers; the resolver decides whether the page is readable."
+    },
+    {
+      "company_name": "Playtomic",
+      "careers_url": "https://playtomic.factorial.es/embed/jobs",
+      "website_url": "https://playtomic.com",
+      "source_type": "web_research",
+      "source_label": "owner_given_careers_urls_2026_10_09",
+      "source_url": "https://playtomic.factorial.es/embed/jobs",
+      "hiring_hint": "Careers address given by the owner on 2026-10-09 for the resolver to classify.",
+      "notes": "The owner asked for these employers; the resolver decides whether the page is readable."
+    }
+  ]
+}
