@@ -70,6 +70,7 @@ def run_for_users(
     max_notifications: int = 5,
     max_candidates: int = 300,
     review_client=None,  # noqa: ANN001 - a Claude client; None builds the real one
+    rescan: bool = False,
     now: datetime | None = None,
 ) -> list[UserRunResult]:
     moment = now or datetime.now(UTC)
@@ -93,7 +94,7 @@ def run_for_users(
                     user_id=user_id, moment=moment, review_threshold=review_threshold, max_age_days=max_age_days,
                     engine=engine, cache=cache, direct_postings=direct_postings, liveness=liveness,
                     max_jev_jobs=max_jev_jobs, daily_jev_cap=daily_jev_cap, max_notifications=max_notifications,
-                    max_candidates=max_candidates, review_client=review_client,
+                    max_candidates=max_candidates, review_client=review_client, rescan=rescan,
                 )
         except Exception as error:  # noqa: BLE001 - one person's failure must not stop the others
             result.error = type(error).__name__
@@ -104,7 +105,7 @@ def run_for_users(
 def _run_one(
     session: Session, provider: NotificationProvider, result: UserRunResult, *, user_id, moment, review_threshold,
     max_age_days, engine, cache, direct_postings, liveness, max_jev_jobs, daily_jev_cap, max_notifications, max_candidates,
-    review_client,
+    review_client, rescan,
 ) -> None:
     candidate = load_profile(session, session.get(User, user_id))
     if candidate is None:
@@ -129,7 +130,7 @@ def _run_one(
     batch = send_notifications(
         session, candidate, provider,
         direct_postings=direct_postings, liveness=liveness,
-        only_job_ids=set(job_ids) | pending_notification_job_ids(session),
+        only_job_ids=None if rescan else set(job_ids) | pending_notification_job_ids(session),
         review_threshold=effective_review_threshold(candidate, review_threshold),
         max_age_days=max_age_days, limit=max_notifications, owner_features=False, dispatch=held is None,
     )

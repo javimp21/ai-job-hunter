@@ -24,6 +24,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--max-jev-jobs", type=int, default=10, help="new Jev evaluations per person per run")
     run.add_argument("--max-notifications", type=int, default=5, help="alerts per person per run")
     run.add_argument("--review-threshold", type=int, default=None, help="lowest priority of a REVIEW offer that alerts (default: the global setting)")
+    run.add_argument("--rescan", action="store_true", help="look at every stored evaluation for alerts (after changing the review bar)")
     run.add_argument("--max-candidates", type=int, default=300, help="stored offers each person's pass looks at per run")
     run.add_argument("--daily-jev-cap", type=int, default=150, help="new Jev evaluations per person per day")
     run.add_argument("--max-age-days", type=int, default=None, help="only offers found in this many days (default: the global setting)")
@@ -56,6 +57,7 @@ def _run_users(engine, args) -> int:
             max_notifications=args.max_notifications,
             daily_jev_cap=args.daily_jev_cap,
             max_candidates=args.max_candidates,
+            rescan=args.rescan,
         )
     for result in results:
         print(
