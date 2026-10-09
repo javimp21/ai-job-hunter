@@ -100,8 +100,6 @@ if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FRO
     # Sunday evening. The command itself sends at most one report per 6 days,
     # so every later tick that evening is a no-op.
     "$exe" notify weekly || code=1
-    # Remote offers that say they accept Spain, at any level (a goal further away); at most once per 6 days.
-    "$exe" notify remote-spain || true
     # Claude reads the free-text opinions written since the last review (only with 5 or more new notes) and proposes
     # changes; nothing is applied. It runs after the weekly report, so at most once a week.
     "$exe" notify feedback --min-notes 5 || true
