@@ -1,0 +1,24 @@
+{
+  "leads": [
+    {
+      "company_name": "Thales",
+      "careers_url": "https://careers.thalesgroup.com/global/en",
+      "website_url": "https://www.thalesgroup.com",
+      "source_url": "https://careers.thalesgroup.com/global/en",
+      "source_type": "web_research",
+      "source_label": "phenom_sites_2026_10_09",
+      "hiring_hint": "Phenom career site: robots.txt allows job pages, sitemap_index lists job URLs and the job pages publish schema.org JobPosting JSON-LD (checked 2026-10-09 on Thales).",
+      "notes": "No new connector needed: the generic careers_site connector reads sitemap + JobPosting JSON-LD."
+    },
+    {
+      "company_name": "NTT DATA Spain",
+      "careers_url": "https://careers.services.global.ntt/global/en",
+      "website_url": "https://es.nttdata.com",
+      "source_url": "https://careers.services.global.ntt/global/en",
+      "source_type": "web_research",
+      "source_label": "phenom_sites_2026_10_09",
+      "hiring_hint": "Phenom career site: robots.txt allows job pages, sitemap_index lists job URLs and the job pages publish schema.org JobPosting JSON-LD (checked 2026-10-09 on Thales).",
+      "notes": "No new connector needed: the generic careers_site connector reads sitemap + JobPosting JSON-LD."
+    }
+  ]
+}
