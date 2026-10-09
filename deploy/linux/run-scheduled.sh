@@ -3,7 +3,7 @@
 # ai-job-hunter-run.service. Output goes to journald. Never overlaps: a second
 # invocation (or a deploy in progress) skips the run.
 # Tunables (set via `systemctl edit ai-job-hunter-run.service`, [Service] Environment=):
-#   USER_ALERTS_ENABLED (0: alerts for other signed-up people)  USER_MAX_JEV_JOBS (10)  USER_DAILY_JEV_CAP (150)  USER_MAX_AGE_DAYS (3)  USER_MAX_NOTIFICATIONS (5)  COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
+#   USER_ALERTS_ENABLED (0: alerts for other signed-up people)  USER_MAX_JEV_JOBS (10)  USER_DAILY_JEV_CAP (150)  USER_MAX_AGE_DAYS (3)  USER_MAX_NOTIFICATIONS (5)  USER_MAX_CANDIDATES (300)  USER_REVIEW_THRESHOLD (global setting)  COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -50,7 +50,7 @@ fi
 if [ "${USER_ALERTS_ENABLED:-0}" = 1 ]; then
     # Every other signed-up person: their own evaluation of the offers just read and alerts to their own chat.
     # A failure here never fails the owner's run.
-    "$CURRENT_LINK/.venv/bin/python" -m ai_job_hunter.users_cli run --max-jev-jobs "${USER_MAX_JEV_JOBS:-10}"         --daily-jev-cap "${USER_DAILY_JEV_CAP:-150}" --max-age-days "${USER_MAX_AGE_DAYS:-3}"         --max-notifications "${USER_MAX_NOTIFICATIONS:-5}" || log "user alerts failed (see above)"
+    "$CURRENT_LINK/.venv/bin/python" -m ai_job_hunter.users_cli run --max-jev-jobs "${USER_MAX_JEV_JOBS:-10}"         --daily-jev-cap "${USER_DAILY_JEV_CAP:-150}" --max-age-days "${USER_MAX_AGE_DAYS:-3}"         --max-notifications "${USER_MAX_NOTIFICATIONS:-5}"         --max-candidates "${USER_MAX_CANDIDATES:-300}" ${USER_REVIEW_THRESHOLD:+--review-threshold "$USER_REVIEW_THRESHOLD"} || log "user alerts failed (see above)"
 fi
 
 hour=$(TZ="$TIMEZONE" date +%H)

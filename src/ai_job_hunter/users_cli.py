@@ -23,6 +23,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run = sub.add_parser("run", help="evaluate stored offers and send alerts for every active person (not the owner)")
     run.add_argument("--max-jev-jobs", type=int, default=10, help="new Jev evaluations per person per run")
     run.add_argument("--max-notifications", type=int, default=5, help="alerts per person per run")
+    run.add_argument("--review-threshold", type=int, default=None, help="lowest priority of a REVIEW offer that alerts (default: the global setting)")
+    run.add_argument("--max-candidates", type=int, default=300, help="stored offers each person's pass looks at per run")
     run.add_argument("--daily-jev-cap", type=int, default=150, help="new Jev evaluations per person per day")
     run.add_argument("--max-age-days", type=int, default=None, help="only offers found in this many days (default: the global setting)")
     args = parser.parse_args(argv)
@@ -46,13 +48,14 @@ def _run_users(engine, args) -> int:
         results = run_for_users(
             factory,
             lambda chat: TelegramProvider(settings.telegram_bot_token, chat),
-            review_threshold=settings.notify_review_min_priority,
+            review_threshold=args.review_threshold if args.review_threshold is not None else settings.notify_review_min_priority,
             max_age_days=args.max_age_days or settings.notify_max_age_days,
             direct_postings=DirectPostingResolver(lookup_session),
             liveness=PostingLiveness(),
             max_jev_jobs=args.max_jev_jobs,
             max_notifications=args.max_notifications,
             daily_jev_cap=args.daily_jev_cap,
+            max_candidates=args.max_candidates,
         )
     for result in results:
         print(
