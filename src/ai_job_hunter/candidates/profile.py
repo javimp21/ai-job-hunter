@@ -218,6 +218,9 @@ class CandidateTuning(BaseModel):
     salary_guide: dict[str, SalaryGuideEntry] = Field(default_factory=dict)
     # The person's own alert bar (priority 0-100); unset: the sector's, then the global setting.
     notify_review_min_priority: int | None = Field(default=None, ge=0, le=100)
+    # Countries where every new junior-level technical posting is announced on its own, whatever its priority
+    # (services/junior_watch.py); empty = off.
+    junior_watch_countries: list[str] = Field(default_factory=list)
 
 
 class CandidateConfig(BaseModel):

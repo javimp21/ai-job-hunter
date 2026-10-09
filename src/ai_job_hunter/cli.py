@@ -106,7 +106,7 @@ from ai_job_hunter.services.feedback_notes import DbPrompts, add_note, job_for_a
 from ai_job_hunter.services.telegram_signup import SignupHandlers
 from ai_job_hunter.services.users import get_owner
 from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
-from ai_job_hunter.services import preference_learning, remote_spain
+from ai_job_hunter.services import junior_watch, preference_learning, remote_spain
 from ai_job_hunter.services.learned import with_owner_learned
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -179,6 +179,9 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     feedback.add_argument("--dry-run", action="store_true", help="show the evaluation without sending or recording it")
     feedback.add_argument("--min-notes", type=int, default=5, help="evaluate only when this many new notes exist")
+    notification_commands.add_parser(
+        "junior-watch", help="announce new junior-level technical postings in the watched countries (tuning.junior_watch_countries)"
+    )
     remote = notification_commands.add_parser(
         "remote-spain", help="send the weekly list of remote offers open to Spain (at most once per 6 days)"
     )
@@ -510,7 +513,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed", "digest", "weekly", "feedback", "remote-spain"}
+        and args.notification_command in {"send", "retry-failed", "digest", "weekly", "feedback", "remote-spain", "junior-watch"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -1469,6 +1472,15 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         return _run_feedback_command(args, session, candidate, settings)
     if command == "adapt":
         return _run_adapt_command(session, settings)
+    if command == "junior-watch":
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; nothing was sent.", file=sys.stderr)
+            return 1
+        status = junior_watch.send(session, candidate, provider)
+        print({"sent": "Junior watch: announced", "empty": "Junior watch: nothing new", "off": "Junior watch: off (no countries configured)",
+               "failed": "Junior watch: delivery failed"}[status])
+        return 1 if status == "failed" else 0
     if command == "remote-spain":
         provider = _configured_telegram_provider(settings)
         if provider is None:

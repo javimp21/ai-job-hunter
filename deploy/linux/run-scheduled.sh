@@ -92,6 +92,8 @@ fi
 # The owner's free-text opinions become undoable changes of the alerts (needs 3 new notes, at most every 2 days;
 # a tick without enough notes costs nothing).
 "$exe" notify adapt || true
+# New junior-level postings in the countries the owner wants to move to (needs tuning.junior_watch_countries).
+"$exe" notify junior-watch || true
 if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1
