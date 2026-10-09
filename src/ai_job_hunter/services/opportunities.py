@@ -917,7 +917,7 @@ def list_opportunities(
             location=facts.location,
             remote_policy=facts.remote_policy.value if facts.remote_policy else None,
             employment_type=facts.employment_type.value if facts.employment_type else None,
-            url=snapshot.context.offer.apply_url or snapshot.context.offer.canonical_url or snapshot.context.offer.source_url,
+            url=_posting_url(snapshot.context.offer),
             technologies=facts.technologies,
             required_technologies=facts.required_technologies,
             salary_min=str(facts.salary_min) if facts.salary_min is not None else None,
@@ -1119,6 +1119,15 @@ def transition_application(
 # 55-minute kill of run-scheduled.sh never throws a whole run away because one site hung.
 FETCH_DEADLINE_SECONDS = 35 * 60
 SLOW_SOURCE_SECONDS = 60
+
+
+def _posting_url(offer: NormalizedJob) -> str | None:
+    """The link of an alert. A company board's own page shows the posting (an apply link opens the form straight away);
+    portals keep the apply link, which is often the employer's own page behind a paywalled copy."""
+
+    if offer.provider in BOARD_PROVIDERS:
+        return offer.canonical_url or offer.source_url or offer.apply_url
+    return offer.apply_url or offer.canonical_url or offer.source_url
 
 
 BOARD_PROVIDERS = frozenset(

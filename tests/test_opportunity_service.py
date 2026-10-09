@@ -1352,3 +1352,21 @@ def test_the_default_sector_leaves_the_evaluation_fingerprint_alone_and_another_
 
     assert opportunities._config_fingerprint(base, "offline") == opportunities._config_fingerprint(explicit, "offline")
     assert opportunities._config_fingerprint(base, "offline") != opportunities._config_fingerprint(other, "offline")
+
+
+def test_alert_links_open_the_posting_for_company_boards_and_the_apply_page_for_portals(db_session, monkeypatch, tmp_path) -> None:
+    _monitor_company(db_session)
+    board = _offer("board-role")
+    portal = _offer("portal-role", title="Backend Engineer II").model_copy(update={"provider": "adzuna"})
+    _install_fetch(monkeypatch, [board, portal])
+    refresh_opportunities(
+        db_session, _candidate(), max_jev_jobs=5, cache=DecisionCache(tmp_path / "links.local.json"), engine=FakeEngine()
+    )
+
+    urls = {
+        item.title: item.url
+        for item in list_opportunities(db_session, _candidate(), engine=FakeEngine(), include_skip=True, limit=10)
+    }
+
+    assert urls["Senior Backend Engineer"].endswith("/jobs/board-role")  # the posting, not .../apply
+    assert urls["Backend Engineer II"].endswith("/jobs/portal-role/apply")
