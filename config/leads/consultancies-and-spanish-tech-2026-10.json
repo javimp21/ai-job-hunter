@@ -1,0 +1,139 @@
+{
+  "leads": [
+    {
+      "company_name": "Capgemini",
+      "careers_url": "https://careers.capgemini.com/",
+      "website_url": "https://www.capgemini.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "NTT DATA",
+      "careers_url": "https://careers.nttdata.com/",
+      "website_url": "https://www.nttdata.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Accenture",
+      "careers_url": "https://www.accenture.com/es-es/careers/jobsearch",
+      "website_url": "https://www.accenture.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Amadeus",
+      "careers_url": "https://jobs.amadeus.com/",
+      "website_url": "https://amadeus.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Sopra Steria",
+      "careers_url": "https://www.soprasteria.com/careers",
+      "website_url": "https://www.soprasteria.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Red Hat",
+      "careers_url": "https://redhat.wd5.myworkdayjobs.com/Jobs",
+      "website_url": "https://www.redhat.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Salesforce",
+      "careers_url": "https://careers.salesforce.com/en/jobs/",
+      "website_url": "https://www.salesforce.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Zalando",
+      "careers_url": "https://jobs.zalando.com/en/jobs",
+      "website_url": "https://www.zalando.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Revolut",
+      "careers_url": "https://www.revolut.com/careers/",
+      "website_url": "https://www.revolut.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Glovo",
+      "careers_url": "https://jobs.glovoapp.com/",
+      "website_url": "https://glovoapp.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Playtomic",
+      "careers_url": "https://playtomic.com/careers",
+      "website_url": "https://playtomic.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Bit2Me",
+      "careers_url": "https://bit2me.com/careers",
+      "website_url": "https://bit2me.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Genially",
+      "careers_url": "https://genially.com/careers/",
+      "website_url": "https://genially.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Devo",
+      "careers_url": "https://www.devo.com/careers/",
+      "website_url": "https://www.devo.com",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    },
+    {
+      "company_name": "Paack",
+      "careers_url": "https://paack.co/careers/",
+      "website_url": "https://paack.co",
+      "source_type": "web_research",
+      "source_label": "consultancies_and_spanish_tech_2026_10_09",
+      "hiring_hint": "Large or well-known employer of junior developers in Spain; careers page given for the resolver to classify.",
+      "notes": "Added by hand on 2026-10-09 after the owner asked for connectors; the resolver decides whether the page is readable (supported ATS or sitemap with JobPosting JSON-LD)."
+    }
+  ]
+}
