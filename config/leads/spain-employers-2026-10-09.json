@@ -1,0 +1,604 @@
+{
+  "leads": [
+    {
+      "company_name": "knowmad mood",
+      "website_url": "https://www.knowmadmood.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "UST",
+      "website_url": "https://www.ust.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Babel",
+      "website_url": "https://babel.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "GMV",
+      "website_url": "https://www.gmv.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Airbus Defence and Space",
+      "website_url": "https://www.airbus.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Scalian",
+      "website_url": "https://www.scalian.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Miratech",
+      "website_url": "https://miratech.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Maisa",
+      "website_url": "https://maisa.ai",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Citibox",
+      "website_url": "https://www.citibox.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "JOKO",
+      "website_url": "https://joko.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "AgileEngine",
+      "website_url": "https://agileengine.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "T-Systems Iberia",
+      "website_url": "https://www.t-systems.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Grafana Labs",
+      "website_url": "https://grafana.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Veriff",
+      "website_url": "https://www.veriff.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Inetum",
+      "website_url": "https://www.inetum.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Eviden (Atos)",
+      "website_url": "https://eviden.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Deloitte España",
+      "website_url": "https://www2.deloitte.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "PwC España",
+      "website_url": "https://www.pwc.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "EY España",
+      "website_url": "https://www.ey.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "KPMG España",
+      "website_url": "https://kpmg.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "IBM",
+      "website_url": "https://www.ibm.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Oracle",
+      "website_url": "https://www.oracle.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "SAP",
+      "website_url": "https://www.sap.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Microsoft",
+      "website_url": "https://www.microsoft.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Google",
+      "website_url": "https://www.google.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Meta",
+      "website_url": "https://www.meta.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Siemens",
+      "website_url": "https://www.siemens.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Thales",
+      "website_url": "https://www.thalesgroup.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Indizen",
+      "website_url": "https://www.indizen.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Ineco",
+      "website_url": "https://www.ineco.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Sener",
+      "website_url": "https://www.group.sener",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Hispasat",
+      "website_url": "https://www.hispasat.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Acciona",
+      "website_url": "https://www.acciona.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Ferrovial",
+      "website_url": "https://www.ferrovial.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Sacyr",
+      "website_url": "https://www.sacyr.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Repsol",
+      "website_url": "https://www.repsol.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Iberdrola",
+      "website_url": "https://www.iberdrola.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Naturgy",
+      "website_url": "https://www.naturgy.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Endesa",
+      "website_url": "https://www.endesa.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "CaixaBank",
+      "website_url": "https://www.caixabank.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Banco Sabadell",
+      "website_url": "https://www.bancsabadell.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Openbank",
+      "website_url": "https://www.openbank.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Abanca",
+      "website_url": "https://www.abanca.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Unicaja",
+      "website_url": "https://www.unicajabanco.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Mutua Madrileña",
+      "website_url": "https://www.mutua.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Línea Directa",
+      "website_url": "https://www.lineadirecta.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "AXA España",
+      "website_url": "https://www.axa.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Allianz",
+      "website_url": "https://www.allianz.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Generali",
+      "website_url": "https://www.generali.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Zurich",
+      "website_url": "https://www.zurich.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Sanitas",
+      "website_url": "https://www.sanitas.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Orange España",
+      "website_url": "https://www.orange.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "MasOrange",
+      "website_url": "https://www.masorange.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "El Corte Inglés",
+      "website_url": "https://www.elcorteingles.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Mango",
+      "website_url": "https://www.mango.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Decathlon España",
+      "website_url": "https://www.decathlon.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Carrefour España",
+      "website_url": "https://www.carrefour.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Leroy Merlin",
+      "website_url": "https://www.leroymerlin.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Cabify",
+      "website_url": "https://cabify.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Wallbox",
+      "website_url": "https://wallbox.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Bizum",
+      "website_url": "https://bizum.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Redsys",
+      "website_url": "https://www.redsys.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Everis",
+      "website_url": "https://www.nttdata.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Idealista",
+      "website_url": "https://www.idealista.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Fotocasa",
+      "website_url": "https://www.fotocasa.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "InfoJobs",
+      "website_url": "https://www.infojobs.net",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Schibsted Spain",
+      "website_url": "https://www.schibsted.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Vinted",
+      "website_url": "https://www.vinted.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Skyscanner",
+      "website_url": "https://www.skyscanner.es",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Booking.com",
+      "website_url": "https://www.booking.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Expedia",
+      "website_url": "https://www.expediagroup.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Hotelbeds",
+      "website_url": "https://www.hotelbeds.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Iberia",
+      "website_url": "https://www.iberia.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Vueling",
+      "website_url": "https://www.vueling.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    },
+    {
+      "company_name": "Renfe",
+      "website_url": "https://www.renfe.com",
+      "source_type": "web_research",
+      "source_label": "spain_employers_2026_10_09",
+      "hiring_hint": "Employer that usually hires developers in Spain; the resolver looks for its careers page and board.",
+      "notes": "Added on 2026-10-09: the owner asked to follow employers that hire in Spain, Spanish or foreign."
+    }
+  ]
+}
