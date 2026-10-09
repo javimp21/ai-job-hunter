@@ -18,6 +18,7 @@ from ai_job_hunter.models import (
     OutreachEvent,
     ReportDelivery,
 )
+from ai_job_hunter.models.job_feedback import FeedbackPrompt
 from ai_job_hunter.models.usage import GeneratedDocument, UsageEvent
 from ai_job_hunter.models.user import User, UserProfile, UserStatus
 
@@ -29,6 +30,7 @@ LABELED_TABLES = (
     ("votos", JobReview),
     ("informes", ReportDelivery),
     ("mensajes de contacto", ConnectionRequest),
+    ("preguntas del bot", FeedbackPrompt),
     ("documentos", GeneratedDocument),
     ("usos", UsageEvent),
 )

@@ -102,7 +102,7 @@ from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.weekly_report import preview_weekly, send_weekly
 from ai_job_hunter.services.cv_extraction import make_extractor
-from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_message
+from ai_job_hunter.services.feedback_notes import DbPrompts, add_note, job_for_alert_message
 from ai_job_hunter.services.telegram_signup import SignupHandlers
 from ai_job_hunter.services.users import get_owner
 from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
@@ -1271,6 +1271,7 @@ def _run_bot_command(candidate, settings) -> int:
             prepare_interview=interview,
             hunter=build_hunter_handlers(session_factory),
             record_note=record_note,
+            prompts=DbPrompts(session_factory),
             signup=SignupHandlers(
                 session_factory, make_extractor(), chat_id, record_feedback, record_note, PersonDocuments(session_factory)
             ),

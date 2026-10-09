@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from ai_job_hunter.db.user_context import acting_as
 from ai_job_hunter.models.user import User, UserStatus
 from ai_job_hunter.services import onboarding, preference_learning, profile_edit
+from ai_job_hunter.services.feedback_notes import DbPrompts
 from ai_job_hunter.services.onboarding import Event, ProfileExtractor, Reply
 from ai_job_hunter.services.telegram_bot import (
     TelegramBotClient,
@@ -58,7 +59,7 @@ class SignupHandlers:
         self._extract = extract
         self._record_feedback = record_feedback
         self._record_note = record_note
-        self._prompts: dict[int, UUID] = {}
+        self._prompts = DbPrompts(session_factory)  # kept in the database: replies still work after a restart
         self._owner_chat = str(owner_chat_id).strip()
         self._username: str | None = None
 

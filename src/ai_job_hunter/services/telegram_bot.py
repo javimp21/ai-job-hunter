@@ -703,6 +703,7 @@ def run_bot(
     hunter: HunterHandlers | None = None,
     record_note: Callable[[UUID | None, int, str], bool] | None = None,
     signup: Any | None = None,
+    prompts: Any | None = None,
     max_cycles: int | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: print(message, flush=True),
@@ -713,7 +714,7 @@ def run_bot(
     generated: dict[tuple[UUID, str], CoverLetterDraft] = {}
     prepared: dict[UUID, Any] = {}
     interviews: dict[UUID, Any] = {}
-    prompts: dict[int, UUID] = {}
+    prompts = prompts if prompts is not None else {}
     backoff = _BACKOFF_START
     cycles = 0
     while max_cycles is None or cycles < max_cycles:

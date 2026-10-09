@@ -53,3 +53,23 @@ def test_migration_0016_creates_the_notes_table_and_can_be_undone(tmp_path: Path
     assert {"job_id", "text", "vote"} <= {c["name"] for c in inspect(create_engine(url)).get_columns("job_feedback_notes")}
     command.downgrade(config, "0015_users_and_profiles")
     assert "job_feedback_notes" not in inspect(create_engine(url)).get_table_names()
+
+
+def test_the_bots_question_after_a_vote_is_remembered_in_the_database_per_person(db_session) -> None:
+    from ai_job_hunter.db.user_context import acting_as
+    from ai_job_hunter.models import Company, Job, User
+    from ai_job_hunter.services.feedback_notes import DbPrompts
+
+    job = Job(title="Backend Engineer", company=Company(name="Acme"))
+    one, two = User(telegram_chat_id="1", status="ACTIVE", is_owner=True), User(telegram_chat_id="2", status="ACTIVE")
+    db_session.add_all([job, one, two])
+    db_session.flush()
+    job_id, one_id, two_id = job.id, one.id, two.id  # the store closes its session, which detaches these objects
+
+    with acting_as(one_id):
+        DbPrompts(lambda: db_session)[500] = job_id
+        DbPrompts(lambda: db_session)[500] = job_id  # asking twice never duplicates the row
+        assert DbPrompts(lambda: db_session).get(500) == job_id  # a new object: what a restart looks like
+        assert DbPrompts(lambda: db_session).get(501) is None
+    with acting_as(two_id):
+        assert DbPrompts(lambda: db_session).get(500) is None  # somebody else's question
