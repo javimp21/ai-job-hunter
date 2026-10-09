@@ -23,6 +23,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run = sub.add_parser("run", help="evaluate stored offers and send alerts for every active person (not the owner)")
     run.add_argument("--max-jev-jobs", type=int, default=10, help="new Jev evaluations per person per run")
     run.add_argument("--max-notifications", type=int, default=5, help="alerts per person per run")
+    run.add_argument("--daily-jev-cap", type=int, default=150, help="new Jev evaluations per person per day")
+    run.add_argument("--max-age-days", type=int, default=None, help="only offers found in this many days (default: the global setting)")
     args = parser.parse_args(argv)
     engine = create_database_engine()
     if args.command == "run":
@@ -45,11 +47,12 @@ def _run_users(engine, args) -> int:
             factory,
             lambda chat: TelegramProvider(settings.telegram_bot_token, chat),
             review_threshold=settings.notify_review_min_priority,
-            max_age_days=settings.notify_max_age_days,
+            max_age_days=args.max_age_days or settings.notify_max_age_days,
             direct_postings=DirectPostingResolver(lookup_session),
             liveness=PostingLiveness(),
             max_jev_jobs=args.max_jev_jobs,
             max_notifications=args.max_notifications,
+            daily_jev_cap=args.daily_jev_cap,
         )
     for result in results:
         print(

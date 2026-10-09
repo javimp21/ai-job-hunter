@@ -106,7 +106,7 @@ from ai_job_hunter.services.feedback_notes import add_note, job_for_alert_messag
 from ai_job_hunter.services.telegram_signup import SignupHandlers
 from ai_job_hunter.services.users import get_owner
 from ai_job_hunter.services.feedback_review import mark_reviewed, review_notes
-from ai_job_hunter.services import preference_learning
+from ai_job_hunter.services import preference_learning, remote_spain
 from ai_job_hunter.services.learned import with_owner_learned
 from ai_job_hunter.services.notifications import (
     NotificationBatchResult,
@@ -179,6 +179,10 @@ def _add_notification_and_run_parsers(subparsers) -> None:
     )
     feedback.add_argument("--dry-run", action="store_true", help="show the evaluation without sending or recording it")
     feedback.add_argument("--min-notes", type=int, default=5, help="evaluate only when this many new notes exist")
+    remote = notification_commands.add_parser(
+        "remote-spain", help="send the weekly list of remote offers open to Spain (at most once per 6 days)"
+    )
+    remote.add_argument("--force", action="store_true", help="send even if the list went out in the last 6 days")
     notification_commands.add_parser(
         "adapt", help="turn the new free-text opinions into undoable changes of the alerts (needs 3 new notes)"
     )
@@ -506,7 +510,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.command == "sources" and args.sources_command in {"preview", "auto-activate"}
     ) or (
         args.command == "notify"
-        and args.notification_command in {"send", "retry-failed", "digest", "weekly", "feedback"}
+        and args.notification_command in {"send", "retry-failed", "digest", "weekly", "feedback", "remote-spain"}
     ) or (
         args.command == "outreach"
         and args.outreach_command in {"candidates", "strategy", "draft"}
@@ -1464,6 +1468,15 @@ def _run_notification_command(args, session, candidate, settings) -> int:
         return _run_feedback_command(args, session, candidate, settings)
     if command == "adapt":
         return _run_adapt_command(session, settings)
+    if command == "remote-spain":
+        provider = _configured_telegram_provider(settings)
+        if provider is None:
+            print("Telegram is not configured; the list was not sent.", file=sys.stderr)
+            return 1
+        status = remote_spain.send(session, candidate, provider, force=args.force)
+        print({"sent": "Remote offers open to Spain: list sent", "too_soon": "Remote offers open to Spain: sent in the last 6 days",
+               "empty": "Remote offers open to Spain: nothing new this week", "failed": "Remote offers open to Spain: delivery failed"}[status])
+        return 1 if status == "failed" else 0
     if command == "pending":
         rows = list_pending_notifications(session, limit=args.limit)
         print(f"PENDING NOTIFICATIONS: {len(rows)}")

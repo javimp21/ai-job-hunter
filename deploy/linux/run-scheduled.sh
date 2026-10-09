@@ -3,7 +3,7 @@
 # ai-job-hunter-run.service. Output goes to journald. Never overlaps: a second
 # invocation (or a deploy in progress) skips the run.
 # Tunables (set via `systemctl edit ai-job-hunter-run.service`, [Service] Environment=):
-#   USER_ALERTS_ENABLED (0: alerts for other signed-up people)  USER_MAX_JEV_JOBS (10)  COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
+#   USER_ALERTS_ENABLED (0: alerts for other signed-up people)  USER_MAX_JEV_JOBS (10)  USER_DAILY_JEV_CAP (150)  USER_MAX_AGE_DAYS (3)  USER_MAX_NOTIFICATIONS (5)  COMPANY_HUNTER_ENABLED (0)  MAX_JEV_JOBS (40)  MAX_NOTIFICATIONS (10)  DIGEST_FROM_HOUR (20, Madrid time)  WEEKLY_FROM_HOUR (20, Sunday)  RUN_TIMEOUT (55m)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -50,7 +50,7 @@ fi
 if [ "${USER_ALERTS_ENABLED:-0}" = 1 ]; then
     # Every other signed-up person: their own evaluation of the offers just read and alerts to their own chat.
     # A failure here never fails the owner's run.
-    "$CURRENT_LINK/.venv/bin/python" -m ai_job_hunter.users_cli run --max-jev-jobs "${USER_MAX_JEV_JOBS:-10}" || log "user alerts failed (see above)"
+    "$CURRENT_LINK/.venv/bin/python" -m ai_job_hunter.users_cli run --max-jev-jobs "${USER_MAX_JEV_JOBS:-10}"         --daily-jev-cap "${USER_DAILY_JEV_CAP:-150}" --max-age-days "${USER_MAX_AGE_DAYS:-3}"         --max-notifications "${USER_MAX_NOTIFICATIONS:-5}" || log "user alerts failed (see above)"
 fi
 
 hour=$(TZ="$TIMEZONE" date +%H)
@@ -100,6 +100,8 @@ if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FRO
     # Sunday evening. The command itself sends at most one report per 6 days,
     # so every later tick that evening is a no-op.
     "$exe" notify weekly || code=1
+    # Remote offers that say they accept Spain, at any level (a goal further away); at most once per 6 days.
+    "$exe" notify remote-spain || true
     # Claude reads the free-text opinions written since the last review (only with 5 or more new notes) and proposes
     # changes; nothing is applied. It runs after the weekly report, so at most once a week.
     "$exe" notify feedback --min-notes 5 || true
