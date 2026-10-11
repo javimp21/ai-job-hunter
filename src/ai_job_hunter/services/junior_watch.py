@@ -38,9 +38,16 @@ _QA_WORDS = ("qa", "quality", "test", "sdet", "automation")
 _STUDENT = re.compile(r"working student|werkstudent|student|intern(ship)?\b|praktik|stage\b", re.IGNORECASE)
 # Only the roles the owner wants for the junior watch: Java, software, backend or full stack developer/engineer.
 _ROLE = re.compile(r"(java|software|back-?end|back end|full[ -]?stack).{0,30}(developer|engineer|engineering)", re.IGNORECASE)
+# Software QA only: not data raters, hardware or field testing, and not "automation engineer" in general.
 _QA_ROLE = re.compile(
-    r"\bqa\b|quality assurance|quality engineer|test automation|automation test|\bsdet\b|engineer in test"
-    r"|testing engineer|test engineer|automation engineer",
+    r"\bqa\b.{0,30}(engineer|analyst|tester|developer|automation)|(engineer|analyst|tester|developer).{0,15}\bqa\b"
+    r"|quality assurance (engineer|analyst|tester)|test automation|automation test|\bsdet\b|engineer in test"
+    r"|software (test|testing|quality) (engineer|analyst)",
+    re.IGNORECASE,
+)
+_NOT_SOFTWARE_QA = re.compile(
+    r"rater|labell?ing|annotation|flight|environmental|hardware|mechanical|electrical|vehicle|aircraft|energy|manufactur"
+    r"|production test|field test|system test|drug|clinical|laboratory|chemical|food|\bhvac\b",
     re.IGNORECASE,
 )
 _SENIOR = re.compile(r"\b(senior|sr\.?|lead|principal|staff|head|manager|director|architect)\b|\b(ii|iii|iv)\b", re.IGNORECASE)
@@ -143,7 +150,8 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
         ):
             kind = "junior"
         elif (
-            qa_places and qa_places.search(place) and _QA_ROLE.search(title) and not _SENIOR.search(title)
+            qa_places and qa_places.search(place) and _QA_ROLE.search(title) and not _NOT_SOFTWARE_QA.search(title)
+            and not _SENIOR.search(title)
             and not _MANY_YEARS.search(text) and not _LOCAL_LANGUAGE.search(text)
         ):
             kind = "qa"
@@ -156,26 +164,37 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
     return list(found.values())
 
 
-def _block(head: str, lines: list[Line]) -> str:
+def _block(head: str, lines: list[Line], more: int = 0) -> str:
     body = []
-    for line in lines[:MAX_PER_MESSAGE]:
+    for line in lines:
         parts = [f"<b>{html.escape(line.title)}</b>", html.escape(line.company), html.escape(line.location[:40])]
         if line.salary:
             parts.append(line.salary)
         text = " · ".join(part for part in parts if part)
         body.append(f'• <a href="{html.escape(line.url, quote=True)}">{text}</a>' if line.url else f"• {text}")
-    more = f"\n… y {len(lines) - MAX_PER_MESSAGE} más." if len(lines) > MAX_PER_MESSAGE else ""
-    return head + "\n\n" + "\n".join(body) + more
+    rest = f"\n… y {more} más: te llegan en los próximos minutos." if more else ""
+    return head + "\n\n" + "\n".join(body) + rest
 
 
-def format_message(lines: list[Line], countries: list[str]) -> str:
+def select_for_message(lines: list[Line]) -> list[Line]:
+    """At most ``MAX_PER_MESSAGE`` of each kind; the rest stay unannounced and come in the next run."""
+
+    return [line for kind in ("junior", "qa") for line in [item for item in lines if item.kind == kind][:MAX_PER_MESSAGE]]
+
+
+def format_message(lines: list[Line], countries: list[str], pending: list[Line] | None = None) -> str:
+    """The message for ``lines`` (already limited); ``pending`` are the ones still to come, counted per kind."""
+
+    waiting = pending or []
     juniors = [line for line in lines if line.kind == "junior"]
     qa = [line for line in lines if line.kind == "qa"]
     parts = []
     if juniors:
-        parts.append(_block(f"🎓 Nivel junior nuevo en {', '.join(countries)}: {len(juniors)}", juniors))
+        more = sum(1 for line in waiting if line.kind == "junior")
+        parts.append(_block(f"🎓 Nivel junior nuevo en {', '.join(countries)}: {len(juniors) + more}", juniors, more))
     if qa:
-        parts.append(_block(f"🧪 QA / automatización de pruebas nuevo: {len(qa)}", qa))
+        more = sum(1 for line in waiting if line.kind == "qa")
+        parts.append(_block(f"🧪 QA / automatización de pruebas nuevo: {len(qa) + more}", qa, more))
     return "\n\n".join(parts) + "\n\nSin filtrar por prioridad; sin alemán ni neerlandés exigidos."
 
 
@@ -191,9 +210,11 @@ def send(
     lines = collect(session, candidate, now=now or datetime.now(UTC), state_path=state_path)
     if not lines:
         return "empty"
+    shown = select_for_message(lines)
+    waiting = [line for line in lines if line not in shown]
     try:
-        provider.send_message(format_message(lines, countries))
+        provider.send_message(format_message(shown, countries, waiting))
     except Exception:  # noqa: BLE001 - provider errors never carry details worth echoing
         return "failed"
-    _remember(state_path, _seen(state_path) | {line.job_id for line in lines})  # the ones past the cap are not repeated
+    _remember(state_path, _seen(state_path) | {line.job_id for line in shown})  # the rest are announced in the next run
     return "sent"

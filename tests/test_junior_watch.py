@@ -106,3 +106,21 @@ def test_one_message_lists_both_kinds_under_their_own_headings(db_session, tmp_p
 
     assert "Nivel junior nuevo en Ireland: 1" in sent[0] and "QA / automatización de pruebas nuevo: 1" in sent[0]
     assert sent[0].index("Alpha") < sent[0].index("Beta")
+
+
+def test_only_software_qa_counts_and_what_does_not_fit_in_the_message_comes_in_the_next_run(db_session, tmp_path) -> None:
+    for title in ("Flight Test Engineer", "Quality Assurance Rater - Spanish", "System Test Engineer", "AI & Automation Engineer"):
+        offer(db_session, title, "Madrid", company=title[:6])
+    for index in range(20):
+        offer(db_session, "QA Automation Engineer", "Madrid", company=f"Company {index:02d}")
+    sent: list[str] = []
+    provider = SimpleNamespace(send_message=lambda text, **kw: sent.append(text) or TelegramSendResult(message_id="1"))
+    state = tmp_path / "s.json"
+
+    assert junior_watch.send(db_session, qa_candidate("Spain"), provider, now=NOW, state_path=state) == "sent"
+    assert sent[0].count("•") == 15 and "QA / automatización de pruebas nuevo: 20" in sent[0]
+    assert "y 5 más: te llegan en los próximos minutos" in sent[0] and "Flight" not in sent[0] and "Rater" not in sent[0]
+
+    assert junior_watch.send(db_session, qa_candidate("Spain"), provider, now=NOW, state_path=state) == "sent"
+    assert sent[1].count("•") == 5 and "más" not in sent[1].split("\n\n")[1]
+    assert junior_watch.send(db_session, qa_candidate("Spain"), provider, now=NOW, state_path=state) == "empty"
