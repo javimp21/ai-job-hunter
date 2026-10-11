@@ -1,10 +1,15 @@
-"""New junior-level technical postings in the countries the owner wants to move to, announced on their own.
+"""New junior-level and QA postings the owner wants to hear about, announced on their own.
 
-The normal alerts keep only what clears the priority bar. A junior posting abroad is rare, so each new one in the watched
-countries (``tuning.junior_watch_countries``) is listed in one message whatever its priority, once per posting. Only Java,
-software, backend and full stack developer or engineer titles count; student jobs and postings that demand fluent German
-or Dutch are left out (the candidate speaks neither). The postings already
-announced are remembered in a small state file.
+The normal alerts keep only what clears the priority bar. Two kinds of posting are rare enough to list in one message
+whatever their priority, once per posting:
+
+* junior-level technical postings in the countries of ``tuning.junior_watch_countries`` (only Java, software, backend and
+  full stack developer or engineer titles count);
+* QA / test automation postings (any level but senior, asking for fewer than four years) in the countries of
+  ``tuning.qa_watch_countries``.
+
+Student jobs and postings that demand fluent German or Dutch are left out (the candidate speaks neither). The postings
+already announced are remembered in a small state file.
 """
 
 from __future__ import annotations
@@ -29,9 +34,17 @@ STATE_PATH = Path("data/local/junior-watch.json")
 WINDOW_DAYS = 7
 MAX_PER_MESSAGE = 15
 _JUNIOR = ("junior", "graduate", "entry level", "entry-level", "associate", "trainee", "jr.")
+_QA_WORDS = ("qa", "quality", "test", "sdet", "automation")
 _STUDENT = re.compile(r"working student|werkstudent|student|intern(ship)?\b|praktik|stage\b", re.IGNORECASE)
-# Only the roles the owner wants: Java, software, backend or full stack developer/engineer (any words in between).
+# Only the roles the owner wants for the junior watch: Java, software, backend or full stack developer/engineer.
 _ROLE = re.compile(r"(java|software|back-?end|back end|full[ -]?stack).{0,30}(developer|engineer|engineering)", re.IGNORECASE)
+_QA_ROLE = re.compile(
+    r"\bqa\b|quality assurance|quality engineer|test automation|automation test|\bsdet\b|engineer in test"
+    r"|testing engineer|test engineer|automation engineer",
+    re.IGNORECASE,
+)
+_SENIOR = re.compile(r"\b(senior|sr\.?|lead|principal|staff|head|manager|director|architect)\b|\b(ii|iii|iv)\b", re.IGNORECASE)
+_MANY_YEARS = re.compile(r"(\b[4-9]|1[0-9])\+? ?(years|jahre|años)", re.IGNORECASE)
 _LOCAL_LANGUAGE = re.compile(
     r"((fluent|proficient|native|excellent|good|strong|business).{0,25}(german|dutch|deutsch|nederlands)"
     r"|(german|dutch|deutsch|nederlands).{0,25}(fluent|required|mandatory|native|skills))",
@@ -39,6 +52,7 @@ _LOCAL_LANGUAGE = re.compile(
 )
 # country -> pattern of the country and its main cities, as written in a posting's location
 _PLACES = {
+    "spain": r"spain|españa|madrid|barcelona|valencia|sevilla|málaga|malaga|bilbao|zaragoza|coruña|vigo|oviedo|murcia",
     "ireland": r"ireland|dublin|cork|galway|limerick",
     "netherlands": r"netherlands|nederland|amsterdam|rotterdam|utrecht|eindhoven|the hague|den haag|delft|enschede|groningen",
     "germany": r"germany|deutschland|berlin|munich|münchen|hamburg|frankfurt|cologne|köln|stuttgart|düsseldorf|leipzig|karlsruhe",
@@ -54,6 +68,7 @@ _PLACES = {
 
 @dataclass(frozen=True, slots=True)
 class Line:
+    kind: str  # "junior" or "qa"
     job_id: str
     title: str
     company: str
@@ -89,12 +104,14 @@ def _salary(source: JobSource) -> str | None:
 def collect(session: Session, candidate: CandidateConfig, *, now: datetime, state_path: Path = STATE_PATH) -> list[Line]:
     """The new postings to announce (nothing is remembered here)."""
 
-    places = _places_pattern(candidate.tuning.junior_watch_countries)
-    if places is None:
+    junior_places = _places_pattern(candidate.tuning.junior_watch_countries)
+    qa_places = _places_pattern(candidate.tuning.qa_watch_countries)
+    if junior_places is None and qa_places is None:
         return []
     since = now - timedelta(days=WINDOW_DAYS)
     seen = _seen(state_path)
     dismissed = set(session.scalars(select(JobReview.job_id).where(JobReview.state == HumanReviewStatus.DISMISSED.value)))
+    words = [*(_JUNIOR if junior_places else ()), *(_QA_WORDS if qa_places else ())]
     sources = session.scalars(
         select(JobSource)
         .join(Job, Job.id == JobSource.job_id)
@@ -102,7 +119,7 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
         .where(
             JobSource.closed_at.is_(None),
             JobSource.discovered_at >= since,
-            or_(*[Job.title.ilike(f"%{word}%") for word in _JUNIOR]),
+            or_(*[Job.title.ilike(f"%{word}%") for word in words]),
         )
         .order_by(JobSource.discovered_at.desc())
     ).unique()
@@ -113,24 +130,33 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
         key = str(job.id)
         title = source.source_title or job.title
         place = source.source_location or job.location or ""
-        if key in seen or key in found or job.id in dismissed or not places.search(place):
-            continue
-        if _STUDENT.search(title) or not _ROLE.search(title) or not title_may_be_relevant(title, sector):
+        if key in seen or key in found or job.id in dismissed or _STUDENT.search(title):
             continue
         company = job.company.name if job.company else ""
         if exclusion_reason(title, company, candidate.preferences):
             continue
-        if _LOCAL_LANGUAGE.search(source.source_description or job.description or ""):
+        text = source.source_description or job.description or ""
+        kind = None
+        if (
+            junior_places and junior_places.search(place) and any(word in title.casefold() for word in _JUNIOR)
+            and _ROLE.search(title) and title_may_be_relevant(title, sector) and not _LOCAL_LANGUAGE.search(text)
+        ):
+            kind = "junior"
+        elif (
+            qa_places and qa_places.search(place) and _QA_ROLE.search(title) and not _SENIOR.search(title)
+            and not _MANY_YEARS.search(text) and not _LOCAL_LANGUAGE.search(text)
+        ):
+            kind = "qa"
+        if kind is None:
             continue
         found[key] = Line(
-            key, title, company, place, _salary(source),
+            kind, key, title, company, place, _salary(source),
             _safe_public_url(source.canonical_url or source.original_url or source.apply_url),
         )
     return list(found.values())
 
 
-def format_message(lines: list[Line], countries: list[str]) -> str:
-    head = f"🎓 Nivel junior nuevo en {', '.join(countries)}: {len(lines)}"
+def _block(head: str, lines: list[Line]) -> str:
     body = []
     for line in lines[:MAX_PER_MESSAGE]:
         parts = [f"<b>{html.escape(line.title)}</b>", html.escape(line.company), html.escape(line.location[:40])]
@@ -139,7 +165,18 @@ def format_message(lines: list[Line], countries: list[str]) -> str:
         text = " · ".join(part for part in parts if part)
         body.append(f'• <a href="{html.escape(line.url, quote=True)}">{text}</a>' if line.url else f"• {text}")
     more = f"\n… y {len(lines) - MAX_PER_MESSAGE} más." if len(lines) > MAX_PER_MESSAGE else ""
-    return head + "\n\n" + "\n".join(body) + more + "\n\nSin filtrar por prioridad; sin alemán ni neerlandés exigidos."
+    return head + "\n\n" + "\n".join(body) + more
+
+
+def format_message(lines: list[Line], countries: list[str]) -> str:
+    juniors = [line for line in lines if line.kind == "junior"]
+    qa = [line for line in lines if line.kind == "qa"]
+    parts = []
+    if juniors:
+        parts.append(_block(f"🎓 Nivel junior nuevo en {', '.join(countries)}: {len(juniors)}", juniors))
+    if qa:
+        parts.append(_block(f"🧪 QA / automatización de pruebas nuevo: {len(qa)}", qa))
+    return "\n\n".join(parts) + "\n\nSin filtrar por prioridad; sin alemán ni neerlandés exigidos."
 
 
 def send(
@@ -149,7 +186,7 @@ def send(
     """"sent", "empty", "off" or "failed"; the announced postings are remembered only after Telegram accepted the message."""
 
     countries = candidate.tuning.junior_watch_countries
-    if not countries:
+    if not countries and not candidate.tuning.qa_watch_countries:
         return "off"
     lines = collect(session, candidate, now=now or datetime.now(UTC), state_path=state_path)
     if not lines:

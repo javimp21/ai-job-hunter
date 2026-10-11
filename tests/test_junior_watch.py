@@ -72,3 +72,37 @@ def test_dismissed_and_excluded_postings_are_left_out(db_session, tmp_path) -> N
     )
 
     assert [line.company for line in lines] == ["Fine"]
+
+
+def qa_candidate(*countries):
+    return CandidateConfig(profile=CandidateProfile(), tuning={"qa_watch_countries": list(countries)})
+
+
+def test_qa_and_test_automation_postings_are_listed_for_any_level_but_senior_in_the_qa_countries(db_session, tmp_path) -> None:
+    offer(db_session, "QA Automation Engineer", "Madrid, Spain", company="Mad")
+    offer(db_session, "Test Automation Engineer (Java)", "Barcelona", company="Bcn")
+    offer(db_session, "Software Development Engineer in Test", "Dublin", company="Dub")
+    offer(db_session, "Senior QA Automation Engineer", "Madrid", company="Senior")
+    offer(db_session, "QA Engineer", "Madrid", company="Years", description="Requires 5+ years of experience in testing.")
+    offer(db_session, "QA Automation Engineer", "Paris, France", company="Elsewhere")  # not a QA country
+    offer(db_session, "Quality Assurance Intern", "Madrid", company="Intern")
+    offer(db_session, "QA Engineer", "Berlin", company="German", description="Fluent German is required.")
+
+    lines = junior_watch.collect(db_session, qa_candidate("Spain", "Ireland", "Germany"), now=NOW, state_path=tmp_path / "s.json")
+
+    assert sorted(line.company for line in lines) == ["Bcn", "Dub", "Mad"] and {line.kind for line in lines} == {"qa"}
+
+
+def test_one_message_lists_both_kinds_under_their_own_headings(db_session, tmp_path) -> None:
+    offer(db_session, "Junior Software Engineer", "Dublin", company="Alpha")
+    offer(db_session, "QA Automation Engineer", "Madrid", company="Beta")
+    both = CandidateConfig(
+        profile=CandidateProfile(), tuning={"junior_watch_countries": ["Ireland"], "qa_watch_countries": ["Spain"]}
+    )
+    sent: list[str] = []
+    provider = SimpleNamespace(send_message=lambda text, **kw: sent.append(text) or TelegramSendResult(message_id="1"))
+
+    assert junior_watch.send(db_session, both, provider, now=NOW, state_path=tmp_path / "s.json") == "sent"
+
+    assert "Nivel junior nuevo en Ireland: 1" in sent[0] and "QA / automatización de pruebas nuevo: 1" in sent[0]
+    assert sent[0].index("Alpha") < sent[0].index("Beta")

@@ -221,6 +221,8 @@ class CandidateTuning(BaseModel):
     # Countries where every new junior-level technical posting is announced on its own, whatever its priority
     # (services/junior_watch.py); empty = off.
     junior_watch_countries: list[str] = Field(default_factory=list)
+    # Countries (Spain included) where new QA / test-automation postings, senior ones aside, are announced the same way.
+    qa_watch_countries: list[str] = Field(default_factory=list)
 
 
 class CandidateConfig(BaseModel):
