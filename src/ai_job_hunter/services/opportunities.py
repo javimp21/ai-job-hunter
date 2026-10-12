@@ -248,6 +248,9 @@ class Opportunity:
     foreign_language: str | None = None
     # Read from a company board (ATS / careers site) rather than a portal.
     from_board: bool = False
+    # A job portal says "worldwide" but the company's own posting is often limited to some countries (and asks about
+    # visa sponsorship): the alert tells the person to check before applying.
+    portal_worldwide: bool = False
     # Part of the first import of its board: it was already listed when the board began to be monitored.
     is_baseline: bool = False
     # Hints read from the posting text (display only; never used to evaluate): see ``text_facts``.
@@ -947,6 +950,10 @@ def list_opportunities(
                 else None
             ),
             from_board=arrival.get(job.id, (False, False))[0],
+            portal_worldwide=(
+                snapshot.context.offer.provider not in BOARD_PROVIDERS
+                and snapshot.context.offer.remote_eligibility is RemoteEligibility.WORLDWIDE
+            ),
             is_baseline=arrival.get(job.id, (False, False))[1],
             deterministic_result=_prefilter_payload(snapshot.context.deterministic),
             experience=experience,

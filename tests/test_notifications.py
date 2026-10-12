@@ -766,3 +766,12 @@ def test_a_review_with_no_reason_but_no_stated_years_says_so():
     assert _safe_reasons({"reasons": ["fine"], "review_reasons": []}, "REVIEW") == ["revisar la información disponible"]
     stated = [{"code": "STACK_UNCERTAIN", "message": "x"}]
     assert _safe_reasons({"review_reasons": stated}, "REVIEW", experience_unstated=True) == ["encaje de stack por confirmar"]
+
+
+def test_a_portals_worldwide_claim_gets_a_check_before_applying_note() -> None:
+    plain = _opportunity(uuid4(), FinalDecision.REVIEW, 70)
+    claim = dataclasses.replace(plain, portal_worldwide=True)
+
+    assert "remoto en todo el mundo" not in format_notification_message(plain)
+    message = format_notification_message(claim)
+    assert "remoto en todo el mundo" in message and "visado" in message

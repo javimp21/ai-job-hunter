@@ -1134,6 +1134,12 @@ def format_notification_message(
     warning = _location_warning(item)
     if warning:
         lines.extend(["", warning])
+    if item.portal_worldwide:
+        lines.extend([
+            "",
+            "🌍 El portal dice «remoto en todo el mundo», pero la empresa suele contratar solo en algunos países. "
+            "Mira en su web en cuáles antes de aplicar y responde con sinceridad la pregunta sobre visado.",
+        ])
     strengths = _strengths(item.jev_signals)
     concerns = _safe_reasons(item.jev_reasons, decision, experience_unstated=_experience_unstated(item))
     bonuses = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" in label]
