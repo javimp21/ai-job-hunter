@@ -1,0 +1,699 @@
+{
+  "leads": [
+    {
+      "company_name": "Camunda",
+      "careers_url": "https://jobs.ashbyhq.com/camunda",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'camunda' answered with 43 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Coinbase",
+      "careers_url": "https://boards.greenhouse.io/coinbase",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'coinbase' answered with 223 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://coinbase.com"
+    },
+    {
+      "company_name": "Process Street",
+      "careers_url": "https://boards.greenhouse.io/processstreet",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'processstreet' answered with 43 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.process.st"
+    },
+    {
+      "company_name": "ServiceNow, Inc.",
+      "careers_url": "https://jobs.smartrecruiters.com/servicenow",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'servicenow' answered with 698 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.servicenow.com"
+    },
+    {
+      "company_name": "Harmattan Ai",
+      "careers_url": "https://jobs.ashbyhq.com/harmattan-ai",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'harmattan-ai' answered with 161 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Olo",
+      "careers_url": "https://jobs.lever.co/olo",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public lever board 'olo' answered with 11 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Contabo",
+      "careers_url": "https://contabo.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'contabo' answered with 14 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Duck Duck Go",
+      "careers_url": "https://jobs.ashbyhq.com/duck-duck-go",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'duck-duck-go' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Auterion",
+      "careers_url": "https://boards.greenhouse.io/auterion",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'auterion' answered with 19 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "1Komma5Grad",
+      "careers_url": "https://1komma5grad.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board '1komma5grad' answered with 324 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Smartsheet",
+      "careers_url": "https://boards.greenhouse.io/smartsheet",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'smartsheet' answered with 96 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.smartsheet.com"
+    },
+    {
+      "company_name": "Samsara",
+      "careers_url": "https://boards.greenhouse.io/samsara",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'samsara' answered with 238 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.samsara.com"
+    },
+    {
+      "company_name": "Legartis",
+      "careers_url": "https://legartis.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'legartis' answered with 13 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Voize",
+      "careers_url": "https://jobs.ashbyhq.com/voize",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'voize' answered with 47 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Rematiq Gmbh",
+      "careers_url": "https://jobs.ashbyhq.com/rematiq-gmbh",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'rematiq-gmbh' answered with 10 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Saeki",
+      "careers_url": "https://saeki.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'saeki' answered with 10 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Fivetran",
+      "careers_url": "https://boards.greenhouse.io/fivetran",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'fivetran' answered with 188 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.fivetran.com"
+    },
+    {
+      "company_name": "GameChanger",
+      "careers_url": "https://jobs.ashbyhq.com/gamechanger",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'gamechanger' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.gc.com"
+    },
+    {
+      "company_name": "Almedia",
+      "careers_url": "https://jobs.ashbyhq.com/almedia",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'almedia' answered with 38 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Arista Networks",
+      "careers_url": "https://jobs.smartrecruiters.com/aristanetworks",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'aristanetworks' answered with 249 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.arista.com"
+    },
+    {
+      "company_name": "Experian",
+      "careers_url": "https://jobs.smartrecruiters.com/experian",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'experian' answered with 395 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.experian.com"
+    },
+    {
+      "company_name": "TYTAN Technologies GmbH",
+      "careers_url": "https://tytantechnologiesgmbh.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'tytantechnologiesgmbh' answered with 47 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "saas.group",
+      "careers_url": "https://boards.greenhouse.io/saasgroup",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'saasgroup' answered with 14 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://saas.group"
+    },
+    {
+      "company_name": "JOKO",
+      "careers_url": "https://jobs.ashbyhq.com/joko",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'joko' answered with 48 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.joko.com/en"
+    },
+    {
+      "company_name": "Kijimea",
+      "careers_url": "https://jobs.ashbyhq.com/kijimea",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'kijimea' answered with 40 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Dremio",
+      "careers_url": "https://boards.greenhouse.io/dremio",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'dremio' answered with 7 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.dremio.com"
+    },
+    {
+      "company_name": "Timetoact Group",
+      "careers_url": "https://timetoact-group.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'timetoact-group' answered with 42 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Bookboost",
+      "careers_url": "https://bookboost.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'bookboost' answered with 12 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "TRG Screen",
+      "careers_url": "https://boards.greenhouse.io/trgscreen",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'trgscreen' answered with 8 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "autonomous-teaming",
+      "careers_url": "https://autonomous-teaming.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'autonomous-teaming' answered with 20 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Assecor GmbH",
+      "careers_url": "https://assecor-gmbh.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'assecor-gmbh' answered with 12 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Laelaps",
+      "careers_url": "https://jobs.ashbyhq.com/laelaps",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'laelaps' answered with 15 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Autarcenergy",
+      "careers_url": "https://autarcenergy.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'autarcenergy' answered with 21 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Instaffo",
+      "careers_url": "https://instaffo.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'instaffo' answered with 5 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Mercury",
+      "careers_url": "https://boards.greenhouse.io/mercury",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'mercury' answered with 70 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://mercury.com"
+    },
+    {
+      "company_name": "Imfusion",
+      "careers_url": "https://imfusion.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'imfusion' answered with 5 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Huntress",
+      "careers_url": "https://boards.greenhouse.io/huntress",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'huntress' answered with 35 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.huntress.com"
+    },
+    {
+      "company_name": "DEFCON AI",
+      "careers_url": "https://boards.greenhouse.io/defcon",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'defcon' answered with 8 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.defconai.com"
+    },
+    {
+      "company_name": "Holoplot",
+      "careers_url": "https://holoplot.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'holoplot' answered with 7 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Es Group",
+      "careers_url": "https://es-group.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'es-group' answered with 27 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Berlitz",
+      "careers_url": "https://jobs.ashbyhq.com/berlitz",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'berlitz' answered with 14 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Scalian",
+      "careers_url": "https://jobs.smartrecruiters.com/scalian",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'scalian' answered with 745 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Sectigo",
+      "careers_url": "https://jobs.smartrecruiters.com/sectigo",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'sectigo' answered with 29 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.sectigo.com"
+    },
+    {
+      "company_name": "LogicGate",
+      "careers_url": "https://boards.greenhouse.io/logicgate",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'logicgate' answered with 15 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.logicgate.com"
+    },
+    {
+      "company_name": "Lyceum",
+      "careers_url": "https://jobs.ashbyhq.com/lyceum",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'lyceum' answered with 18 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Honeycomb",
+      "careers_url": "https://boards.greenhouse.io/honeycomb",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'honeycomb' answered with 17 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.honeycomb.io"
+    },
+    {
+      "company_name": "Hostaway",
+      "careers_url": "https://hostaway.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'hostaway' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Glia",
+      "careers_url": "https://jobs.ashbyhq.com/glia",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'glia' answered with 20 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.glia.com"
+    },
+    {
+      "company_name": "Yoursquares",
+      "careers_url": "https://yoursquares.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'yoursquares' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Agilerobotsse",
+      "careers_url": "https://boards.greenhouse.io/agilerobotsse",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'agilerobotsse' answered with 60 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "EDB",
+      "careers_url": "https://boards.greenhouse.io/edb",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'edb' answered with 23 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.enterprisedb.com"
+    },
+    {
+      "company_name": "Talan",
+      "careers_url": "https://jobs.smartrecruiters.com/talan",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public smartrecruiters board 'talan' answered with 517 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Swissbit",
+      "careers_url": "https://swissbit.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'swissbit' answered with 36 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Sticker Mule",
+      "careers_url": "https://jobs.ashbyhq.com/stickermule",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'stickermule' answered with 6 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "The Exploration Company",
+      "careers_url": "https://jobs.ashbyhq.com/the-exploration-company",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'the-exploration-company' answered with 102 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Stealthrocketrystartup",
+      "careers_url": "https://jobs.ashbyhq.com/stealthrocketrystartup",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'stealthrocketrystartup' answered with 17 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Se3",
+      "careers_url": "https://jobs.ashbyhq.com/se3",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'se3' answered with 19 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Revel8",
+      "careers_url": "https://revel8.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'revel8' answered with 19 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Reflex Aerospace GmbH",
+      "careers_url": "https://reflex-aerospace-gmbh.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'reflex-aerospace-gmbh' answered with 19 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Quantum Metric",
+      "careers_url": "https://jobs.lever.co/quantummetric",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public lever board 'quantummetric' answered with 7 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "BSI Software",
+      "careers_url": "https://bsisoftware.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'bsisoftware' answered with 31 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Platform.sh",
+      "careers_url": "https://boards.greenhouse.io/platformsh",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'platformsh' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Peec AI",
+      "careers_url": "https://jobs.ashbyhq.com/peec",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'peec' answered with 33 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Pipedrive",
+      "careers_url": "https://jobs.lever.co/pipedrive",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public lever board 'pipedrive' answered with 8 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Nucs AI",
+      "careers_url": "https://nucsai.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'nucsai' answered with 11 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Omada Health",
+      "careers_url": "https://boards.greenhouse.io/omadahealth",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'omadahealth' answered with 18 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://omadahealth.com"
+    },
+    {
+      "company_name": "Microagi",
+      "careers_url": "https://jobs.ashbyhq.com/microagi",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'microagi' answered with 7 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Cortea AI",
+      "careers_url": "https://jobs.ashbyhq.com/cortea",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'cortea' answered with 12 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Cortea",
+      "careers_url": "https://jobs.ashbyhq.com/cortea",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'cortea' answered with 12 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Alexander Thamm Gmbh",
+      "careers_url": "https://alexander-thamm-gmbh.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'alexander-thamm-gmbh' answered with 23 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Maibornwolff",
+      "careers_url": "https://maibornwolff.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'maibornwolff' answered with 52 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Machine Learning Reply",
+      "careers_url": "https://machinelearningreply.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'machinelearningreply' answered with 14 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Lio",
+      "careers_url": "https://jobs.ashbyhq.com/lio",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'lio' answered with 16 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Atolls",
+      "careers_url": "https://boards.greenhouse.io/atolls",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'atolls' answered with 17 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Legalhero",
+      "careers_url": "https://legalhero.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'legalhero' answered with 8 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Clera",
+      "careers_url": "https://jobs.ashbyhq.com/clera",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board 'clera' answered with 289 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "0G",
+      "careers_url": "https://jobs.ashbyhq.com/0g",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public ashby board '0g' answered with 8 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Lighthouse",
+      "careers_url": "https://boards.greenhouse.io/lighthouse",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'lighthouse' answered with 37 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Mayflower",
+      "careers_url": "https://mayflower.recruitee.com",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public recruitee board 'mayflower' answered with 55 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Clariness GmbH",
+      "careers_url": "https://boards.greenhouse.io/clariness",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'clariness' answered with 37 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "JTL-Software-GmbH",
+      "careers_url": "https://jtl-software-gmbh.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'jtl-software-gmbh' answered with 31 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    },
+    {
+      "company_name": "Armada",
+      "careers_url": "https://boards.greenhouse.io/armada",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public greenhouse board 'armada' answered with 39 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.armada.ai"
+    },
+    {
+      "company_name": "JumpCloud",
+      "careers_url": "https://jobs.lever.co/jumpcloud",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public lever board 'jumpcloud' answered with 33 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources.",
+      "website_url": "https://www.jumpcloud.com"
+    },
+    {
+      "company_name": "Airmo",
+      "careers_url": "https://airmo.jobs.personio.de",
+      "source_type": "web_research",
+      "source_label": "portal_companies_board_probe_2026_10_12",
+      "hiring_hint": "Public personio board 'airmo' answered with 9 postings on 2026-10-12.",
+      "notes": "Board found by trying the company name as a slug on the public Greenhouse/Ashby/Lever/Workable/Recruitee/SmartRecruiters/Personio APIs (scripts/probe_ats_boards.py); the slug equals the company name. Company seen through a job portal with open technical offers and no board of its own in the monitored sources."
+    }
+  ]
+}
