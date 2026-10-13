@@ -1276,7 +1276,8 @@ def _run_bot_command(candidate, settings) -> int:
             record_note=record_note,
             prompts=DbPrompts(session_factory),
             signup=SignupHandlers(
-                session_factory, make_extractor(), chat_id, record_feedback, record_note, PersonDocuments(session_factory)
+                session_factory, make_extractor(), chat_id, record_feedback, record_note, PersonDocuments(session_factory),
+                privacy_contact=(settings.privacy_contact or "").strip() or None,
             ),
         )
     except KeyboardInterrupt:

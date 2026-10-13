@@ -26,6 +26,7 @@ from ai_job_hunter.services.users import save_profile
 
 PRIVACY_VERSION = "2026-10-draft1"
 TRIAL_DAYS = 7
+RETENTION_DAYS = 14  # after the trial ends, the person's data is deleted automatically
 INVITATION_DAYS = 7
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L
 MIN_CV_TEXT_CHARS = 300
@@ -109,7 +110,8 @@ def redeem_invitation(
 # --- the conversation -------------------------------------------------------------------------------------------------
 
 
-def welcome(user: User) -> list[Reply]:
+def welcome(user: User, contact: str | None = None) -> list[Reply]:
+    responsible = f"• Responsable de tus datos: {contact}. Escríbele para ejercer tus derechos.\n" if contact else ""
     return [
         Reply(
             "👋 Soy Job Hunter: leo ofertas de empleo de miles de empresas y te aviso solo de las que encajan contigo.\n\n"
@@ -121,6 +123,8 @@ def welcome(user: User) -> list[Reply]:
             "de la oferta a otro proveedor de IA (TypeSafe), nunca tu nombre ni tu contacto.\n"
             "• Guardo tu perfil, las ofertas que te aviso y tus votos y notas, para mejorar tus avisos. "
             "Está en un servidor en la nube; al borrarlo, las copias de seguridad lo eliminan en un máximo de 14 días.\n"
+            f"• Si no sigues tras la prueba, lo borro solo {RETENTION_DAYS} días después de que termine.\n"
+            f"{responsible}"
             "• Puedes ver todo con /my_data, cambiar tus respuestas con /profile, pausar con /pause y borrarlo todo con /erase.\n"
             "• No envío nada a nadie en tu nombre ni me presento a ninguna oferta.\n\n"
             "¿Aceptas?",
@@ -130,7 +134,8 @@ def welcome(user: User) -> list[Reply]:
 
 
 def handle(
-    session: Session, user: User, event: Event, extract: ProfileExtractor, *, now: datetime | None = None
+    session: Session, user: User, event: Event, extract: ProfileExtractor, *, now: datetime | None = None,
+    contact: str | None = None,
 ) -> list[Reply]:
     """Advance the sign-up by one event and return what to say; commits nothing (the caller does)."""
 
@@ -152,7 +157,7 @@ def handle(
         return [Reply("Perfecto. Envíame tu CV en PDF o Word (o pega su texto). Lo leo una vez y no lo guardo.")]
 
     if step == "consent":
-        return welcome(user)
+        return welcome(user, contact)
 
     if step == "cv":
         if event.kind == "document" and event.content:

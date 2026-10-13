@@ -179,3 +179,37 @@ def test_each_persons_opinions_become_undoable_changes_that_are_announced_to_the
         assert load_profile(db_session, db_session.get(User, people["ana"])).preferences.excluded_title_terms == ["senior backend"]
     with acting_as(people["bea"]):
         assert load_profile(db_session, db_session.get(User, people["bea"])).preferences.excluded_title_terms == []
+
+
+def test_a_person_whose_trial_ended_two_weeks_ago_is_erased_and_told(world, db_session) -> None:
+    from ai_job_hunter.services.user_runs import DELETED_TEXT, RETENTION_DAYS, purge_after_trial
+    from ai_job_hunter.models.user import UserProfile
+
+    _, people, _, now = world
+    old, fresh = db_session.get(User, people["old"]), db_session.get(User, people["ana"])
+    old.status, old.trial_ends_at = "TRIAL_ENDED", now - timedelta(days=RETENTION_DAYS, minutes=1)
+    fresh.status, fresh.trial_ends_at = "TRIAL_ENDED", now - timedelta(days=RETENTION_DAYS - 1)
+    db_session.commit()
+    outbox = Outbox()
+
+    erased = purge_after_trial(lambda: db_session, outbox.provider, now=now)
+
+    assert erased == 1
+    assert [text for chat, text in outbox.sent] == [DELETED_TEXT.format(days=RETENTION_DAYS)]
+    assert db_session.get(User, people["old"]).status == "DELETED" and db_session.get(User, people["old"]).telegram_chat_id is None
+    assert db_session.scalar(select(UserProfile).where(UserProfile.user_id == people["old"])) is None
+    assert db_session.get(User, people["ana"]).status == "TRIAL_ENDED"  # still inside the retention window
+    assert db_session.scalar(select(User.status).where(User.is_owner.is_(True))) != "DELETED"
+    assert purge_after_trial(lambda: db_session, outbox.provider, now=now) == 0  # nothing left to erase
+
+
+def test_a_blocked_chat_does_not_keep_the_data_of_a_person_whose_trial_ended(world, db_session) -> None:
+    from ai_job_hunter.services.user_runs import RETENTION_DAYS, purge_after_trial
+
+    _, people, _, now = world
+    old = db_session.get(User, people["old"])
+    old.status, old.trial_ends_at = "TRIAL_ENDED", now - timedelta(days=RETENTION_DAYS + 3)
+    db_session.commit()
+
+    assert purge_after_trial(lambda: db_session, Outbox(broken_chats=("400",)).provider, now=now) == 1
+    assert db_session.get(User, people["old"]).status == "DELETED"

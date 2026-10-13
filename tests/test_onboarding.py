@@ -192,3 +192,17 @@ def test_the_experience_summary_is_kept_for_letters_shown_in_my_data_and_erased_
     assert "cierre mensual" in handle_command(db_session, user, "/my_data")[0].text
     handle_erase_press(db_session, user, "ob:erase:yes")
     assert db_session.scalar(select(UserProfile).where(UserProfile.user_id == user.id)) is None
+
+
+def test_the_welcome_names_who_answers_for_the_data_and_the_automatic_deletion() -> None:
+    from ai_job_hunter.services.onboarding import RETENTION_DAYS, welcome
+
+    user = User(telegram_chat_id="1", status="ONBOARDING")
+
+    with_contact = welcome(user, "Ana Pérez, ana@example.org")[0].text
+    without = welcome(user)[0].text
+
+    assert "Ana Pérez, ana@example.org" in with_contact
+    assert "Responsable" not in without
+    for text in (with_contact, without):
+        assert f"{RETENTION_DAYS} días después de que termine" in text

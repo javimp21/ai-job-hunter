@@ -30,7 +30,9 @@ from ai_job_hunter.services.notifications import (
     pending_notification_job_ids,
     send_notifications,
 )
+from ai_job_hunter.services.onboarding import RETENTION_DAYS
 from ai_job_hunter.services.opportunities import reevaluate_jobs
+from ai_job_hunter.services.user_erasure import erase_user
 from ai_job_hunter.services.users import load_profile
 
 logger = logging.getLogger(__name__)
@@ -39,9 +41,11 @@ logger = logging.getLogger(__name__)
 OWNER_ONLY_PROVIDERS = ("fantastic_jobs",)
 
 TRIAL_ENDED_TEXT = (
-    "⏳ Tu prueba gratuita ha terminado, así que dejo de mandarte avisos. Tus datos siguen guardados unos días: "
-    "/erase los borra ahora y, si quieres seguir, escríbele a quien te invitó."
+    "⏳ Tu prueba gratuita ha terminado, así que dejo de mandarte avisos. Tus datos siguen guardados "
+    f"{RETENTION_DAYS} días y después se borran solos: /erase los borra ahora y, si quieres seguir, "
+    "escríbele a quien te invitó."
 )
+DELETED_TEXT = "🗑 Han pasado {days} días desde el fin de tu prueba, así que he borrado tus datos. Gracias por probarlo."
 
 
 @dataclass(slots=True)
@@ -165,6 +169,42 @@ def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, lim
             select(Job.id).where(Job.id.in_(recent), Job.id.not_in(done)).order_by(Job.created_at.desc()).limit(limit)
         )
     )
+
+
+def purge_after_trial(
+    session_factory: Callable[[], Session], provider_for_chat: Callable[[str], NotificationProvider], *,
+    now: datetime | None = None,
+) -> int:
+    """Erase the data of people whose trial ended ``RETENTION_DAYS`` ago; returns how many were erased.
+
+    The person is told first (best effort: a blocked chat does not keep their data), then everything is deleted.
+    """
+
+    moment = now or datetime.now(UTC)
+    cutoff = moment - timedelta(days=RETENTION_DAYS)
+    with session_factory() as session:
+        due = [
+            (user.id, user.telegram_chat_id)
+            for user in session.scalars(
+                select(User).where(User.is_owner.is_(False), User.status == UserStatus.TRIAL_ENDED.value)
+            )
+            if user.trial_ends_at is not None and _aware(user.trial_ends_at) <= cutoff
+        ]
+    erased = 0
+    for user_id, chat_id in due:
+        try:
+            if chat_id:
+                try:
+                    provider_for_chat(chat_id).send_message(DELETED_TEXT.format(days=RETENTION_DAYS))
+                except Exception:  # noqa: BLE001 - the deletion does not depend on the person being reachable
+                    logger.warning("Could not tell %s their data was deleted", user_id)
+            with session_factory() as session:
+                erase_user(session, session.get(User, user_id))
+                session.commit()
+            erased += 1
+        except Exception as error:  # noqa: BLE001 - one person's failure must not stop the others
+            logger.warning("Purge failed for %s: %s", user_id, type(error).__name__)
+    return erased
 
 
 def _end_trial(session_factory: Callable[[], Session], user_id, provider: NotificationProvider) -> None:

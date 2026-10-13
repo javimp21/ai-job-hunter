@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
     notify_review_min_priority: int = Field(default=70, ge=0, le=100)
+    # Who answers for the personal data of the closed beta (name and e-mail), shown in the sign-up notice.
+    privacy_contact: str | None = None
     # IANA time zone of the candidate: decides the day (and weekdays) of the Company Hunter queue.
     schedule_timezone: str = "Europe/Madrid"
     # Company boards read at the same time during a refresh (per-server limits still apply).

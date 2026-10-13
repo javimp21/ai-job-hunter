@@ -11,7 +11,7 @@ from ai_job_hunter.db.session import create_database_engine, create_session_fact
 from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.notifications import TelegramProvider
-from ai_job_hunter.services.user_runs import run_for_users
+from ai_job_hunter.services.user_runs import purge_after_trial, run_for_users
 from ai_job_hunter.services.users import import_owner_profile
 
 
@@ -65,6 +65,9 @@ def _run_users(engine, args) -> int:
             f"failed={result.failed}" + (" | trial ended" if result.trial_ended else "") + (f" | ERROR {result.error}" if result.error else "")
         )
     print(f"USERS: {len(results)}")
+    erased = purge_after_trial(factory, lambda chat: TelegramProvider(settings.telegram_bot_token, chat))
+    if erased:
+        print(f"ERASED after the trial: {erased}")
     return 1 if any(result.error for result in results) else 0
 
 

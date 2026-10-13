@@ -53,7 +53,9 @@ class SignupHandlers:
         record_feedback: Callable[[UUID, str, str | None], None] | None = None,
         record_note: Callable[[UUID | None, int, str], bool] | None = None,
         documents: Any | None = None,
+        privacy_contact: str | None = None,
     ) -> None:
+        self._contact = privacy_contact  # who answers for the data, named in the sign-up notice
         self._documents = documents  # a PersonDocuments: letters and interview briefs for people
         self._sessions = session_factory
         self._extract = extract
@@ -148,7 +150,7 @@ class SignupHandlers:
                 if user is None:
                     person.send_text(BAD_CODE.get(result, NEED_INVITATION))
                     return "signup_refused"
-                self._say(person, onboarding.welcome(user))
+                self._say(person, onboarding.welcome(user, self._contact))
                 return "signup_started"
             person.send_text(NEED_INVITATION)
             return "signup_refused"
@@ -156,7 +158,7 @@ class SignupHandlers:
         if callback is not None:
             return self._press(session, person, user, callback)
         if user.status == UserStatus.ONBOARDING.value and words[:1] == ["/start"]:
-            self._say(person, onboarding.handle(session, user, Event(kind="text", text=""), self._extract))
+            self._say(person, onboarding.handle(session, user, Event(kind="text", text=""), self._extract, contact=self._contact))
             return "signup_step"
         if words and words[0].startswith("/"):
             replies = onboarding.handle_command(session, user, text) if user.consent_at else []
@@ -185,7 +187,7 @@ class SignupHandlers:
         if isinstance(document, dict):
             return self._document(session, person, user, document)
         if isinstance(text, str) and text.strip():
-            self._say(person, onboarding.handle(session, user, Event(kind="text", text=text), self._extract))
+            self._say(person, onboarding.handle(session, user, Event(kind="text", text=text), self._extract, contact=self._contact))
             return "signup_step"
         return "signup_ignored"
 
@@ -219,7 +221,7 @@ class SignupHandlers:
         if data.startswith("ob:erase:"):
             self._say(person, onboarding.handle_erase_press(session, user, data))
             return "signup_erased" if data.endswith("yes") else "signup_command"
-        self._say(person, onboarding.handle(session, user, Event(kind="press", data=data), self._extract))
+        self._say(person, onboarding.handle(session, user, Event(kind="press", data=data), self._extract, contact=self._contact))
         return "signup_step"
 
     @staticmethod
@@ -269,7 +271,7 @@ class SignupHandlers:
             return "signup_step"
         person.send_text("Leyendo tu CV…")
         event = Event(kind="document", filename=str(document.get("file_name") or "cv"), content=content)
-        self._say(person, onboarding.handle(session, user, event, self._extract))
+        self._say(person, onboarding.handle(session, user, event, self._extract, contact=self._contact))
         return "signup_step"
 
     @staticmethod
