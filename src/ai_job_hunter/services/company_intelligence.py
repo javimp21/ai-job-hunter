@@ -661,7 +661,8 @@ def public_board_url(provider: ATSProvider, identifier: str, region: str | None)
     if provider is ATSProvider.PERSONIO:
         return f"https://{slug}.jobs.personio.{'com' if region == 'com' else 'de'}"
     if provider is ATSProvider.FACTORIAL:
-        return f"https://{slug}.factorial.es" if region == "es" else f"https://{slug}.factorialhr.com"
+        host = {"es": "factorial.es", "global": "factorial.com"}.get(region or "", "factorialhr.com")
+        return f"https://{slug}.{host}"
     if provider is ATSProvider.CAREERS_SITE:
         from ai_job_hunter.connectors.careers_site import careers_site_board_url
 

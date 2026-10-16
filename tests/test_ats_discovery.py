@@ -34,6 +34,7 @@ from ai_job_hunter.services.company_intelligence import public_board_url
         ("https://acme.jobs.personio.com", ATSProvider.PERSONIO, "acme", "com"),
         ("https://embat.factorialhr.com/job_posting/x-1", ATSProvider.FACTORIAL, "embat", "com"),
         ("https://NextAILLabs.factorial.es/", ATSProvider.FACTORIAL, "nextaillabs", "es"),
+        ("https://embat.factorial.com/job_posting/x-1", ATSProvider.FACTORIAL, "embat", "global"),
         ("https://bbva.wd3.myworkdayjobs.com/BBVA", ATSProvider.WORKDAY, "bbva/BBVA", "wd3"),
         ("https://ING.wd3.myworkdayjobs.com/en-US/ICSGBLCOR/job/Madrid/X_R1", ATSProvider.WORKDAY, "ing/ICSGBLCOR", "wd3"),
         ("https://acme.wd103.myworkdayjobs.com/es_ES/Site", ATSProvider.WORKDAY, "acme/Site", "wd103"),

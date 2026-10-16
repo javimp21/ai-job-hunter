@@ -107,10 +107,10 @@ def discover_ats_url(url: str | None) -> ATSDiscoveryResult:
             identifier = label
             region = "com" if parent.endswith(".com") else None
             evidence = f"Personio career-site subdomain '{host}' matched; the subdomain is the company identifier."
-        elif parent in {"factorialhr.com", "factorial.es"} and label not in _FACTORIAL_NON_SITES:
+        elif parent in {"factorialhr.com", "factorial.es", "factorial.com"} and label not in _FACTORIAL_NON_SITES:
             provider = ATSProvider.FACTORIAL
             identifier = label
-            region = "com" if parent == "factorialhr.com" else "es"
+            region = {"factorialhr.com": "com", "factorial.com": "global"}.get(parent, "es")
             evidence = f"Factorial HR careers subdomain '{host}' matched; the subdomain is the company identifier."
 
     if provider is None:

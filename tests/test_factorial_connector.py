@@ -183,6 +183,21 @@ def test_region_selects_the_host():
     client.close()
 
 
+def test_the_global_region_reads_the_factorial_com_host():
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.host)
+        return httpx.Response(200, content=(ROBOTS_ALLOW if request.url.path == "/robots.txt" else "<html></html>").encode())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with FactorialConnector("Embat", region="global", client=client, sleep=lambda _s: None) as connector:
+        assert connector.base_url == "https://embat.factorial.com"
+        assert connector.fetch_jobs() == []
+    assert set(seen) == {"embat.factorial.com"}
+    client.close()
+
+
 def test_cards_pointing_to_another_host_are_rejected():
     foreign = LISTING.replace("https://example.factorialhr.com/job_posting/ai-engineer-100200", "https://evil.example/job_posting/ai-engineer-100200", 1)
     connector, client = make_connector(routes={"/": (200, foreign)})

@@ -24,7 +24,7 @@ from ai_job_hunter.connectors._html import _ReadableTextParser
 from ai_job_hunter.domain.normalized_job import EmploymentType, NormalizedJob, RemotePolicy
 
 FACTORIAL_USER_AGENT = "AI-Job-Hunter/0.1 (personal job discovery)"
-FACTORIAL_REGIONS = {"com": "factorialhr.com", "es": "factorial.es"}
+FACTORIAL_REGIONS = {"com": "factorialhr.com", "es": "factorial.es", "global": "factorial.com"}
 _COMPANY_SLUG = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})$")
 _MAX_LISTING_BYTES = 2 * 1024 * 1024
 _MAX_DETAIL_BYTES = 1024 * 1024
@@ -57,7 +57,7 @@ class FactorialConnectorError(RuntimeError):
 
 
 class FactorialConnector:
-    """Fetch public jobs from ``{company}.factorialhr.com`` or ``{company}.factorial.es``.
+    """Fetch public jobs from ``{company}.factorialhr.com``, ``{company}.factorial.es`` or ``{company}.factorial.com``.
 
     ``detail_filter`` receives each posting title; only accepted postings trigger the
     extra detail request that supplies the description, bounded by ``max_details``.
@@ -87,7 +87,7 @@ class FactorialConnector:
             raise ValueError("company must be a Factorial subdomain label")
         region = region.strip().casefold()
         if region not in FACTORIAL_REGIONS:
-            raise ValueError("region must be 'com' or 'es'")
+            raise ValueError("region must be 'com', 'es' or 'global'")
         if max_jobs is not None and max_jobs < 1:
             raise ValueError("max_jobs must be a positive integer")
         if max_details < 0:
@@ -186,7 +186,7 @@ class FactorialConnector:
                 if response.is_redirect:
                     raise FactorialConnectorError(
                         f"Factorial redirected the request (HTTP {response.status_code}); "
-                        "check the source region ('com' or 'es')."
+                        "check the source region ('com', 'es' or 'global')."
                     )
                 if response.status_code != 200:
                     raise FactorialConnectorError(f"Factorial returned HTTP {response.status_code}.")

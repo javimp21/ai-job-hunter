@@ -71,8 +71,8 @@ class JobSourceSpec(BaseModel):
             raise ValueError("Lever region must be 'global' or 'eu'")
         if self.provider == "personio" and self.region not in {None, "de", "com"}:
             raise ValueError("Personio region must be 'de' or 'com'")
-        if self.provider == "factorial" and self.region not in {None, "com", "es"}:
-            raise ValueError("Factorial region must be 'com' or 'es'")
+        if self.provider == "factorial" and self.region not in {None, "com", "es", "global"}:
+            raise ValueError("Factorial region must be 'com', 'es' or 'global'")
         return self
 
 
