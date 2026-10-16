@@ -21,7 +21,14 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.decision_engine import FinalDecision
-from ai_job_hunter.models import Company, HumanReviewStatus, JobSource, MonitoredSource, OpportunityNotification
+from ai_job_hunter.models import (
+    Company,
+    HumanReviewStatus,
+    JobEvaluation,
+    JobSource,
+    MonitoredSource,
+    OpportunityNotification,
+)
 from ai_job_hunter.services.notifications import (
     APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
@@ -121,10 +128,22 @@ def select_digest_entries(
 
 
 def _recently_seen_job_ids(session: Session) -> set[UUID]:
-    """Jobs first seen within the digest window (plus a day of margin): older ones are never listed."""
+    """Jobs first seen within the digest window (plus a day of margin) that can be listed at all.
+
+    Older ones are never listed, and neither is a job whose evaluation is SKIP (the final decision only ever
+    lowers an evaluation's: APPLY can become REVIEW, SKIP never rises), which is most of what a day brings.
+    """
 
     since = datetime.now(UTC) - timedelta(days=DIGEST_MAX_AGE_DAYS + 1)
-    return set(session.scalars(select(JobSource.job_id).where(JobSource.discovered_at >= since).distinct()))
+    listable = (FinalDecision.APPLY.value, FinalDecision.REVIEW.value)
+    return set(
+        session.scalars(
+            select(JobSource.job_id)
+            .join(JobEvaluation, JobEvaluation.job_id == JobSource.job_id)
+            .where(JobSource.discovered_at >= since, JobEvaluation.decision.in_(listable))
+            .distinct()
+        )
+    )
 
 
 def send_digest(

@@ -188,8 +188,9 @@ def test_only_jobs_first_seen_in_the_digest_window_are_loaded(db_session, monkey
     now = datetime.now(UTC)
     fresh, _ = _seed_evaluation(db_session, "REVIEW", fingerprint="fp-fresh")
     old, _ = _seed_evaluation(db_session, "REVIEW", fingerprint="fp-old")
-    for job, days in ((fresh, 1), (old, 10)):
-        db_session.add(JobSource(job_id=job.id, provider="greenhouse", external_id=f"x-{days}", discovered_at=now - timedelta(days=days)))
+    skipped, _ = _seed_evaluation(db_session, "SKIP", fingerprint="fp-skip")
+    for job, days in ((fresh, 1), (old, 10), (skipped, 1)):
+        db_session.add(JobSource(job_id=job.id, provider="greenhouse", external_id=f"x-{job.id}", discovered_at=now - timedelta(days=days)))
     db_session.flush()
 
     assert digest_service._recently_seen_job_ids(db_session) == {fresh.id}
