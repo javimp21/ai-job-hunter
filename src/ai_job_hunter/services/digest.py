@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.decision_engine import FinalDecision
-from ai_job_hunter.models import Company, HumanReviewStatus, MonitoredSource, OpportunityNotification
+from ai_job_hunter.models import Company, HumanReviewStatus, JobSource, MonitoredSource, OpportunityNotification
 from ai_job_hunter.services.notifications import (
     APPLICATION_PACK_CALLBACK_PREFIX,
     COVER_LETTER_CALLBACK_PREFIX,
@@ -82,7 +82,12 @@ def select_digest_entries(
     max_age_days: int | None,
     limit: int = DIGEST_MAX_ITEMS,
 ) -> list[DigestEntry]:
-    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days)
+    # Only new postings are listed, so only those are loaded: the whole feed (every stored offer, with its
+    # description) no longer fits in the server's memory.
+    recent = _recently_seen_job_ids(session)
+    if not recent:
+        return []
+    current = _current_opportunities(session, candidate, review_threshold, max_age_days=max_age_days, job_ids=recent)
     candidates = [row for row in current if not row.eligible and row.suppression_reason in _DIGEST_REASONS]
     if not candidates:
         return []
@@ -113,6 +118,13 @@ def select_digest_entries(
         if len(entries) >= limit:
             break
     return entries
+
+
+def _recently_seen_job_ids(session: Session) -> set[UUID]:
+    """Jobs first seen within the digest window (plus a day of margin): older ones are never listed."""
+
+    since = datetime.now(UTC) - timedelta(days=DIGEST_MAX_AGE_DAYS + 1)
+    return set(session.scalars(select(JobSource.job_id).where(JobSource.discovered_at >= since).distinct()))
 
 
 def send_digest(

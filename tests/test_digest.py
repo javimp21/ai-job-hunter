@@ -2,10 +2,11 @@ import dataclasses
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import select
 
 from ai_job_hunter.decision_engine import FinalDecision
-from ai_job_hunter.models import HumanReviewStatus, OpportunityNotification
+from ai_job_hunter.models import HumanReviewStatus, Job, JobSource, OpportunityNotification
 from ai_job_hunter.services import digest as digest_service
 from ai_job_hunter.services.digest import (
     DIGEST_CHANNEL,
@@ -24,6 +25,13 @@ from tests.test_notifications import (
 )
 
 OPTIONS = {"review_threshold": 70, "max_age_days": 3}
+
+
+@pytest.fixture(autouse=True)
+def _every_job_is_recent(monkeypatch):
+    """The fake feed rows have no sources: here every stored job counts as recently seen."""
+
+    monkeypatch.setattr(digest_service, "_recently_seen_job_ids", lambda session: set(session.scalars(select(Job.id))))
 
 
 def _item(session, priority, *, decision=FinalDecision.REVIEW, title="Backend Engineer", company="Example Co", **changes):
@@ -173,3 +181,15 @@ def test_digest_lists_sources_that_keep_failing():
     message = digest_service.format_digest_message([], failing_sources=["Qonto (Lever, 7 fallos)"])
 
     assert "Fuentes que no responden" in message and "Qonto (Lever, 7 fallos)" in message
+
+
+def test_only_jobs_first_seen_in_the_digest_window_are_loaded(db_session, monkeypatch):
+    monkeypatch.undo()  # the real helper, not the autouse stand-in
+    now = datetime.now(UTC)
+    fresh, _ = _seed_evaluation(db_session, "REVIEW", fingerprint="fp-fresh")
+    old, _ = _seed_evaluation(db_session, "REVIEW", fingerprint="fp-old")
+    for job, days in ((fresh, 1), (old, 10)):
+        db_session.add(JobSource(job_id=job.id, provider="greenhouse", external_id=f"x-{days}", discovered_at=now - timedelta(days=days)))
+    db_session.flush()
+
+    assert digest_service._recently_seen_job_ids(db_session) == {fresh.id}
