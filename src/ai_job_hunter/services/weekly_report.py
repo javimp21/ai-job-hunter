@@ -38,6 +38,7 @@ from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
 
 WEEKLY_KIND = "WEEKLY"
 REPORT_DAYS = 7
+FEED_CHUNK = 1000  # stored offers turned into feed rows at a time
 # A weekly timer can drift by a few hours; 6 days still means "once a week".
 WEEKLY_MIN_INTERVAL = timedelta(days=6)
 TOP_N = 5
@@ -126,22 +127,6 @@ def build_weekly_report(
 ) -> WeeklyReport:
     end = _aware(now or datetime.now(UTC))
     start = end - timedelta(days=days)
-    items = list_opportunities(
-        session,
-        candidate,
-        limit=100_000,
-        include_applied=True,
-        include_skip=True,
-        include_dismissed=True,
-        include_closed=True,
-    )
-    by_id = {item.job_id: item for item in items}
-    new_items = [
-        item for item in items if item.first_seen_at is not None and start <= _aware(item.first_seen_at) <= end
-    ]
-    relevant = [item for item in new_items if _is_relevant(item)]
-    stack = _candidate_stack(candidate)
-
     reviews = session.scalars(
         select(JobReview).where(
             JobReview.state.in_((HumanReviewStatus.SAVED.value, HumanReviewStatus.DISMISSED.value)),
@@ -151,15 +136,47 @@ def build_weekly_report(
     ).all()
     saved = [row for row in reviews if row.state == HumanReviewStatus.SAVED.value]
     dismissed = [row for row in reviews if row.state == HumanReviewStatus.DISMISSED.value]
+    stack = _candidate_stack(candidate)
+
+    # The whole feed (every stored offer, with its description) does not fit in memory, so it is read in chunks and
+    # only what the report lists is kept: the relevant new offers and the ones you voted on.
+    new_ids = set(session.scalars(select(Job.id).where(Job.created_at >= start, Job.created_at <= end)))
+    review_ids = {row.job_id for row in reviews}
+    wanted = sorted(new_ids | review_ids)
+    by_id: dict = {}
+    relevant: list[Opportunity] = []
+    passed_prefilter = evaluated = apply = review = 0
+    for offset in range(0, len(wanted), FEED_CHUNK):
+        for item in list_opportunities(
+            session,
+            candidate,
+            limit=FEED_CHUNK,
+            include_applied=True,
+            include_skip=True,
+            include_dismissed=True,
+            include_closed=True,
+            job_ids=wanted[offset : offset + FEED_CHUNK],
+        ):
+            if item.job_id in review_ids:
+                by_id[item.job_id] = item
+            if item.first_seen_at is None or not start <= _aware(item.first_seen_at) <= end:
+                continue
+            passed = _passed_prefilter(item)
+            passed_prefilter += passed
+            evaluated += passed and item.decision is not None
+            apply += item.decision is FinalDecision.APPLY
+            review += item.decision is FinalDecision.REVIEW
+            if _is_relevant(item):
+                relevant.append(item)
 
     report = WeeklyReport(
         period_start=start,
         period_end=end,
         discovered=_discovered_count(session, start, end),
-        passed_prefilter=sum(1 for item in new_items if _passed_prefilter(item)),
-        evaluated=sum(1 for item in new_items if _passed_prefilter(item) and item.decision is not None),
-        apply=sum(1 for item in new_items if item.decision is FinalDecision.APPLY),
-        review=sum(1 for item in new_items if item.decision is FinalDecision.REVIEW),
+        passed_prefilter=passed_prefilter,
+        evaluated=evaluated,
+        apply=apply,
+        review=review,
         alerts_sent=_sent_count(session, TELEGRAM_CHANNEL, start, end),
         digest_items=_sent_count(session, DIGEST_CHANNEL, start, end),
         top_companies=tuple(Counter(item.company for item in relevant).most_common(TOP_N)),

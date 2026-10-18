@@ -306,3 +306,22 @@ def test_migration_0013_creates_marker_table(tmp_path, monkeypatch):
         assert "report_deliveries" not in inspect(engine).get_table_names()
     finally:
         engine.dispose()
+
+
+def test_reading_the_feed_in_small_chunks_gives_the_same_report(db_session, monkeypatch):
+    jobs, old = _seeded(db_session, monkeypatch)
+    _review(db_session, old, HumanReviewStatus.SAVED, "salary", updated_at=NOW - timedelta(days=1))
+    whole = build_weekly_report(db_session, _candidate(), now=NOW)
+    everything = weekly.list_opportunities(db_session, _candidate())
+    calls: list[int] = []
+
+    def chunked(session, candidate, **kwargs):
+        calls.append(len(kwargs["job_ids"]))
+        return [item for item in everything if item.job_id in set(kwargs["job_ids"])]
+
+    monkeypatch.setattr(weekly, "list_opportunities", chunked)
+    monkeypatch.setattr(weekly, "FEED_CHUNK", 2)
+
+    assert build_weekly_report(db_session, _candidate(), now=NOW) == whole
+    assert len(calls) > 1 and max(calls) <= 2  # it really went through several chunks
+
