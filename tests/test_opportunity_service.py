@@ -1370,3 +1370,34 @@ def test_alert_links_open_the_posting_for_company_boards_and_the_apply_page_for_
 
     assert urls["Senior Backend Engineer"].endswith("/jobs/board-role")  # the posting, not .../apply
     assert urls["Backend Engineer II"].endswith("/jobs/portal-role/apply")
+
+
+def test_a_feed_limited_to_some_jobs_reads_only_their_evaluations_reviews_and_applications(db_session) -> None:
+    from sqlalchemy import event
+
+    _monitor_company(db_session)
+    candidate = _candidate()
+    engine = FakeEngine()
+    jobs = [
+        _with_source_and_evaluation(db_session, candidate, engine, f"job-{n}", f"Backend Engineer {n}", _answers())
+        for n in range(3)
+    ]
+    statements: list[str] = []
+    bind = db_session.get_bind()
+
+    def record(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001, ARG001
+        statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", record)
+    try:
+        listed = list_opportunities(
+            db_session, candidate, engine=engine, include_skip=True, job_ids=[jobs[0].id]
+        )
+    finally:
+        event.remove(bind, "before_cursor_execute", record)
+
+    assert [item.job_id for item in listed] == [jobs[0].id]
+    for table in ("job_evaluations", "job_reviews", "applications"):
+        reads = [s for s in statements if f"FROM {table}" in s and "SELECT" in s]
+        assert reads and all(f"{table}.job_id IN" in s for s in reads), (table, reads)
+

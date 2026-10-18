@@ -745,6 +745,9 @@ def _evaluate_prepared(
     return results
 
 
+_SCOPE_CHUNK = 1000  # job ids per IN clause when a feed is limited to some jobs
+
+
 def list_opportunities(
     session: Session,
     candidate: CandidateConfig,
@@ -778,14 +781,18 @@ def list_opportunities(
     if job_ids is not None:
         job_query = job_query.where(Job.id.in_(list(job_ids)))
     jobs = session.scalars(job_query.order_by(Job.id)).unique().all()
-    reviews = {
-        row.job_id: row
-        for row in session.scalars(select(JobReview)).all()
-    }
-    applications = {
-        row.job_id: row
-        for row in session.scalars(select(Application)).all()
-    }
+    # With ``job_ids`` only those jobs' rows are read: every evaluation of every stored offer does not fit in memory.
+    scope = [job.id for job in jobs] if job_ids is not None else None
+
+    def only_jobs(query, column):  # noqa: ANN001, ANN202 - a SELECT narrowed to the jobs being built, in chunks
+        if scope is None:
+            yield from session.scalars(query).all()
+            return
+        for offset in range(0, len(scope), _SCOPE_CHUNK):
+            yield from session.scalars(query.where(column.in_(scope[offset : offset + _SCOPE_CHUNK]))).all()
+
+    reviews = {row.job_id: row for row in only_jobs(select(JobReview), JobReview.job_id)}
+    applications = {row.job_id: row for row in only_jobs(select(Application), Application.job_id)}
     active_outreach_jobs = {
         job_id
         for job_id in session.scalars(
@@ -804,9 +811,9 @@ def list_opportunities(
         if job_id is not None
     }
     evaluations_by_job: dict[UUID, list[JobEvaluation]] = {}
-    for row in session.scalars(
-        select(JobEvaluation).order_by(JobEvaluation.created_at.desc(), JobEvaluation.id.desc())
-    ).all():
+    for row in only_jobs(
+        select(JobEvaluation).order_by(JobEvaluation.created_at.desc(), JobEvaluation.id.desc()), JobEvaluation.job_id
+    ):
         evaluations_by_job.setdefault(row.job_id, []).append(row)
 
     arrival = _board_arrival_flags(
