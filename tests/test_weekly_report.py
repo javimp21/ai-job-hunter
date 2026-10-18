@@ -324,4 +324,3 @@ def test_reading_the_feed_in_small_chunks_gives_the_same_report(db_session, monk
 
     assert build_weekly_report(db_session, _candidate(), now=NOW) == whole
     assert len(calls) > 1 and max(calls) <= 2  # it really went through several chunks
-
