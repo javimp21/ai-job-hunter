@@ -1400,4 +1400,3 @@ def test_a_feed_limited_to_some_jobs_reads_only_their_evaluations_reviews_and_ap
     for table in ("job_evaluations", "job_reviews", "applications"):
         reads = [s for s in statements if f"FROM {table}" in s and "SELECT" in s]
         assert reads and all(f"{table}.job_id IN" in s for s in reads), (table, reads)
-
