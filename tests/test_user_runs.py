@@ -213,3 +213,20 @@ def test_a_blocked_chat_does_not_keep_the_data_of_a_person_whose_trial_ended(wor
 
     assert purge_after_trial(lambda: db_session, Outbox(broken_chats=("400",)).provider, now=now) == 1
     assert db_session.get(User, people["old"]).status == "DELETED"
+
+
+def test_extending_trials_reactivates_only_people_whose_trial_ended(world, db_session) -> None:
+    from ai_job_hunter.services.users import extend_trials
+
+    owner, people, _, now = world
+    ended = db_session.get(User, people["old"])
+    ended.status = "TRIAL_ENDED"
+    db_session.commit()
+
+    assert extend_trials(db_session, 90, now=now) == 1
+
+    assert ended.status == "ACTIVE" and ended.trial_ends_at == now + timedelta(days=90)
+    assert db_session.get(User, people["ana"]).status == "ACTIVE"  # untouched: still inside the trial
+    assert db_session.scalar(select(User.status).where(User.is_owner.is_(True))) == "ACTIVE"
+    with pytest.raises(ValueError):
+        extend_trials(db_session, 0)

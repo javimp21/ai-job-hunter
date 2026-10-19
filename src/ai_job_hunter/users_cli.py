@@ -12,7 +12,7 @@ from ai_job_hunter.services.direct_postings import DirectPostingResolver
 from ai_job_hunter.services.liveness import PostingLiveness
 from ai_job_hunter.services.notifications import TelegramProvider
 from ai_job_hunter.services.user_runs import purge_after_trial, run_for_users
-from ai_job_hunter.services.users import import_owner_profile
+from ai_job_hunter.services.users import extend_trials, import_owner_profile
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -20,6 +20,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     owner = sub.add_parser("import-owner", help="store candidate.local.json as the owner's profile")
     owner.add_argument("--candidate-config", type=Path, default=Path("candidate.local.json"))
+    extend = sub.add_parser("extend-trial", help="give people whose trial ended more days of alerts")
+    extend.add_argument("--days", type=int, required=True)
     run = sub.add_parser("run", help="evaluate stored offers and send alerts for every active person (not the owner)")
     run.add_argument("--max-jev-jobs", type=int, default=10, help="new Jev evaluations per person per run")
     run.add_argument("--max-notifications", type=int, default=5, help="alerts per person per run")
@@ -32,6 +34,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     engine = create_database_engine()
     if args.command == "run":
         return _run_users(engine, args)
+    if args.command == "extend-trial":
+        with create_session_factory(engine)() as session:
+            count = extend_trials(session, args.days)
+            session.commit()
+        print(f"TRIALS EXTENDED: {count} (+{args.days} days)")
+        return 0
     with create_session_factory(engine)() as session:
         user, profile, changed = import_owner_profile(session, args.candidate_config)
         session.commit()

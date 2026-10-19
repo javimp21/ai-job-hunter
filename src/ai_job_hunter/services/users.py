@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import select
@@ -73,3 +74,19 @@ def import_owner_profile(session: Session, path: str | Path) -> tuple[User, User
     owner = ensure_owner(session)
     profile, changed = save_profile(session, owner, config)
     return owner, profile, changed
+
+
+def extend_trials(session: Session, days: int, *, now: datetime | None = None) -> int:
+    """Give everyone whose trial ended (and whose data is still kept) ``days`` more days of alerts; returns how many."""
+
+    if days < 1:
+        raise ValueError("days must be positive")
+    moment = now or datetime.now(UTC)
+    ended = session.scalars(
+        select(User).where(User.is_owner.is_(False), User.status == UserStatus.TRIAL_ENDED.value)
+    ).all()
+    for user in ended:
+        user.status = UserStatus.ACTIVE.value
+        user.trial_ends_at = moment + timedelta(days=days)
+    session.flush()
+    return len(ended)
