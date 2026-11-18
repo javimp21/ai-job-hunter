@@ -94,16 +94,19 @@ fi
 "$exe" notify adapt || true
 # New junior-level postings in the countries the owner wants to move to (needs tuning.junior_watch_countries).
 "$exe" notify junior-watch || true
-if [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
+# The owner can turn the daily digest and the Sunday report off (DIGEST_ENABLED=0 / WEEKLY_ENABLED=0 in a drop-in).
+if [ "${DIGEST_ENABLED:-1}" = 1 ] && [ "$((10#$hour))" -ge "${DIGEST_FROM_HOUR:-20}" ]; then
     # The command itself sends at most one digest per 20 hours.
     "$exe" notify digest || code=1
 fi
 if [ "$(TZ="$TIMEZONE" date +%u)" -eq 7 ] && [ "$((10#$hour))" -ge "${WEEKLY_FROM_HOUR:-20}" ]; then
     # Sunday evening. The command itself sends at most one report per 6 days,
     # so every later tick that evening is a no-op.
-    "$exe" notify weekly || code=1
+    if [ "${WEEKLY_ENABLED:-1}" = 1 ]; then
+        "$exe" notify weekly || code=1
+    fi
     # Claude reads the free-text opinions written since the last review (only with 5 or more new notes) and proposes
-    # changes; nothing is applied. It runs after the weekly report, so at most once a week.
+    # changes; nothing is applied. It runs at most once a week.
     "$exe" notify feedback --min-notes 5 || true
 fi
 

@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session, joinedload
 from ai_job_hunter.candidates import CandidateConfig
 from ai_job_hunter.candidates.exclusions import exclusion_reason
 from ai_job_hunter.candidates.prefilter import title_may_be_relevant
+from ai_job_hunter.candidates.stack_gate import stack_gate_reason
 from ai_job_hunter.models import HumanReviewStatus, Job, JobReview, JobSource
 from ai_job_hunter.services.notifications import NotificationProvider, _safe_public_url
 
@@ -143,6 +144,8 @@ def collect(session: Session, candidate: CandidateConfig, *, now: datetime, stat
         if exclusion_reason(title, company, candidate.preferences):
             continue
         text = source.source_description or job.description or ""
+        if stack_gate_reason(title, text, candidate.preferences):
+            continue
         kind = None
         if (
             junior_places and junior_places.search(place) and any(word in title.casefold() for word in _JUNIOR)

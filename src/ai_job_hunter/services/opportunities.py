@@ -36,6 +36,7 @@ from ai_job_hunter.candidates import (
     evaluate_job,
 )
 from ai_job_hunter.candidates.exclusions import apply_exclusions
+from ai_job_hunter.candidates.stack_gate import apply_stack_gate
 from ai_job_hunter.candidates.experience import ExperienceAssessment, ExperienceOutcome
 from ai_job_hunter.candidates.prefilter import SignalStatus, _location_matches
 from ai_job_hunter.connectors.ashby import AshbyConnectorError
@@ -1405,8 +1406,13 @@ def _prepare_offer(
         }
     )
     facts = JobFacts.from_normalized_job(canonical_offer)
-    deterministic = apply_exclusions(
-        evaluate_job(facts, candidate), canonical_offer.title, canonical_offer.company_name, candidate.preferences
+    deterministic = apply_stack_gate(
+        apply_exclusions(
+            evaluate_job(facts, candidate), canonical_offer.title, canonical_offer.company_name, candidate.preferences
+        ),
+        canonical_offer.title,
+        canonical_offer.description,
+        candidate.preferences,
     )
     context = JobDecisionContext(
         offer=canonical_offer,
@@ -1574,7 +1580,9 @@ def _canonical_decimal(value: Any) -> str | None:
 # Preference fields added after the first evaluations were stored. They join the fingerprint only when they change
 # an evaluation, so a person who never touched them keeps every evaluation they already have.
 _ALWAYS_OUT_OF_FINGERPRINT = ("quiet_hours_start", "quiet_hours_end", "paused_until")  # they only gate the alerts
-_OUT_WHEN_DEFAULT = ("accept_offers_without_salary", "excluded_title_terms", "excluded_companies", "excluded_languages")
+_OUT_WHEN_DEFAULT = (
+    "accept_offers_without_salary", "excluded_title_terms", "excluded_companies", "excluded_languages", "core_technologies",
+)
 
 
 def _preference_fields_out_of_fingerprint(candidate: CandidateConfig) -> dict[str, bool]:

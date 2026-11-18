@@ -107,6 +107,8 @@ class CandidatePreferences(BaseModel):
     relocation_willingness: bool = False
     # False hides offers that publish no salary at all (a published salary in another currency is still judged as before).
     accept_offers_without_salary: bool = True
+    # A strict stack (candidates/stack_gate.py): offers must mention one of these or say they are not needed. Empty = off.
+    core_technologies: list[str] = Field(default_factory=list)
     # What the person's opinions taught the system (services/preference_learning.py); each change can be undone.
     excluded_title_terms: list[str] = Field(default_factory=list)
     excluded_companies: list[str] = Field(default_factory=list)
