@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from decimal import Decimal
-from itertools import islice
+from itertools import islice, product
 from urllib.parse import urlsplit
 from xml.etree.ElementTree import Element
 
@@ -18,6 +18,7 @@ from ai_job_hunter.domain.normalized_job import NormalizedJob, RemoteEligibility
 FEED_URL = "https://jobr.pro/feed.xml"
 _COUNTRIES = ("ES", "IE", "NL", "CH", "GB")
 _LIMIT = 50
+DATA_PORTAL = "jobr_data"
 _REMOTE_POLICIES = {
     "hybrid": RemotePolicy.HYBRID,
     "fully_remote": RemotePolicy.REMOTE,
@@ -32,6 +33,7 @@ class JobrConnectorError(RuntimeError):
 
 class JobrConnector:
     provider = "jobr"
+    roles = ("Software Engineer",)
 
     def __init__(self, *, client: httpx.Client | None = None, timeout: float = 20.0) -> None:
         self._client = client
@@ -42,16 +44,16 @@ class JobrConnector:
         discovered_at = datetime.now(UTC)
         jobs: dict[str, NormalizedJob] = {}
         try:
-            for country in _COUNTRIES:
+            for country, role in product(_COUNTRIES, self.roles):
                 root = get_xml(
-                    client, FEED_URL, params={"role": "Software Engineer", "location": country, "limit": _LIMIT},
+                    client, FEED_URL, params={"role": role, "location": country, "limit": _LIMIT},
                     portal="Jobr", error=JobrConnectorError, timeout=self._timeout, strip_utf8_controls=True,
                 )
                 if root.tag != "jobs":
                     raise JobrConnectorError("Jobr returned an unexpected feed.")
                 for item in islice(root.iterfind("job"), _LIMIT):
                     try:
-                        job = _normalize_item(item, discovered_at)
+                        job = _normalize_item(item, discovered_at, self.provider)
                     except ValueError:
                         continue
                     if job.external_id is not None:
@@ -62,7 +64,12 @@ class JobrConnector:
         return list(jobs.values())
 
 
-def _normalize_item(item: Element, discovered_at: datetime) -> NormalizedJob:
+class JobrDataConnector(JobrConnector):
+    provider = DATA_PORTAL
+    roles = ("Data Engineer", "Analytics Engineer")
+
+
+def _normalize_item(item: Element, discovered_at: datetime, provider: str) -> NormalizedJob:
     job_id = (item.findtext("id") or "").strip()
     title = (item.findtext("title") or "").strip()
     url = (item.findtext("jobUrl") or "").strip()
@@ -84,7 +91,7 @@ def _normalize_item(item: Element, discovered_at: datetime) -> NormalizedJob:
     company = (item.findtext("company/name") or "").strip()
     salary_min, salary_max, currency = _salary(item.find("salary"))
     return NormalizedJob(
-        provider=JobrConnector.provider,
+        provider=provider,
         external_id=job_id,
         source_url=url,
         canonical_url=parts._replace(query="", fragment="").geturl(),

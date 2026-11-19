@@ -27,6 +27,7 @@ from ai_job_hunter.candidates.experience import EXPERIENCE_POLICY_VERSION, Exper
 from ai_job_hunter.deduplication.normalization import is_job_specific_url, normalize_job_url
 from ai_job_hunter.domain.normalized_job import NormalizedJob
 from ai_job_hunter.rubric import RUBRIC_VERSION, rubric_spec_for_sector, rubric_version_for_sector
+from ai_job_hunter.sectors.engine import DATA_ENGINEERING_SECTOR
 
 DEFAULT_CACHE_PATH = Path("data/local/job-decision-cache.local.json")
 CACHE_FORMAT = "ai-job-hunter.job-decision-cache"
@@ -179,7 +180,7 @@ def build_decision_contexts(
     first_seen: dict[str, int] = {}
     contexts: list[JobDecisionContext] = []
     for index, offer in enumerate(offers):
-        facts = JobFacts.from_normalized_job(offer)
+        facts = JobFacts.from_normalized_job(offer, sector=candidate.preferences.sector)
         deterministic = evaluate_job(facts, candidate)
         identity_keys: list[str] = []
         if offer.external_id:
@@ -393,6 +394,7 @@ def apply_decision_policy_v2(
             policy_version=POLICY_VERSION_V2,
         )
 
+    role_focus = "data engineering" if context.candidate.preferences.sector == DATA_ENGINEERING_SECTOR else "backend"
     answers = evidence.answers
     values = {
         name: _value_or_none(getattr(answers, name))
@@ -455,7 +457,7 @@ def apply_decision_policy_v2(
             evidence,
             (StructuredReviewReason(
                 code=ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
-                message="Backend relevance has insufficient confidence to determine the role family.",
+                message=f"{role_focus.capitalize()} relevance has insufficient confidence to determine the role family.",
             ),),
             rubric_version,
         )
@@ -466,7 +468,7 @@ def apply_decision_policy_v2(
             context,
             evidence,
             FinalDecision.SKIP,
-            ("Role relevance, backend relevance, and stack transferability are all low; this is a clear family mismatch.",),
+            (f"Role relevance, {role_focus} relevance, and stack transferability are all low; this is a clear family mismatch.",),
             rubric_version,
             policy_version=POLICY_VERSION_V2,
         )
@@ -484,7 +486,7 @@ def apply_decision_policy_v2(
             context,
             evidence,
             FinalDecision.SKIP,
-            ("Backend relevance and overall role relevance are both very low for this backend search.",),
+            (f"{role_focus.capitalize()} relevance and overall role relevance are both very low for this {role_focus} search.",),
             rubric_version,
             policy_version=POLICY_VERSION_V2,
         )
@@ -520,7 +522,7 @@ def apply_decision_policy_v2(
     )
     if standard_apply or high_upside_experience_exception:
         messages = [
-            "Role relevance, backend fit, stack transferability, and requirements flexibility make this worth applying for."
+            f"Role relevance, {role_focus} fit, stack transferability, and requirements flexibility make this worth applying for."
         ]
         if experience < 0.50:
             messages.append(
@@ -544,7 +546,7 @@ def apply_decision_policy_v2(
     if role < 0.75 or backend < 0.70:
         review_reasons.append(StructuredReviewReason(
             code=ReviewReasonCode.ROLE_FAMILY_UNCERTAIN,
-            message=f"Role/backend fit is not decisive enough for APPLY (role {role:.2f}; backend {backend:.2f}).",
+            message=f"Role/{role_focus} fit is not decisive enough for APPLY (role {role:.2f}; {role_focus} {backend:.2f}).",
         ))
     if stack < 0.60 or flexibility < 0.50:
         review_reasons.append(StructuredReviewReason(

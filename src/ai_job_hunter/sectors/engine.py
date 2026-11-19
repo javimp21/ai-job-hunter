@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ai_job_hunter.deduplication.normalization import normalize_job_title
 
 SECTORS_DIR = Path(__file__).resolve().parent / "templates"
+DATA_ENGINEERING_SECTOR = "data_engineering"
 FITS = {"TARGET", "POTENTIALLY_RELEVANT", "NON_TARGET", "UNKNOWN"}
 
 

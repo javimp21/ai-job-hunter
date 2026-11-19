@@ -15,6 +15,24 @@ or CV facts.
 4. `alembic upgrade head`, then add the companies and portals you care about (`config/examples/`,
    `docs/COMPANY_INTELLIGENCE.md`) and run `ai-job-hunter run --dry-run`.
 
+## Data engineering
+
+On a shared Telegram bot, deploy this version and append `jobr_data` to the existing `JOB_PORTALS`.
+On the Linux scheduled deployment, set `USER_ALERTS_ENABLED=1` to send alerts to invited users.
+From the owner's chat, send `/invite` and share the one-use link. The invitee accepts consent, submits a CV,
+checks the extracted skills and languages, and selects **Ingeniería de datos**. They then enter their target role,
+locations, relocation preference, salary and work mode. They use their own chat and need no credentials or local files.
+Invitations and trials follow the [standard Telegram onboarding flow](ONBOARDING_DESIGN.md).
+
+For a separate installation, follow Quick start, use [the data profile example](../config/examples/candidate.data-engineering.example.json)
+as `candidate.local.json`, and customize skills, languages, work authorization, locations, relocation and salary.
+Its `preferences.sector` is `data_engineering`; existing profiles that omit `sector` still use software.
+
+`jobr_data` searches Jobr for Data Engineer and Analytics Engineer listings in Spain, Ireland, the Netherlands,
+Switzerland and the United Kingdom. It supplements other enabled sources, does not require a key or account,
+and does not feed software profiles. These countries are search coverage, not work authorization or remote eligibility.
+No TheirStack subscription is necessary. Existing bot and model credentials still apply to the host installation.
+
 ## What you can tune without touching code
 
 `candidate.local.json` has a `tuning` section (all optional, neutral defaults). It only reorders results; it is
@@ -32,12 +50,10 @@ TheirStack `THEIRSTACK_COUNTRIES`, `THEIRSTACK_TITLES`, `THEIRSTACK_SENIORITY`, 
 
 ## What is still tied to the original profile
 
-- The role-family filter (`candidates/prefilter.py`: which titles count as engineering, data, AI...) and the Jev
-  fit rubric are written for software roles. Another field needs its own title families and weights.
+- Role-family filtering and the fit rubric depend on the profile's sector. Unsupported fields need their own templates.
 - Alert, digest and bot texts are in Spanish.
 - Default portals (Adzuna ES/NL/CH, Workday ES/LU/CH/NL/IE) and the source lists in `config/leads/` reflect the
   original search; replace them with your own countries and companies.
 - The Company Hunter ranking and the cold-outreach rules assume a junior engineering search.
 
-Share it with someone only if each person runs their own instance: it stores personal data, a Telegram chat and
-API keys.
+Use Telegram invitations or separate installations when sharing. Do not share your private profile, CV, or API keys.

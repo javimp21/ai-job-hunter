@@ -308,7 +308,10 @@ def preview_source(
     except Exception as error:  # Connector errors never include credentials; report the type.
         stats: dict[str, object] = {"error": type(error).__name__}
     else:
-        results = [(job, evaluate_job(JobFacts.from_normalized_job(job), candidate)) for job in jobs]
+        results = [
+            (job, evaluate_job(JobFacts.from_normalized_job(job, sector=candidate.preferences.sector), candidate))
+            for job in jobs
+        ]
         passing = [(job, result) for job, result in results if result.decision is not PreFilterDecision.REJECT]
         stats = {
             "jobs": len(jobs),

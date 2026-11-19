@@ -22,7 +22,7 @@ from ai_job_hunter.connectors.adzuna import AdzunaConnector, AdzunaConnectorErro
 from ai_job_hunter.connectors.arbeitnow import ArbeitnowConnector, ArbeitnowConnectorError
 from ai_job_hunter.connectors.fourdayweek import FourDayWeekConnector, FourDayWeekConnectorError
 from ai_job_hunter.connectors.himalayas import HimalayasConnector, HimalayasConnectorError
-from ai_job_hunter.connectors.jobr import JobrConnector, JobrConnectorError
+from ai_job_hunter.connectors.jobr import DATA_PORTAL, JobrConnector, JobrConnectorError, JobrDataConnector
 from ai_job_hunter.connectors.jobtech import JobTechConnector, JobTechConnectorError
 from ai_job_hunter.connectors.manfred import ManfredConnector, ManfredConnectorError
 from ai_job_hunter.connectors.jobicy import JobicyConnector, JobicyConnectorError
@@ -34,6 +34,7 @@ from ai_job_hunter.connectors.fantastic_jobs import FantasticJobsConnector, Fant
 from ai_job_hunter.connectors.theirstack import TheirStackConnector, TheirStackConnectorError
 from ai_job_hunter.connectors.weworkremotely import WeWorkRemotelyConnector, WeWorkRemotelyConnectorError
 from ai_job_hunter.domain.normalized_job import NormalizedJob
+from ai_job_hunter.sectors.engine import DATA_ENGINEERING_SECTOR
 
 DEFAULT_STATE_PATH = Path("data/local/portal-state.json")
 LOGGER = logging.getLogger(__name__)
@@ -150,6 +151,12 @@ PORTALS: dict[str, PortalSpec] = {
         build=lambda client: JobrConnector(client=client),
         errors=(JobrConnectorError,),
     ),
+    DATA_PORTAL: PortalSpec(
+        name=DATA_PORTAL,
+        min_interval=timedelta(hours=6),
+        build=lambda client: JobrDataConnector(client=client),
+        errors=(JobrConnectorError,),
+    ),
     "remote_backend_jobs": PortalSpec(
         name="remote_backend_jobs",
         min_interval=timedelta(hours=4),
@@ -163,6 +170,12 @@ PORTALS: dict[str, PortalSpec] = {
 class PortalFailure:
     portal: str
     error_type: str
+
+
+def sector_excluded_providers(sector: str) -> tuple[str, ...]:
+    """Data search results are shared with the data sector, not the other searches."""
+
+    return () if sector == DATA_ENGINEERING_SECTOR else (DATA_PORTAL,)
 
 
 def parse_portal_names(value: str | Sequence[str] | None) -> tuple[str, ...]:

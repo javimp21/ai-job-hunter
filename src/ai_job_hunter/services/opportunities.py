@@ -112,6 +112,7 @@ from ai_job_hunter.services.job_portals import (
     DEFAULT_STATE_PATH as DEFAULT_PORTAL_STATE_PATH,
     due_portals,
     fetch_portals,
+    sector_excluded_providers,
 )
 from ai_job_hunter.services.text_facts import salary_from_text, work_mode_from_text
 from ai_job_hunter.services.monitored_sources import (
@@ -344,9 +345,12 @@ def refresh_opportunities(
             SourceFailure(failure.portal, "PORTAL", failure.error_type) for failure in portal_failures
         )
     summary.jobs_fetched = len(offers)
+    excluded_providers = sector_excluded_providers(candidate.preferences.sector)
 
     if dry_run:
         for offer, _target in offers:
+            if offer.provider in excluded_providers:
+                continue
             prepared = _prepare_offer(offer, candidate, engine_identity=_engine_identity(engine))
             if prepared.context.deterministic.decision is PreFilterDecision.REJECT:
                 summary.hard_skips += 1
@@ -368,6 +372,7 @@ def refresh_opportunities(
     jobs_existing_before_refresh = set(session.scalars(select(Job.id)).all())
     # Existing jobs whose source content changed in this refresh (summary stat).
     changed_existing: set[UUID] = set()
+    new_or_changed_in_scope: set[UUID] = set()
     session.rollback()
     created_ids: set[UUID] = set()
     touched_ids: set[UUID] = set()
@@ -425,12 +430,18 @@ def refresh_opportunities(
 
         job_id = ingested.job_id
         touched_ids.add(job_id)
-        if ingested.materially_changed and job_id in jobs_existing_before_refresh:
+        changed = ingested.materially_changed and job_id in jobs_existing_before_refresh
+        created = ingested.status in {IngestionStatus.CREATED, IngestionStatus.POSSIBLE_MATCH}
+        if changed:
             changed_existing.add(job_id)
         if ingested.job_source_id is not None:
             seen_source_ids.add(ingested.job_source_id)
-        if ingested.status in {IngestionStatus.CREATED, IngestionStatus.POSSIBLE_MATCH}:
+        if created:
             created_ids.add(job_id)
+        if offer.provider in excluded_providers:
+            continue  # Store shared source facts without evaluating them for this candidate.
+        if created or changed:
+            new_or_changed_in_scope.add(job_id)
         if old_match_id is not None and old_match_id != job_id:
             # Deduplication made a different identity decision than the read-only
             # precheck. Don't merge or transfer any user state in this workflow.
@@ -485,7 +496,7 @@ def refresh_opportunities(
         retry_pending=retry_pending,
     )
     # An unchanged job with a current evaluation, or a hard reject, cannot become an alert now.
-    summary.alert_candidate_job_ids = created_ids | changed_existing | {
+    summary.alert_candidate_job_ids = new_or_changed_in_scope | {
         result.job_id
         for result in results
         if result.outcome not in {EvaluationOutcome.CURRENT, EvaluationOutcome.DETERMINISTIC_SKIP}
@@ -823,15 +834,17 @@ def list_opportunities(
     output: list[tuple[tuple[Any, ...], Opportunity]] = []
     company_filter = normalize_company_name(company) if company else None
     tech_filter = technology.casefold().strip() if technology else None
+    excluded_providers = sector_excluded_providers(candidate.preferences.sector)
     for job in jobs:
+        sources = [source for source in job.sources if source.provider not in excluded_providers]
         source_snapshots = [
             _prepare_from_source(job, source, candidate, identity)
-            for source in sorted(job.sources, key=_source_order)
+            for source in sorted(sources, key=_source_order)
         ]
         source_snapshots = [item for item in source_snapshots if item is not None]
         if not source_snapshots:
             continue
-        if job.sources and all(source.closed_at is not None for source in job.sources) and not include_closed:
+        if all(source.closed_at is not None for source in sources) and not include_closed:
             continue  # no longer listed anywhere we fully fetch
         fingerprints = {item.fingerprint for item in source_snapshots}
         evaluations = evaluations_by_job.get(job.id, [])
@@ -1405,7 +1418,7 @@ def _prepare_offer(
             "raw_metadata": None,
         }
     )
-    facts = JobFacts.from_normalized_job(canonical_offer)
+    facts = JobFacts.from_normalized_job(canonical_offer, sector=candidate.preferences.sector)
     deterministic = apply_stack_gate(
         apply_exclusions(
             evaluate_job(facts, candidate), canonical_offer.title, canonical_offer.company_name, candidate.preferences
@@ -1469,6 +1482,8 @@ def _prepare_from_source(
     *,
     incoming: NormalizedJob | None = None,
 ) -> _PreparedOffer | None:
+    if source.provider in sector_excluded_providers(candidate.preferences.sector):
+        return None
     title = source.source_title or job.title
     if not title:
         return None

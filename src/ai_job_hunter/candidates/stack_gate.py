@@ -32,10 +32,10 @@ _NO_EXPERIENCE_NEEDED = re.compile(
 def stack_gate_reason(title: str, description: str | None, preferences: CandidatePreferences) -> str | None:
     """Why the offer fails the person's strict stack, or ``None`` when it passes (or the gate is off)."""
 
-    core = normalize_technology_list(preferences.core_technologies)
+    core = normalize_technology_list(preferences.core_technologies, sector=preferences.sector)
     if not core:
         return None
-    found, _required = extract_job_technologies(title, description)
+    found, _required = extract_job_technologies(title, description, sector=preferences.sector)
     if core & set(found):
         return None
     if _NO_EXPERIENCE_NEEDED.search(f"{title}\n{description or ''}"):

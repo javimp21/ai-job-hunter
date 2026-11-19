@@ -39,7 +39,7 @@ from ai_job_hunter.models import (
     OpportunityNotification,
     OpportunityNotificationStatus,
 )
-from ai_job_hunter.sectors.engine import get_template
+from ai_job_hunter.sectors.engine import DATA_ENGINEERING_SECTOR, get_template
 from ai_job_hunter.services.direct_postings import DirectPosting, paywalled_portal, search_link
 from ai_job_hunter.services.liveness import LivenessCheck
 from ai_job_hunter.services.opportunities import Opportunity, list_opportunities
@@ -651,7 +651,8 @@ def _current_opportunities(
             location=_clean_label(item.location, 120) if item.location else None,
             priority=item.priority,
             message=format_notification_message(
-                item, direct_url=direct_url, salary_guide=candidate.tuning.salary_guide
+                item, direct_url=direct_url, salary_guide=candidate.tuning.salary_guide,
+                sector=candidate.preferences.sector,
             ),
         )
         result.append(_CurrentOpportunity(item, fingerprint, preview, eligible, reason))
@@ -1103,6 +1104,7 @@ def format_notification_message(
     *,
     direct_url: str | None = None,
     salary_guide: Mapping[str, SalaryGuideEntry] | None = None,
+    sector: str = "software",
 ) -> str:
     """Build a Telegram HTML message from public job fields and fixed labels.
 
@@ -1140,7 +1142,8 @@ def format_notification_message(
             "🌍 El portal dice «remoto en todo el mundo», pero la empresa suele contratar solo en algunos países. "
             "Mira en su web en cuáles antes de aplicar y responde con sinceridad la pregunta sobre visado.",
         ])
-    strengths = _strengths(item.jev_signals)
+    role_focus = "ingeniería de datos" if sector == DATA_ENGINEERING_SECTOR else "backend"
+    strengths = _strengths(item.jev_signals, role_focus=role_focus)
     concerns = _safe_reasons(item.jev_reasons, decision, experience_unstated=_experience_unstated(item))
     bonuses = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" in label]
     concerns = [_clean_label(label, 80) for label in item.priority_adjustments if "(+" not in label] + concerns
@@ -1321,7 +1324,7 @@ def _location_warning(item: Opportunity) -> str | None:
     )
 
 
-def _strengths(signals: Any) -> list[str]:
+def _strengths(signals: Any, *, role_focus: str = "backend") -> list[str]:
     if not isinstance(signals, dict):
         return []
     strong: list[tuple[float, str]] = []
@@ -1329,7 +1332,7 @@ def _strengths(signals: Any) -> list[str]:
         signal = signals.get(key)
         value = signal.get("value") if isinstance(signal, dict) else None
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0.75:
-            strong.append((value, label))
+            strong.append((value, role_focus if key == "backend_relevance" else label))
     return [label for _, label in sorted(strong, key=lambda pair: -pair[0])[:4]]
 
 

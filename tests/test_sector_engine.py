@@ -85,6 +85,63 @@ def test_the_software_template_carries_the_stack_and_the_jev_rubric():
     assert set(RUBRIC_SPEC["questions"]) == set(RUBRIC_SPEC["question_types"])
 
 
+@pytest.mark.parametrize(
+    ("title", "fit"),
+    [
+        ("Senior Data Engineer (PySpark)", "TARGET"),
+        ("Ingeniero/a de Datos", "TARGET"),
+        ("Analytics Engineer", "TARGET"),
+        ("Data Platform Engineer", "TARGET"),
+        ("ETL Developer", "TARGET"),
+        ("Big Data Specialist", "POTENTIALLY_RELEVANT"),
+        ("Senior Engineer", "UNKNOWN"),
+        ("Data Analyst", "NON_TARGET"),
+        ("BI Developer", "NON_TARGET"),
+        ("Data Scientist", "NON_TARGET"),
+        ("Machine Learning Engineer", "NON_TARGET"),
+        ("Recruiter – Data Engineering", "NON_TARGET"),
+        ("Backend Java Engineer", "NON_TARGET"),
+    ],
+)
+def test_data_engineering_title_families(title, fit):
+    from ai_job_hunter.candidates.prefilter import title_may_be_relevant
+
+    assert classify_role_family(title, "data_engineering").fit == fit
+    assert title_may_be_relevant(title, "data_engineering") == (fit != "NON_TARGET")
+
+
+def test_data_engineering_tools_and_rubric_do_not_change_software():
+    from ai_job_hunter.candidates import load_candidate_config
+    from ai_job_hunter.candidates.profile import CandidateConfig, CandidateProfile
+    from ai_job_hunter.candidates.stack_gate import stack_gate_reason
+    from ai_job_hunter.decision_engine import build_decision_contexts
+    from ai_job_hunter.domain.normalized_job import NormalizedJob
+    from ai_job_hunter.rubric import RUBRIC_SPEC, rubric_spec_for_sector
+
+    path = Path(__file__).parents[1] / "config/examples/candidate.data-engineering.example.json"
+    candidate = load_candidate_config(path)
+    offer = NormalizedJob(
+        provider="test",
+        title="Data Engineer",
+        description="Must have Python, SQL and Apache Spark. Work with Airflow and BigQuery.",
+    )
+    default = CandidateConfig(profile=CandidateProfile())
+    [data] = build_decision_contexts([offer], candidate)
+    [software] = build_decision_contexts([offer], default)
+    assert data.facts.technologies == ("airflow", "bigquery", "python", "spark", "sql")
+    assert data.facts.required_technologies == ("python", "spark", "sql")
+    assert data.deterministic.signals.technology.matching_candidate_technologies == data.facts.technologies
+    assert not data.deterministic.signals.technology.critical_mismatches
+    assert software.facts.technologies == ("python",)
+    core = candidate.preferences.model_copy(update={"core_technologies": ["PySpark"]})
+    assert stack_gate_reason(offer.title, offer.description, core) is None
+    assert stack_gate_reason(offer.title, "Build Python APIs", core) is not None
+    rubric = rubric_spec_for_sector(candidate.preferences.sector)
+    assert rubric["version"] == "job_decision_data_engineering_v1"
+    assert "production data pipelines" in rubric["questions"]["backend_relevance"]
+    assert rubric_spec_for_sector(default.preferences.sector) == RUBRIC_SPEC
+
+
 def test_each_sector_is_judged_with_its_own_rubric_and_software_is_unchanged():
     from types import SimpleNamespace
 

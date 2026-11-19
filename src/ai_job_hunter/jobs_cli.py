@@ -146,7 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _print_prefilter(offers: list[NormalizedJob], candidate, *, show: int | None) -> None:
     evaluations = []
     for offer in offers:
-        facts = JobFacts.from_normalized_job(offer)
+        facts = JobFacts.from_normalized_job(offer, sector=candidate.preferences.sector)
         evaluations.append((offer, facts, evaluate_job(facts, candidate)))
     hard_skips = sum(result.decision is PreFilterDecision.REJECT for _, _, result in evaluations)
     eligible = [

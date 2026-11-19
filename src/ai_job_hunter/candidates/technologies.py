@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from itertools import chain
+
+from ai_job_hunter.sectors.engine import DATA_ENGINEERING_SECTOR
 
 
 # Extend this table as tests and real source text show a need. Matching is by
@@ -38,6 +41,21 @@ _TECHNOLOGY_ALIASES: dict[str, tuple[str, ...]] = {
 _COMPILED_ALIASES = {
     canonical: tuple(re.compile(pattern, re.IGNORECASE) for pattern in patterns)
     for canonical, patterns in _TECHNOLOGY_ALIASES.items()
+}
+_DATA_ENGINEERING_ALIASES = {
+    "sql": r"\bsql\b",
+    "spark": r"\b(?:apache\s+spark|pyspark|spark)\b",
+    "dbt": r"\bdbt\b",
+    "airflow": r"\b(?:apache\s+)?airflow\b",
+    "databricks": r"\bdatabricks\b",
+    "snowflake": r"\bsnowflake\b",
+    "bigquery": r"\b(?:google\s+)?bigquery\b",
+    "redshift": r"\b(?:amazon\s+)?redshift\b",
+    "flink": r"\b(?:apache\s+)?flink\b",
+}
+_DATA_ENGINEERING_PATTERNS = {
+    canonical: (re.compile(pattern, re.IGNORECASE),)
+    for canonical, pattern in _DATA_ENGINEERING_ALIASES.items()
 }
 _GO_WORD = re.compile(r"\bgo\b", re.IGNORECASE)
 _GO_DESCRIPTOR_AFTER = re.compile(
@@ -89,11 +107,16 @@ TECHNOLOGY_FAMILY: dict[str, str] = {
 }
 
 
-def normalize_technology(value: str) -> str:
+def _technology_patterns(sector: str) -> Iterator[tuple[str, tuple[re.Pattern[str], ...]]]:
+    extras = _DATA_ENGINEERING_PATTERNS if sector == DATA_ENGINEERING_SECTOR else {}
+    return chain(_COMPILED_ALIASES.items(), extras.items())
+
+
+def normalize_technology(value: str, *, sector: str = "software") -> str:
     """Map a known alias to a canonical term; normalize unknown skills gently."""
 
     normalized = " ".join(value.casefold().strip().split())
-    for canonical, compiled_patterns in _COMPILED_ALIASES.items():
+    for canonical, compiled_patterns in _technology_patterns(sector):
         if any(pattern.fullmatch(normalized) for pattern in compiled_patterns):
             return canonical
     alias_lookup = {
@@ -107,13 +130,15 @@ def normalize_technology(value: str) -> str:
     return alias_lookup.get(normalized, normalized)
 
 
-def normalize_technology_list(values: Iterable[str]) -> frozenset[str]:
-    return frozenset(normalize_technology(value) for value in values if value.strip())
+def normalize_technology_list(values: Iterable[str], *, sector: str = "software") -> frozenset[str]:
+    return frozenset(normalize_technology(value, sector=sector) for value in values if value.strip())
 
 
 def extract_job_technologies(
     title: str,
     description: str | None,
+    *,
+    sector: str = "software",
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Return explicitly mentioned and explicitly required technology names.
 
@@ -125,7 +150,7 @@ def extract_job_technologies(
     description_text = description or ""
     found: set[str] = set()
     required: set[str] = set()
-    for canonical, patterns in _COMPILED_ALIASES.items():
+    for canonical, patterns in _technology_patterns(sector):
         title_matches = [match for pattern in patterns for match in pattern.finditer(title)]
         description_matches = [
             match for pattern in patterns for match in pattern.finditer(description_text)

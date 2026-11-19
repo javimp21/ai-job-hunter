@@ -58,7 +58,11 @@ def test_invitations_are_single_use_expire_and_one_chat_has_one_account(db_sessi
     assert redeem_invitation(db_session, old.code, "300", now=NOW) == (None, "expired")
 
 
-def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_session) -> None:
+@pytest.mark.parametrize(("sector", "role", "label"), [
+    ("finance", "Contable", "Finanzas"),
+    ("data_engineering", "Data Engineer", "Ingeniería de datos"),
+])
+def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_session, sector, role, label) -> None:
     _, user = new_user(db_session)
 
     assert "¿Aceptas?" in say(db_session, user, kind="text", text="hola")[0].text
@@ -71,9 +75,11 @@ def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_ses
     say(db_session, user, kind="press", data="ob:confirm:fix")
     fixed = say(db_session, user, kind="text", text="llevo 3 años")[0]
     assert "3" in fixed.text
-    say(db_session, user, kind="press", data="ob:confirm:yes")
-    say(db_session, user, kind="press", data="ob:sector:finance")
-    say(db_session, user, kind="text", text="Contable")
+    question = say(db_session, user, kind="press", data="ob:confirm:yes")[0]
+    button = next(button for row in question.buttons for button in row if button.data == f"ob:sector:{sector}")
+    assert label in button.label
+    say(db_session, user, kind="press", data=button.data)
+    say(db_session, user, kind="text", text=role)
     say(db_session, user, kind="text", text="Madrid, Barcelona")
     say(db_session, user, kind="press", data="ob:reloc:no")
     assert "no podemos asegurar" in say(db_session, user, kind="text", text="28k €")[0].text
@@ -84,7 +90,7 @@ def test_the_whole_conversation_ends_with_a_validated_profile_and_a_trial(db_ses
     assert "Listo" in done.text and user.status == "ACTIVE"
     assert user.trial_ends_at - user.trial_started_at == timedelta(days=7) and user.onboarding["step"] == "done"
     config = load_profile(db_session, user)
-    assert config.preferences.sector == "finance" and config.preferences.preferred_roles == ["Contable"]
+    assert config.preferences.sector == sector and config.preferences.preferred_roles == [role]
     assert config.preferences.acceptable_locations == ["Madrid", "Barcelona"]
     assert config.preferences.minimum_salary == 28000
     assert config.preferences.remote_preference.value == "HYBRID_OR_REMOTE"
