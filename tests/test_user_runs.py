@@ -1,16 +1,21 @@
 from datetime import UTC, datetime, timedelta
+from itertools import product
 
+import httpx
 import pytest
 from sqlalchemy import select
+from test_european_job_portals import JOBR_FEED, JOBR_JOB
 from test_opportunity_service import FakeEngine, _install_fetch, _monitor_company, _offer
 
 from ai_job_hunter.candidates import CandidateConfig, CandidateProfile
+from ai_job_hunter.candidates.profile import CandidatePreferences
 from ai_job_hunter.db.user_context import acting_as
 from ai_job_hunter.decision_engine import DecisionCache
 from ai_job_hunter.models import Job, JobEvaluation, JobSource, OpportunityNotification, User
 from ai_job_hunter.services.notifications import TelegramSendResult
 from ai_job_hunter.services import opportunities
-from ai_job_hunter.services.opportunities import refresh_opportunities
+from ai_job_hunter.services.job_portals import due_portals, parse_portal_names
+from ai_job_hunter.services.opportunities import list_opportunities, refresh_opportunities
 from ai_job_hunter.services.user_runs import TRIAL_ENDED_TEXT, run_for_users
 from ai_job_hunter.services.users import ensure_owner, save_profile
 
@@ -110,6 +115,63 @@ def test_an_ended_trial_stops_the_alerts_once_and_says_so(world, db_session) -> 
 
     assert first[str(people["old"])].trial_ended and str(people["old"]) not in second
     assert db_session.get(User, people["old"]).status == "TRIAL_ENDED"
+
+
+def test_jobr_data_is_ingested_once_and_only_reaches_the_data_engineering_guest(world, db_session, monkeypatch) -> None:
+    owner, people, tmp_path, now = world
+    data_candidate = CandidateConfig(
+        profile=CandidateProfile(current_country="Spain", current_city="Madrid", years_of_experience=4,
+                                 technologies=["SQL", "PySpark"], languages=["Spanish", "English"]),
+        preferences=CandidatePreferences(sector="data_engineering", preferred_roles=["Data Engineer"],
+                                         acceptable_locations=["Madrid"]),
+    )
+    save_profile(db_session, db_session.get(User, people["ana"]), data_candidate)
+    db_session.commit()
+    requests = []
+    listing = (
+        JOBR_JOB.replace("Backend Engineer", "Data Engineer").replace("backend-engineer", "data-engineer")
+        .replace("2026-11-18T18:30:15.000Z", now.isoformat())
+        .replace(
+            "Build Python APIs &amp; PostgreSQL\x02 services.</p><p>Fluent German required.",
+            "Minimum 2 years of professional experience required. " + "Build production pipelines with SQL and Spark. " * 40,
+        )
+    )
+    outside = listing.replace("123456", "123457").replace("Madrid, Spain", "New York, USA")
+
+    def handler(request):
+        requests.append((request.url.params["location"], request.url.params["role"]))
+        assert str(request.url.copy_with(query=None)) == JOBR_FEED
+        assert "authorization" not in request.headers
+        return httpx.Response(200, text=f"<jobs>{listing}{outside}</jobs>")
+
+    engine = FakeEngine()
+    state = tmp_path / "portal-state.json"
+    portals = parse_portal_names("jobr_data")
+    before = {row.id for row in evaluations_of(db_session, owner.id)}
+    monkeypatch.setattr(opportunities, "active_monitor_targets", lambda *args, **kwargs: [])
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client, acting_as(owner.id):
+        default = CandidateConfig(profile=CandidateProfile())
+        summary = refresh_opportunities(
+            db_session, default, portals=portals, portal_state_path=state, client=client,
+            engine=engine, cache=DecisionCache(tmp_path / "owner-data.local.json"),
+        )
+        assert not summary.failures and summary.jobs_fetched == summary.new_jobs == 2
+        assert not summary.alert_candidate_job_ids and not engine.calls
+        assert {row.id for row in evaluations_of(db_session, owner.id)} == before
+        assert all("data-engineer" not in (item.url or "") for item in list_opportunities(db_session, default))
+        db_session.rollback()
+
+    assert requests == list(product(("ES", "IE", "NL", "CH", "GB"), ("Data Engineer", "Analytics Engineer")))
+    assert due_portals(portals, state_path=state) == []
+    outbox = Outbox()
+    results = {row.user_id: row for row in run(db_session, world, outbox, engine)}
+    assert results[people["ana"]].error is None and results[people["bea"]].error is None
+    assert results[people["ana"]].candidates == results[people["bea"]].candidates + 2
+    assert engine.calls.count("123456") == 1 and "123457" not in engine.calls
+    data_messages = [(chat, message) for chat, message in outbox.sent if "Data Engineer" in message]
+    assert len(data_messages) == 1 and data_messages[0][0] == "200"
+    assert "https://jobr.pro/job/123456/data-engineer" in data_messages[0][1]
+    assert "ingeniería de datos" in data_messages[0][1]
     assert [text for chat, text in outbox.sent if chat == "400"] == [TRIAL_ENDED_TEXT]
 
 

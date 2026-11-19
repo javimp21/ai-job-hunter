@@ -387,7 +387,7 @@ def _run_monitor(args, session) -> None:
             print(f"JEV ELIGIBLE AFTER PREFILTER: {target.company_name} | NOT RUN (no candidate config)")
     else:
         for offer in offers:
-            facts = JobFacts.from_normalized_job(offer)
+            facts = JobFacts.from_normalized_job(offer, sector=args.candidate.preferences.sector)
             result = evaluate_job(facts, args.candidate)
             prefilter_by_job[id(offer)] = (result.decision, facts)
         for target in targets:

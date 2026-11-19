@@ -1,7 +1,7 @@
 """Versioned prompts and score anchors for the job-decision question set.
 
-The wording lives in the sector template (``sectors/templates/<sector>.json``); the names below are the software
-template's, which is the only one the engine evaluates with so far.
+The wording lives in the sector template (``sectors/templates/<sector>.json``); the constants below are the software
+defaults.
 """
 
 from __future__ import annotations

@@ -1,0 +1,107 @@
+{
+  "id": "data_engineering",
+  "label": "Ingeniería de datos",
+  "regexes": {
+    "data_delivery": "\\b(?:data[ -]+(?:(?:platform|infrastructure|pipeline|warehouse|streaming)[ -]+)?(?:engineer(?:ing|s)?|architects?|developers?)|(?:analytics|etl|elt)[ -]+(?:engineers?|developers?)|(?:ingenier[oa](?:/a)?|ingenier[ií]a|desarrollador[ae]?(?:/a)?|arquitect[oa](?:/a)?) (?:de |en )?(?:plataformas? de )?datos)\\b",
+    "commercial": "\\b(?:sales (?:engineer|manager|representative)|account executive|recruiter|talent acquisition|recruiting|responsable comercial|t[eé]cnic[oa] de selecci[oó]n)\\b",
+    "related_data": "\\b(?:big data|data platform|data warehouse|data infrastructure|etl|elt|lakehouse|plataforma de datos|almac[eé]n de datos)\\b",
+    "other_data": "\\b(?:data scien(?:ce|tists?)|data analys(?:t|ts|is)|analista(?:s)? de datos|cient[ií]fic[oa]s? de datos|business intelligence|bi (?:engineer|developer|analyst)|machine learning engineer|ml engineer|ingenier[oa] de (?:ia|machine learning))\\b",
+    "other_work": "\\b(?:backend|back[ -]end|frontend|front[ -]end|full[ -]?stack|devops|sre|accountant|contable)\\b"
+  },
+  "rules": [
+    {
+      "id": "commercial",
+      "when": {"regex": "commercial"},
+      "fit": "NON_TARGET",
+      "family": "sales, marketing or recruitment",
+      "reason": "Title belongs to the non-target {family} role family."
+    },
+    {
+      "id": "data_delivery",
+      "when": {"regex": "data_delivery"},
+      "fit": "TARGET",
+      "family": "data engineering",
+      "reason": "Title names a {family} role."
+    },
+    {
+      "id": "data_platform",
+      "when": {"regex": "related_data"},
+      "fit": "POTENTIALLY_RELEVANT",
+      "family": "data platforms and integration",
+      "reason": "Role family '{family}' is only potentially relevant; review whether the work is {focus}.",
+      "focus": "building or operating production data pipelines and platforms"
+    },
+    {
+      "id": "other_data",
+      "when": {"regex": "other_data"},
+      "fit": "NON_TARGET",
+      "family": "analysis, reporting, data science or machine learning",
+      "reason": "Title belongs to the non-target {family} role family."
+    },
+    {
+      "id": "other_work",
+      "when": {"regex": "other_work"},
+      "fit": "NON_TARGET",
+      "family": "work outside data engineering",
+      "reason": "Title belongs to the non-target {family} role family."
+    },
+    {
+      "id": "ambiguous",
+      "when": {"true": true},
+      "fit": "UNKNOWN",
+      "family": "unknown",
+      "reason": "Title does not establish a data engineering role."
+    }
+  ],
+  "stack": {
+    "core": ["sql", "python", "spark", "dbt", "airflow", "databricks", "snowflake"],
+    "adjacent": ["scala", "kafka", "aws", "azure", "gcp", "bigquery", "redshift", "flink", "postgresql"],
+    "penalized": [],
+    "core_label": "de ingeniería de datos",
+    "penalized_label": "ajeno a ingeniería de datos"
+  },
+  "rubric": {
+    "version": "job_decision_data_engineering_v1",
+    "question_types": {
+      "role_relevance": "noul",
+      "experience_accessibility": "noul",
+      "backend_relevance": "score",
+      "stack_transferability": "noul",
+      "requirements_flexibility": "noul",
+      "career_value": "score",
+      "observable_role_quality": "score"
+    },
+    "questions": {
+      "role_relevance": "Is this role substantively suited to the candidate's data engineering search? Use the actual work: production ingestion, ETL or ELT, transformation, orchestration, streaming, warehouse or lakehouse development, data quality, or ownership of data platforms. Analytics engineering is relevant when building and testing production data models or transformations is central. Dashboarding, ad hoc SQL analysis, data science, model training, and application backend development are not data engineering by themselves.",
+      "experience_accessibility": "Given the candidate's experience and the stated requirements, is this role accessible? Read years, level, and the expected autonomy or ownership together. Distinguish required production experience from preferences and do not assume missing experience.",
+      "backend_relevance": "How central is hands-on engineering of production data pipelines, data models, or data platforms to the job? Use responsibilities and deliverables, not the title, employer, or mere mentions of SQL or Python. Reporting, model research, and building application APIs do not count by themselves.",
+      "stack_transferability": "Can the candidate's stated skills transfer to the role's core data engineering work? Consider SQL modeling, Python or Scala, batch or stream processing, orchestration, cloud storage and compute, and warehouses. Distinguish transferable concepts from explicit vendor-specific requirements; when the posting does not describe the stack enough, answer unknown.",
+      "requirements_flexibility": "Can the candidate reasonably apply despite missing a listed tool or requirement? Distinguish mandatory experience or certifications from examples, equivalent tools, or nice-to-haves. Do not assume unstated flexibility.",
+      "career_value": "How much growth in data engineering does the posting itself show? Look for ownership, scale, platform architecture, reliability, mentorship, or opportunities to design production data systems. Do not infer growth from the employer's name.",
+      "observable_role_quality": "Using only the posting, how clearly does it describe the data team, responsibilities, platform, scope, seniority, and expectations? Do not infer compensation, culture, team quality, or reputation."
+    },
+    "score_criteria": {
+      "backend_relevance": [
+        "No production data engineering work is described.",
+        "Mostly reporting, analysis, model development, or application features with incidental data tasks.",
+        "Some production pipeline or data modeling work, but another function owns the core deliverables.",
+        "Production transformations, pipelines, or platform operations are central responsibilities.",
+        "Design or ownership of production data pipelines, models, or platforms is the primary responsibility."
+      ],
+      "career_value": [
+        "No evidence of data engineering growth.",
+        "Narrow routine work with little ownership or learning described.",
+        "Some data engineering ownership, learning, or mentoring is described.",
+        "Clear ownership plus relevant technical growth or mentoring.",
+        "Specific evidence of growth across several areas, such as design, reliability, scale, and mentorship."
+      ],
+      "observable_role_quality": [
+        "Almost no concrete role information.",
+        "Generic duties with little information about the data work.",
+        "Some concrete duties, but major scope or requirements remain unclear.",
+        "Clear data deliverables, responsibilities, and level.",
+        "Specific, coherent data deliverables, scope, stack, team context, and expectations."
+      ]
+    }
+  }
+}

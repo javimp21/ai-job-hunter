@@ -31,6 +31,7 @@ from ai_job_hunter.services.notifications import (
     send_notifications,
 )
 from ai_job_hunter.services.onboarding import RETENTION_DAYS
+from ai_job_hunter.services.job_portals import sector_excluded_providers
 from ai_job_hunter.services.opportunities import reevaluate_jobs
 from ai_job_hunter.services.user_erasure import erase_user
 from ai_job_hunter.services.users import load_profile
@@ -118,7 +119,7 @@ def _run_one(
     held = alerts_held(candidate, now=moment, timezone=user.timezone or "Europe/Madrid")
     if held == "paused_until":
         return  # a pause: nothing is evaluated or sent, and what appears meanwhile is not alerted afterwards
-    job_ids = _jobs_to_evaluate(session, moment, max_age_days, max_candidates)
+    job_ids = _jobs_to_evaluate(session, moment, max_age_days, max_candidates, candidate.preferences.sector)
     result.candidates = len(job_ids)
     if job_ids:
         spent = session.scalar(
@@ -156,12 +157,14 @@ def _adapt_and_announce(session: Session, provider: NotificationProvider, user: 
         )
 
 
-def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, limit: int) -> list:
+def _jobs_to_evaluate(session: Session, moment: datetime, max_age_days: int, limit: int, sector: str) -> list:
     """Recent open offers this person has no final evaluation for (newest first); budget-deferred ones are retried."""
 
     since = moment - timedelta(days=max_age_days)
     recent = select(JobSource.job_id).where(
-        JobSource.closed_at.is_(None), JobSource.discovered_at >= since, JobSource.provider.not_in(OWNER_ONLY_PROVIDERS)
+        JobSource.closed_at.is_(None),
+        JobSource.discovered_at >= since,
+        JobSource.provider.not_in((*OWNER_ONLY_PROVIDERS, *sector_excluded_providers(sector))),
     )
     done = select(JobEvaluation.job_id).where(JobEvaluation.status == EvaluationStatus.EVALUATED.value)
     return list(

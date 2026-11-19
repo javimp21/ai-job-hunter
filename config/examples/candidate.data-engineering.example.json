@@ -1,0 +1,25 @@
+{
+  "profile": {
+    "years_of_experience": 4,
+    "current_role": "Data Engineer",
+    "technologies": ["SQL", "Python", "PySpark", "Airflow", "BigQuery"],
+    "languages": ["Spanish", "English"],
+    "current_country": "Spain",
+    "current_city": "Madrid",
+    "work_authorization": ["Spain"],
+    "remote_work_capability": true
+  },
+  "preferences": {
+    "sector": "data_engineering",
+    "preferred_roles": ["Data Engineer", "Analytics Engineer", "Data Platform Engineer", "Ingeniero de Datos"],
+    "preferred_locations": ["Madrid"],
+    "acceptable_locations": ["Madrid"],
+    "relocation_willingness": false,
+    "remote_preference": "HYBRID_OR_REMOTE",
+    "minimum_salary": 45000,
+    "salary_currency": "EUR",
+    "salary_period": "YEAR",
+    "preferred_technologies": ["SQL", "Python", "Spark", "Airflow"],
+    "willing_to_learn_technologies": ["dbt", "Databricks"]
+  }
+}

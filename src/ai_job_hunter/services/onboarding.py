@@ -185,7 +185,7 @@ def handle(
         if sector in available_sectors():
             draft["sector"] = sector
             move("role", draft)
-            return [Reply("¿Qué puesto buscas? Por ejemplo: «Contable», «Backend Java», «Analista financiero».")]
+            return [Reply("¿Qué puesto buscas? Por ejemplo: «Contable», «Backend Java», «Data Engineer».")]
         return [_sector_question()]
 
     if step == "role":

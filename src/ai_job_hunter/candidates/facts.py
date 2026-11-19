@@ -59,7 +59,7 @@ class JobFacts:
     experience_requirements: tuple[ExperienceRequirement, ...] = ()
 
     @classmethod
-    def from_normalized_job(cls, offer: NormalizedJob) -> JobFacts:
+    def from_normalized_job(cls, offer: NormalizedJob, *, sector: str = "software") -> JobFacts:
         return cls._from_values(
             title=offer.title,
             description=offer.description,
@@ -71,6 +71,7 @@ class JobFacts:
             currency=offer.currency,
             salary_period=offer.salary_period,
             employment_type=offer.employment_type,
+            sector=sector,
         )
 
     @classmethod
@@ -112,6 +113,7 @@ class JobFacts:
         currency: str | None,
         salary_period: Any,
         employment_type: Any,
+        sector: str = "software",
     ) -> JobFacts:
         normalized = normalize_job_title(title)
         title_levels = {_seniority(token) for token in normalized.seniority}
@@ -123,7 +125,7 @@ class JobFacts:
         else:
             label = _LEVEL_LABEL.search(description or "")
             level = _seniority(label.group("level")) if label else SeniorityLevel.UNKNOWN
-        technologies, required = extract_job_technologies(title, description)
+        technologies, required = extract_job_technologies(title, description, sector=sector)
         return cls(
             title=title,
             normalized_title=" ".join(sorted(normalized.tokens)),

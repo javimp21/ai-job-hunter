@@ -401,7 +401,7 @@ def evaluate_job(facts: JobFacts, candidate: CandidateConfig) -> JobPreFilterRes
     role = _evaluate_role(facts.title, preferences)
     role_family = _classify_role_family(facts.title, preferences.sector)
     location =_evaluate_preferred_location(facts.location, preferences)
-    # The technology vocabulary is software's: a sector without a stack neither compares nor penalizes technologies.
+    # A sector without a stack neither compares nor penalizes technologies.
     compares_technology = get_template(preferences.sector).template.stack is not None
     technology = _evaluate_technology(facts, profile, preferences) if compares_technology else _NO_TECHNOLOGY
     experience = assess_experience(
@@ -1011,11 +1011,12 @@ def _evaluate_technology(
     profile: CandidateProfile,
     preferences: CandidatePreferences,
 ) -> TechnologyMatch:
-    primary = normalize_technology_list(profile.primary_skills)
-    secondary = normalize_technology_list(profile.secondary_skills)
-    technologies = normalize_technology_list(profile.technologies)
-    learnable = normalize_technology_list(preferences.willing_to_learn_technologies)
-    preferred = normalize_technology_list(preferences.preferred_technologies)
+    sector = preferences.sector
+    primary = normalize_technology_list(profile.primary_skills, sector=sector)
+    secondary = normalize_technology_list(profile.secondary_skills, sector=sector)
+    technologies = normalize_technology_list(profile.technologies, sector=sector)
+    learnable = normalize_technology_list(preferences.willing_to_learn_technologies, sector=sector)
+    preferred = normalize_technology_list(preferences.preferred_technologies, sector=sector)
     detected = set(facts.technologies)
     supported = primary | secondary | technologies
     missing = detected - supported
