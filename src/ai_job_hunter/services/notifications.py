@@ -1204,6 +1204,8 @@ _PORTAL_CREDITS = (
     ("weworkremotely.com", "We Work Remotely", "https://weworkremotely.com"),
     ("python.org", "Python.org Jobs", "https://www.python.org/jobs/"),
     ("arbetsformedlingen.se", "Arbetsförmedlingen (Platsbanken)", "https://arbetsformedlingen.se/platsbanken/"),
+    ("jobr.pro", "Jobs via Jobr", "https://jobr.pro/"),
+    ("remotebackendjobs.com", "Remote Backend Jobs", "https://www.remotebackendjobs.com/"),
 )
 
 

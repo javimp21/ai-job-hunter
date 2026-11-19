@@ -9,6 +9,7 @@ import httpx
 
 USER_AGENT = "AI-Job-Hunter/0.1 (personal job discovery)"
 _MAX_FEED_BYTES = 4_000_000
+_INVALID_XML_CONTROLS = bytes(value for value in range(32) if value not in (9, 10, 13))
 
 
 def new_client(timeout: float) -> httpx.Client:
@@ -41,9 +42,25 @@ def get_json(
 def get_rss(
     client: httpx.Client, url: str, *, portal: str, error: type[Exception], timeout: float
 ) -> ElementTree.Element:
+    root = get_xml(client, url, portal=portal, error=error, timeout=timeout)
+    if root.tag != "rss" or root.find("channel") is None:
+        raise error(f"{portal} feed is not an RSS document.")
+    return root
+
+
+def get_xml(
+    client: httpx.Client,
+    url: str,
+    *,
+    portal: str,
+    error: type[Exception],
+    timeout: float,
+    params: dict[str, Any] | None = None,
+    strip_utf8_controls: bool = False,
+) -> ElementTree.Element:
     content = bytearray()
     try:
-        with client.stream("GET", url, timeout=timeout, follow_redirects=False) as response:
+        with client.stream("GET", url, params=params, timeout=timeout, follow_redirects=False) as response:
             if response.status_code != 200:
                 raise error(f"{portal} returned HTTP {response.status_code}.")
             for chunk in response.iter_bytes():
@@ -53,17 +70,21 @@ def get_rss(
     except httpx.HTTPError as exc:
         raise error(f"{portal} request failed ({type(exc).__name__}).") from None
 
+    if strip_utf8_controls:
+        # Some UTF-8 feeds put invalid XML control characters in imported job descriptions.
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            raise error(f"{portal} feed is not valid UTF-8.") from None
+        content = content.translate(None, _INVALID_XML_CONTROLS)
     # ElementTree expands internal entities. Strip UTF-16/32 nulls when checking for a DTD.
     probe = content.replace(b"\x00", b"").upper()
     if b"<!DOCTYPE" in probe or b"<!ENTITY" in probe:
         raise error(f"{portal} feed contains a forbidden DTD declaration.")
     try:
-        root = ElementTree.fromstring(content)
+        return ElementTree.fromstring(content)
     except (ElementTree.ParseError, LookupError, ValueError):
         raise error(f"{portal} feed is not valid XML.") from None
-    if root.tag != "rss" or root.find("channel") is None:
-        raise error(f"{portal} feed is not an RSS document.")
-    return root
 
 
 def post_json(
