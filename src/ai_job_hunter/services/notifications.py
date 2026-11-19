@@ -1185,7 +1185,7 @@ def format_notification_message(
 
 
 
-# Portals whose terms require a visible credit with a link back: host suffix -> (name, link).
+# Portal credits with links back: host suffix -> (name, link).
 _PORTAL_CREDITS = (
     ("himalayas.app", "Himalayas", "https://himalayas.app"),
     ("getmanfred.com", "Manfred", "https://www.getmanfred.com"),
@@ -1202,11 +1202,13 @@ _PORTAL_CREDITS = (
     ("arbeitnow.fr", "Arbeitnow", "https://www.arbeitnow.com"),
     ("arbeitnow.ch", "Arbeitnow", "https://www.arbeitnow.com"),
     ("weworkremotely.com", "We Work Remotely", "https://weworkremotely.com"),
+    ("python.org", "Python.org Jobs", "https://www.python.org/jobs/"),
+    ("arbetsformedlingen.se", "Arbetsförmedlingen (Platsbanken)", "https://arbetsformedlingen.se/platsbanken/"),
 )
 
 
 def portal_credit(url: str | None) -> tuple[str, str] | None:
-    """The (name, link) credit owed to the portal that hosts ``url``, if any."""
+    """The (name, link) credit for the portal that hosts ``url``, if any."""
 
     host = (urlsplit(url).hostname or "").lower() if url else ""
     for suffix, name, link in _PORTAL_CREDITS:

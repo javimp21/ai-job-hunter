@@ -22,8 +22,10 @@ from ai_job_hunter.connectors.adzuna import AdzunaConnector, AdzunaConnectorErro
 from ai_job_hunter.connectors.arbeitnow import ArbeitnowConnector, ArbeitnowConnectorError
 from ai_job_hunter.connectors.fourdayweek import FourDayWeekConnector, FourDayWeekConnectorError
 from ai_job_hunter.connectors.himalayas import HimalayasConnector, HimalayasConnectorError
+from ai_job_hunter.connectors.jobtech import JobTechConnector, JobTechConnectorError
 from ai_job_hunter.connectors.manfred import ManfredConnector, ManfredConnectorError
 from ai_job_hunter.connectors.jobicy import JobicyConnector, JobicyConnectorError
+from ai_job_hunter.connectors.pythonjobs import PythonJobsConnector, PythonJobsConnectorError
 from ai_job_hunter.connectors.remoteok import RemoteOKConnector, RemoteOKConnectorError
 from ai_job_hunter.connectors.remotive import RemotiveConnector, RemotiveConnectorError
 from ai_job_hunter.connectors.fantastic_jobs import FantasticJobsConnector, FantasticJobsConnectorError
@@ -127,6 +129,18 @@ PORTALS: dict[str, PortalSpec] = {
         min_interval=timedelta(hours=4),
         build=lambda client: WeWorkRemotelyConnector(client=client),
         errors=(WeWorkRemotelyConnectorError,),
+    ),
+    "pythonjobs": PortalSpec(
+        name="pythonjobs",
+        min_interval=timedelta(hours=12),
+        build=lambda client: PythonJobsConnector(client=client),
+        errors=(PythonJobsConnectorError,),
+    ),
+    "jobtech": PortalSpec(
+        name="jobtech",
+        min_interval=timedelta(hours=12),
+        build=lambda client: JobTechConnector(client=client),
+        errors=(JobTechConnectorError,),
     ),
 }
 

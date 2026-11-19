@@ -4,7 +4,7 @@ AI Job Hunter is an intelligent job discovery, evaluation, and assisted-applicat
 
 ## Features
 
-- Job discovery from Greenhouse, Lever, Ashby, and Remotive.
+- Job discovery from company ATS boards and portals such as Remotive, with optional Python.org Jobs and Sweden's JobTech.
 - Normalization and deduplication across sources.
 - Deterministic candidate prefiltering followed by structured Jev evaluation.
 - Company Intelligence and an Opportunity Feed for finding and reviewing roles.
@@ -88,6 +88,11 @@ Refresh monitored job sources and update the opportunity feed:
 ```powershell
 ai-job-hunter refresh --limit-companies 10 --max-jev-jobs 20
 ```
+
+To include Python.org Jobs or Sweden's JobTech in `refresh` and `run`, add
+`pythonjobs` or `jobtech` to the comma-separated `JOB_PORTALS` in `.env`.
+Neither source requires an API key or an account. See the
+[portal list](docs/COMPANY_INTELLIGENCE.md#additional-portals) for coverage and polling intervals.
 
 Re-evaluate only specific stored jobs (no ATS fetch; other stale jobs are untouched). Preview first; `--dry-run` writes nothing and calls no Jev:
 
