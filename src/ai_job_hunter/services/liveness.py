@@ -23,6 +23,7 @@ from ai_job_hunter.company_leads import CareerPageDiscoveryError, _resolve_host,
 AGGREGATOR_HOSTS = (
     "adzuna.es", "adzuna.nl", "adzuna.ch", "himalayas.app", "manfred.com", "remotive.com",
     "jobicy.com", "arbeitnow.com", "4dayweek.io", "weworkremotely.com", "remoteok.com", "remoteok.io",
+    "remotebackendjobs.com",
 )
 MAX_BYTES = 400_000
 USER_AGENT = "AI-Job-Hunter/0.1 (personal job discovery)"
