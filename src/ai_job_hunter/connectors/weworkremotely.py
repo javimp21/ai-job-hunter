@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from ai_job_hunter.connectors._html import html_to_text
-from ai_job_hunter.connectors._portal_http import USER_AGENT
+from ai_job_hunter.connectors._portal_http import USER_AGENT, get_rss
 from ai_job_hunter.domain.normalized_job import EmploymentType, NormalizedJob, RemoteEligibility, RemotePolicy
 
 FEED_URL = "https://weworkremotely.com/categories/{category}.rss"
@@ -30,7 +30,6 @@ DEFAULT_CATEGORIES = (
     "remote-full-stack-programming-jobs",
     "remote-devops-sysadmin-jobs",
 )
-_MAX_FEED_BYTES = 4_000_000
 _LOCATION_LIMIT = 255
 _FLAGS = re.compile("[\U0001f1e6-\U0001f1ff]")
 _EMPLOYMENT_TYPES = {
@@ -72,7 +71,10 @@ class WeWorkRemotelyConnector:
             for index, category in enumerate(self.categories):
                 if index:
                     time.sleep(self._pause)
-                root = _parse_feed(self._get(client, category))
+                root = get_rss(
+                    client, FEED_URL.format(category=category), portal="We Work Remotely",
+                    error=WeWorkRemotelyConnectorError, timeout=self._timeout,
+                )
                 for item in root.iterfind("./channel/item"):
                     try:
                         job = _normalize_item(item, discovered_at=discovered_at)
@@ -83,31 +85,6 @@ class WeWorkRemotelyConnector:
             if self._client is None:
                 client.close()
         return list(jobs.values())
-
-    def _get(self, client: httpx.Client, category: str) -> bytes:
-        try:
-            response = client.get(FEED_URL.format(category=category), timeout=self._timeout)
-        except httpx.HTTPError as error:
-            raise WeWorkRemotelyConnectorError(f"We Work Remotely request failed ({type(error).__name__}).") from None
-        if response.status_code != 200:
-            raise WeWorkRemotelyConnectorError(f"We Work Remotely returned HTTP {response.status_code}.")
-        return response.content
-
-
-def _parse_feed(content: bytes) -> ElementTree.Element:
-    if len(content) > _MAX_FEED_BYTES:
-        raise WeWorkRemotelyConnectorError("We Work Remotely feed is too large.")
-    # Entity expansion needs a DTD; refuse any document that declares one.
-    probe = content.replace(b"\x00", b"").upper()
-    if b"<!DOCTYPE" in probe or b"<!ENTITY" in probe:
-        raise WeWorkRemotelyConnectorError("We Work Remotely feed contains a forbidden DTD declaration.")
-    try:
-        root = ElementTree.fromstring(content)
-    except ElementTree.ParseError:
-        raise WeWorkRemotelyConnectorError("We Work Remotely feed is not valid XML.") from None
-    if root.tag != "rss":
-        raise WeWorkRemotelyConnectorError("We Work Remotely feed is not an RSS document.")
-    return root
 
 
 def _normalize_item(item: ElementTree.Element, *, discovered_at: datetime) -> NormalizedJob:

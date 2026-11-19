@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # Only postings published (or first seen) within this many days alert.
     notify_max_age_days: int = Field(default=3, ge=1, le=60)
     # Comma-separated job portals queried by refresh/run (empty disables portals).
-    # Known: himalayas, manfred, adzuna, remoteok, remotive, jobicy, arbeitnow, fourdayweek, weworkremotely, theirstack, fantastic_jobs.
+    # Additional opt-in portals: remoteok, theirstack, fantastic_jobs, pythonjobs, jobtech.
     # Adzuna needs the keys below. remoteok is off by default: applying through Remote OK requires a paid plan.
     job_portals: str = "himalayas,manfred,remotive,jobicy,adzuna,arbeitnow,fourdayweek,weworkremotely"
     # Optional Adzuna credentials (https://developer.adzuna.com); the adzuna portal is skipped without them.
